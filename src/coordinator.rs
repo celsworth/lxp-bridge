@@ -63,9 +63,7 @@ impl Coordinator {
             let message = receiver.recv().await?;
             //debug!("got message {:?}", message);
 
-            //let command = message.into();
-            let command = message.to_command()?;
-
+            let command = Command::try_from(message)?;
             debug!("parsed command {:?}", command);
 
             let result = self.process_command(&command).await;
@@ -80,13 +78,13 @@ impl Coordinator {
     }
 
     async fn process_command(&self, command: &Command) -> Result<()> {
-        match command {
-            Command::ReadHold(register) => self.read_register(*register).await,
+        match *command {
+            Command::ReadHold(register) => self.read_register(register).await,
             Command::AcCharge(enable) => {
                 self.update_register(
                     Register::Register21.into(),
                     RegisterBit::AcChargeEnable,
-                    *enable,
+                    enable,
                 )
                 .await
             }
@@ -94,35 +92,33 @@ impl Coordinator {
                 self.update_register(
                     Register::Register21.into(),
                     RegisterBit::ForcedDischargeEnable,
-                    *enable,
+                    enable,
                 )
                 .await
             }
             Command::ChargeRate(pct) => {
-                self.set_register(Register::ChargePowerPercentCmd.into(), *pct)
+                self.set_register(Register::ChargePowerPercentCmd.into(), pct)
                     .await
             }
             Command::DischargeRate(pct) => {
-                self.set_register(Register::DischgPowerPercentCmd.into(), *pct)
+                self.set_register(Register::DischgPowerPercentCmd.into(), pct)
                     .await
             }
 
             Command::AcChargeRate(pct) => {
-                self.set_register(Register::AcChargePowerCmd.into(), *pct)
+                self.set_register(Register::AcChargePowerCmd.into(), pct)
                     .await
             }
 
             Command::AcChargeSocLimit(pct) => {
-                self.set_register(Register::AcChargeSocLimit.into(), *pct)
+                self.set_register(Register::AcChargeSocLimit.into(), pct)
                     .await
             }
 
             Command::DischargeCutoffSocLimit(pct) => {
-                self.set_register(Register::DischgCutOffSocEod.into(), *pct)
+                self.set_register(Register::DischgCutOffSocEod.into(), pct)
                     .await
             }
-
-            Command::Invalid(ref message) => Err(anyhow!("ignoring {:?}", message)),
         }
     }
 
@@ -132,7 +128,10 @@ impl Coordinator {
         let packet = self.make_packet(DeviceFunction::ReadHold, register);
         self.to_inverter.send(Some(packet))?;
 
-        let packet = Self::wait_for_packet(&mut receiver, register).await?;
+        Self::wait_for_packet(&mut receiver, register).await?;
+
+        // note that we don't have to send an MQTT reply here.
+        // inverter_receiver will do it for us!
 
         Ok(())
     }
@@ -212,7 +211,7 @@ impl Coordinator {
         loop {
             match receiver.try_recv() {
                 Ok(Some(packet)) => {
-                    if packet.register() == u16::from(register) {
+                    if packet.register() == register {
                         return Ok(packet);
                     }
                 }
