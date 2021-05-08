@@ -1,0 +1,11 @@
+inverter:
+  host: 127.0.0.1
+  port: 30000
+  serial: 1234567890
+  datalog: AB12345678
+
+mqtt:
+  host: nas
+  port: 1883
+  username:
+  password:
