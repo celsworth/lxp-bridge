@@ -12,7 +12,8 @@ This builds on my earlier project [Octolux](https://github.com/celsworth/octolux
 A range of binaries are provided on the Releases page, otherwise you can compile it yourself. It's written in Rust.
 
   1. [Install Rust](https://www.rust-lang.org/tools/install)
-  1. `git clone https://github.com/celsworth/octolux.git`
+  1. `git clone https://github.com/celsworth/lxp-bridge.git`
+  1. `cd lxp-bridge`
   1. `cargo build`
   1. Look in `target/` for the binary, or `cargo run` it.
 
