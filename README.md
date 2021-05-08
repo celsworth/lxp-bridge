@@ -1,5 +1,9 @@
 # lxp-bridge
 
+> **warning: this is under development and not ready for general consumption!**
+
+> more docs and features coming soon.
+
 lxp-bridge is a tool to get communications with a LuxPower inverter (commonly used with home-battery and solar setups) onto your MQTT network.
 
 It allows you to control your inverter locally without any dependence on the manufacturer's own servers in China.
