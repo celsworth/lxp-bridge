@@ -63,7 +63,9 @@ impl Coordinator {
             let message = receiver.recv().await?;
             //debug!("got message {:?}", message);
 
-            let command = message.into();
+            //let command = message.into();
+            let command = message.to_command()?;
+
             debug!("parsed command {:?}", command);
 
             let result = self.process_command(&command).await;
@@ -79,43 +81,64 @@ impl Coordinator {
 
     async fn process_command(&self, command: &Command) -> Result<()> {
         match command {
+            Command::ReadHold(register) => self.read_register(*register).await,
             Command::AcCharge(enable) => {
-                self.update_register(Register::Register21, RegisterBit::AcChargeEnable, *enable)
-                    .await
+                self.update_register(
+                    Register::Register21.into(),
+                    RegisterBit::AcChargeEnable,
+                    *enable,
+                )
+                .await
             }
             Command::ForcedDischarge(enable) => {
                 self.update_register(
-                    Register::Register21,
+                    Register::Register21.into(),
                     RegisterBit::ForcedDischargeEnable,
                     *enable,
                 )
                 .await
             }
             Command::ChargeRate(pct) => {
-                self.set_register(Register::ChargePowerPercentCmd, *pct)
+                self.set_register(Register::ChargePowerPercentCmd.into(), *pct)
                     .await
             }
             Command::DischargeRate(pct) => {
-                self.set_register(Register::DischgPowerPercentCmd, *pct)
+                self.set_register(Register::DischgPowerPercentCmd.into(), *pct)
                     .await
             }
 
-            Command::AcChargeRate(pct) => self.set_register(Register::AcChargePowerCmd, *pct).await,
+            Command::AcChargeRate(pct) => {
+                self.set_register(Register::AcChargePowerCmd.into(), *pct)
+                    .await
+            }
 
             Command::AcChargeSocLimit(pct) => {
-                self.set_register(Register::AcChargeSocLimit, *pct).await
+                self.set_register(Register::AcChargeSocLimit.into(), *pct)
+                    .await
             }
 
             Command::DischargeCutoffSocLimit(pct) => {
-                self.set_register(Register::DischgCutOffSocEod, *pct).await
+                self.set_register(Register::DischgCutOffSocEod.into(), *pct)
+                    .await
             }
 
             Command::Invalid(ref message) => Err(anyhow!("ignoring {:?}", message)),
         }
     }
 
+    async fn read_register(&self, register: u16) -> Result<()> {
+        let mut receiver = self.from_inverter.subscribe();
+
+        let packet = self.make_packet(DeviceFunction::ReadHold, register);
+        self.to_inverter.send(Some(packet))?;
+
+        let packet = Self::wait_for_packet(&mut receiver, register).await?;
+
+        Ok(())
+    }
+
     // TODO: could merge with update_register?
-    async fn set_register(&self, register: Register, value: u16) -> Result<()> {
+    async fn set_register(&self, register: u16, value: u16) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
         let mut packet = self.make_packet(DeviceFunction::WriteSingle, register);
@@ -135,12 +158,7 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn update_register(
-        &self,
-        register: Register,
-        bit: RegisterBit,
-        enable: bool,
-    ) -> Result<()> {
+    async fn update_register(&self, register: u16, bit: RegisterBit, enable: bool) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
         // get register from inverter
@@ -172,7 +190,7 @@ impl Coordinator {
         Ok(())
     }
 
-    fn make_packet(&self, function: DeviceFunction, register: Register) -> Packet {
+    fn make_packet(&self, function: DeviceFunction, register: u16) -> Packet {
         let mut packet = Packet::new();
 
         packet.set_tcp_function(TcpFunction::TranslatedData);
@@ -187,7 +205,7 @@ impl Coordinator {
 
     async fn wait_for_packet(
         receiver: &mut tokio::sync::broadcast::Receiver<Option<Packet>>,
-        register: Register,
+        register: u16,
     ) -> Result<Packet> {
         let start = std::time::Instant::now();
 

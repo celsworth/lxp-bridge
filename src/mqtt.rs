@@ -47,6 +47,38 @@ impl Message {
         Ok(message)
     }
 
+    pub fn to_command(&self) -> Result<Command> {
+        let parts: Vec<&str> = self.topic.split('/').collect();
+        // drop lxp/cmd
+        match parts[2..] {
+            ["read_hold", register] => {
+                let r: u16 = register.parse()?;
+                Ok(Command::ReadHold(r))
+            }
+
+            ["ac_charge"] => Ok(Command::AcCharge(self.payload_bool())),
+
+            ["forced_discharge"] => Ok(Command::ForcedDischarge(self.payload_bool())),
+
+            ["charge_pct"] | ["charge_rate_pct"] => Ok(Command::ChargeRate(self.payload_percent())),
+            ["discharge_pct"] | ["discharge_rate_pct"] => {
+                Ok(Command::DischargeRate(self.payload_percent()))
+            }
+
+            ["ac_charge_rate_pct"] => Ok(Command::AcChargeRate(self.payload_percent())),
+
+            ["charge_amount_pct"] | ["ac_charge_soc_limit_pct"] => {
+                Ok(Command::AcChargeSocLimit(self.payload_percent()))
+            }
+
+            ["discharge_cutoff_soc_limit_pct"] => {
+                Ok(Command::DischargeCutoffSocLimit(self.payload_percent()))
+            }
+
+            [..] => Err(anyhow!("unhandled: {:?}", parts)),
+        }
+    }
+
     pub fn payload_percent(&self) -> u16 {
         // TODO cap at 0-100, return Result?
         self.payload.parse::<u16>().unwrap_or(100)
@@ -97,7 +129,10 @@ impl Mqtt {
 
         info!("mqtt connected!");
 
-        client.subscribe("lxp/cmd/#", QoS::AtMostOnce).await?;
+        client.subscribe("lxp/cmd/+", QoS::AtMostOnce).await?;
+        client
+            .subscribe("lxp/cmd/read_hold/+", QoS::AtMostOnce)
+            .await?;
 
         futures::try_join!(self.receiver(eventloop), self.sender(client))?;
 

@@ -3,6 +3,7 @@ use crate::prelude::*;
 #[derive(Debug)]
 pub enum Command {
     Invalid(Message),
+    ReadHold(u16),
     ChargeRate(u16),
     DischargeRate(u16),
     AcCharge(bool),
@@ -49,6 +50,7 @@ impl From<Message> for Command {
 impl Command {
     pub fn mqtt_topic(&self) -> &str {
         match self {
+            Command::ReadHold(_) => "read_hold",
             Command::AcCharge(_) => "ac_charge",
             Command::ForcedDischarge(_) => "forced_discharge",
             Command::ChargeRate(_) => "charge_rate_pct",
