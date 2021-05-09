@@ -1,7 +1,5 @@
 use crate::prelude::*;
 
-use tokio::sync::broadcast::error::TryRecvError;
-
 // the coordinator takes messages from both MQ and the inverter and decides
 // what to do with them.
 //
@@ -12,11 +10,11 @@ use tokio::sync::broadcast::error::TryRecvError;
 pub struct Coordinator {
     config: Rc<Config>,
     pub inverter: Inverter,
-    pub mqtt: Mqtt,
-    from_inverter: PacketSender,
-    to_inverter: PacketSender,
-    from_mqtt: MessageSender,
-    to_mqtt: MessageSender,
+    pub mqtt: mqtt::Mqtt,
+    from_inverter: lxp::inverter::PacketSender,
+    to_inverter: lxp::inverter::PacketSender,
+    from_mqtt: mqtt::MessageSender,
+    to_mqtt: mqtt::MessageSender,
 }
 
 impl Coordinator {
@@ -34,7 +32,7 @@ impl Coordinator {
         );
 
         // process messages from/to MQTT, passing Messages
-        let mqtt = Mqtt::new(Rc::clone(&config), to_mqtt.clone(), from_mqtt.clone());
+        let mqtt = mqtt::Mqtt::new(Rc::clone(&config), to_mqtt.clone(), from_mqtt.clone());
 
         Self {
             config,
@@ -63,21 +61,34 @@ impl Coordinator {
             let message = receiver.recv().await?;
             //debug!("got message {:?}", message);
 
-            let command = Command::try_from(message)?;
-            debug!("parsed command {:?}", command);
+            let c = Command::try_from(message);
+            match c {
+                Ok(command) => {
+                    debug!("parsed command {:?}", command);
 
-            let result = self.process_command(&command).await;
+                    let result = self.process_command(&command).await;
 
-            self.to_mqtt
-                .send(Message::from_command_result(&command, result.is_ok()))?;
+                    self.to_mqtt.send(mqtt::Message::command_result(
+                        command.mqtt_topic(),
+                        result.is_ok(),
+                    ))?;
 
-            if let Err(err) = result {
-                error!("{:?}: {:?}", command, err);
+                    if let Err(err) = result {
+                        error!("{:?}: {:?}", command, err);
+                    }
+                }
+                Err(err) => {
+                    // TODO need to send a FAIL here really
+                    error!("{:?}", err);
+                }
             }
         }
     }
 
     async fn process_command(&self, command: &Command) -> Result<()> {
+        use lxp::packet::Register;
+        use lxp::packet::RegisterBit;
+
         match *command {
             Command::ReadHold(register) => self.read_register(register).await,
             Command::AcCharge(enable) => {
@@ -125,7 +136,7 @@ impl Coordinator {
     async fn read_register(&self, register: u16) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
-        let packet = self.make_packet(DeviceFunction::ReadHold, register);
+        let packet = self.make_packet(lxp::packet::DeviceFunction::ReadHold, register);
         self.to_inverter.send(Some(packet))?;
 
         Self::wait_for_packet(&mut receiver, register).await?;
@@ -140,7 +151,7 @@ impl Coordinator {
     async fn set_register(&self, register: u16, value: u16) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
-        let mut packet = self.make_packet(DeviceFunction::WriteSingle, register);
+        let mut packet = self.make_packet(lxp::packet::DeviceFunction::WriteSingle, register);
         packet.set_value(value);
         self.to_inverter.send(Some(packet))?;
 
@@ -157,11 +168,16 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn update_register(&self, register: u16, bit: RegisterBit, enable: bool) -> Result<()> {
+    async fn update_register(
+        &self,
+        register: u16,
+        bit: lxp::packet::RegisterBit,
+        enable: bool,
+    ) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
         // get register from inverter
-        let packet = self.make_packet(DeviceFunction::ReadHold, register);
+        let packet = self.make_packet(lxp::packet::DeviceFunction::ReadHold, register);
         self.to_inverter.send(Some(packet))?;
 
         let packet = Self::wait_for_packet(&mut receiver, register).await?;
@@ -172,7 +188,7 @@ impl Coordinator {
         };
 
         // new packet to set register with a new value
-        let mut packet = self.make_packet(DeviceFunction::WriteSingle, register);
+        let mut packet = self.make_packet(lxp::packet::DeviceFunction::WriteSingle, register);
         packet.set_value(value);
         self.to_inverter.send(Some(packet))?;
 
@@ -189,21 +205,21 @@ impl Coordinator {
         Ok(())
     }
 
-    fn make_packet(&self, function: DeviceFunction, register: u16) -> Packet {
+    fn make_packet(&self, function: lxp::packet::DeviceFunction, register: u16) -> Packet {
         let mut packet = Packet::new();
 
-        packet.set_tcp_function(TcpFunction::TranslatedData);
+        packet.set_tcp_function(lxp::packet::TcpFunction::TranslatedData);
         packet.set_device_function(function);
         packet.set_datalog(&self.config.inverter.datalog);
         packet.set_serial(&self.config.inverter.serial);
-        packet.set_register(register.into());
+        packet.set_register(register);
         packet.set_value(1);
 
         packet
     }
 
     async fn wait_for_packet(
-        receiver: &mut tokio::sync::broadcast::Receiver<Option<Packet>>,
+        receiver: &mut broadcast::Receiver<Option<Packet>>,
         register: u16,
     ) -> Result<Packet> {
         let start = std::time::Instant::now();
@@ -216,7 +232,7 @@ impl Coordinator {
                     }
                 }
                 Ok(None) => return Err(anyhow!("inverter disconnect?")),
-                Err(TryRecvError::Empty) => {} // ignore and loop
+                Err(broadcast::error::TryRecvError::Empty) => {} // ignore and loop
                 Err(err) => return Err(anyhow!("try_recv error: {:?}", err)),
             }
 
@@ -234,16 +250,17 @@ impl Coordinator {
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
             if let Some(packet) = receiver.recv().await? {
+                // returns a Vec of messages to send. could be none;
                 // not every packet needs an MQ message (eg, heartbeats)
-                if let Some(message) = Message::from_packet(packet)? {
+                for message in mqtt::Message::from_packet(packet)? {
                     self.to_mqtt.send(message)?;
                 }
             }
         }
     }
 
-    fn channel<T: Clone>() -> tokio::sync::broadcast::Sender<T> {
-        let (tx, _) = tokio::sync::broadcast::channel(16);
+    fn channel<T: Clone>() -> broadcast::Sender<T> {
+        let (tx, _) = broadcast::channel(16);
         tx
     }
 }

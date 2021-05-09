@@ -10,9 +10,9 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn from_command_result(command: &Command, success: bool) -> Self {
+    pub fn command_result(final_part: &str, success: bool) -> Self {
         let mut topic = "lxp/result/".to_owned();
-        topic.push_str(command.mqtt_topic());
+        topic.push_str(&final_part);
 
         let payload = match success {
             true => "OK",
@@ -20,36 +20,47 @@ impl Message {
         }
         .to_string();
 
-        Message { topic, payload }
+        Self { topic, payload }
     }
 
-    pub fn from_packet(packet: Packet) -> Result<Option<Self>> {
-        let message = match packet.packet_type() {
-            PacketType::Heartbeat => None,
-            PacketType::ReadHold => Some(Message {
-                topic: format!("lxp/hold/{}", packet.register()),
-                payload: serde_json::to_string(&packet.value())?,
-            }),
-            PacketType::ReadInput1 => Some(Message {
+    pub fn from_packet(packet: Packet) -> Result<Vec<Self>> {
+        use lxp::packet::PacketType;
+
+        let mut r = Vec::new();
+
+        match packet.packet_type() {
+            PacketType::Heartbeat => {}
+            PacketType::ReadHold => {
+                for pair in packet.pairs() {
+                    r.push(Self {
+                        topic: format!("lxp/hold/{}", pair.register),
+                        payload: serde_json::to_string(&pair.value)?,
+                    });
+                }
+            }
+            PacketType::ReadInput1 => r.push(Self {
                 topic: "lxp/inputs/1".to_owned(),
                 payload: serde_json::to_string(&packet.read_input1()?)?,
             }),
-            PacketType::ReadInput2 => Some(Message {
+            PacketType::ReadInput2 => r.push(Self {
                 topic: "lxp/inputs/2".to_owned(),
                 payload: serde_json::to_string(&packet.read_input2()?)?,
             }),
-            PacketType::ReadInput3 => Some(Message {
+            PacketType::ReadInput3 => r.push(Self {
                 topic: "lxp/inputs/3".to_owned(),
                 payload: serde_json::to_string(&packet.read_input3()?)?,
             }),
         };
 
-        Ok(message)
+        Ok(r)
     }
 
-    pub fn payload_percent(&self) -> u16 {
-        // TODO cap at 0-100, return Result?
-        self.payload.parse::<u16>().unwrap_or(100)
+    pub fn payload_percent(&self) -> Result<u16> {
+        match self.payload.parse() {
+            Ok(i) if i <= 100 => Ok(i),
+            Ok(i) => Err(anyhow!("{} is too high (max 100)", i)),
+            Err(err) => Err(anyhow!("payload_percent: {}", err)),
+        }
     }
 
     pub fn payload_bool(&self) -> bool {
@@ -60,13 +71,13 @@ impl Message {
     }
 } // }}}
 
+pub type MessageSender = broadcast::Sender<Message>;
+
 pub struct Mqtt {
     config: Rc<Config>,
     from_coordinator: MessageSender,
     to_coordinator: MessageSender,
 }
-
-pub type MessageSender = tokio::sync::broadcast::Sender<Message>;
 
 impl Mqtt {
     pub fn new(

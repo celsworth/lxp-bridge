@@ -12,10 +12,10 @@ pub enum Command {
     DischargeCutoffSocLimit(u16),
 }
 
-impl TryFrom<Message> for Command {
+impl TryFrom<mqtt::Message> for Command {
     type Error = anyhow::Error;
 
-    fn try_from(message: Message) -> Result<Command> {
+    fn try_from(message: mqtt::Message) -> Result<Command> {
         let parts: Vec<&str> = message.topic.split('/').collect();
         let parts = &parts[2..]; // drop lxp/cmd
 
@@ -27,20 +27,16 @@ impl TryFrom<Message> for Command {
 
             ["forced_discharge"] => Ok(Command::ForcedDischarge(message.payload_bool())),
 
-            ["charge_pct"] | ["charge_rate_pct"] => {
-                Ok(Command::ChargeRate(message.payload_percent()))
-            }
-            ["discharge_pct"] | ["discharge_rate_pct"] => {
-                Ok(Command::DischargeRate(message.payload_percent()))
-            }
-            ["ac_charge_rate_pct"] => Ok(Command::AcChargeRate(message.payload_percent())),
+            ["charge_rate_pct"] => Ok(Command::ChargeRate(message.payload_percent()?)),
+            ["discharge_rate_pct"] => Ok(Command::DischargeRate(message.payload_percent()?)),
+            ["ac_charge_rate_pct"] => Ok(Command::AcChargeRate(message.payload_percent()?)),
 
-            ["charge_amount_pct"] | ["ac_charge_soc_limit_pct"] => {
-                Ok(Command::AcChargeSocLimit(message.payload_percent()))
+            ["ac_charge_soc_limit_pct"] => {
+                Ok(Command::AcChargeSocLimit(message.payload_percent()?))
             }
 
             ["discharge_cutoff_soc_limit_pct"] => {
-                Ok(Command::DischargeCutoffSocLimit(message.payload_percent()))
+                Ok(Command::DischargeCutoffSocLimit(message.payload_percent()?))
             }
 
             [..] => Err(anyhow!("unhandled: {:?}", parts)),

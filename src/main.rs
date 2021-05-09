@@ -1,8 +1,8 @@
 mod command;
 mod config;
 mod coordinator;
-mod lxp;
-mod mqtt;
+pub mod lxp;
+pub mod mqtt;
 mod options;
 mod prelude;
 

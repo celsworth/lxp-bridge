@@ -8,13 +8,13 @@ use tokio::net::{
 };
 use tokio_util::codec::Decoder;
 
+pub type PacketSender = broadcast::Sender<Option<Packet>>;
+
 pub struct Inverter {
     config: Rc<Config>,
     from_coordinator: PacketSender,
     to_coordinator: PacketSender,
 }
-
-pub type PacketSender = tokio::sync::broadcast::Sender<Option<Packet>>;
 
 impl Inverter {
     pub fn new(
@@ -63,7 +63,7 @@ impl Inverter {
     // inverter -> coordinator
     async fn receiver(&self, mut socket: OwnedReadHalf) -> Result<()> {
         let mut buf = BytesMut::new();
-        let mut decoder = PacketDecoder::new();
+        let mut decoder = lxp::packet_decoder::PacketDecoder::new();
 
         loop {
             // read_buf appends to buf rather than overwrite existing data

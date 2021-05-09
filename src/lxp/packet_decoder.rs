@@ -13,7 +13,7 @@ impl PacketDecoder {
 }
 
 impl Decoder for PacketDecoder {
-    type Item = Packet;
+    type Item = lxp::packet::Packet;
     type Error = Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
@@ -47,7 +47,7 @@ impl Decoder for PacketDecoder {
         let data = &src[..frame_len].to_owned();
         src.advance(frame_len);
 
-        match Packet::from_data(data) {
+        match lxp::packet::Packet::from_data(data) {
             Ok(packet) => Ok(Some(packet)),
             Err(e) => Err(Error::new(ErrorKind::InvalidData, e)),
         }

@@ -22,6 +22,11 @@ fn le_u32_div10(input: &[u8]) -> nom::IResult<&[u8], f64> {
     Ok((input, num as f64 / 10.0))
 }
 
+pub struct Pair {
+    pub register: u16,
+    pub value: u16,
+}
+
 // {{{ ReadInput1
 #[derive(Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
@@ -287,7 +292,11 @@ impl Packet {
             // last two bytes are checksum (but not for heartbeats)
             let checksum = &input[len - 2..];
             if t.checksum() != checksum {
-                return Err(anyhow!("checksum mismatch"));
+                return Err(anyhow!(
+                    "checksum mismatch - got {:?}, expected {:?}",
+                    checksum,
+                    t.checksum()
+                ));
             }
         }
 
@@ -452,6 +461,20 @@ impl Packet {
             // protocol 1 has value at 14 and 15
             &self.data[14..16]
         }
+    }
+
+    // Vec of register/value pairs in this packet
+    pub fn pairs(&self) -> Vec<Pair> {
+        let mut r = Vec::new();
+
+        for x in 0..(self.value_length() / 2) {
+            r.push(Pair {
+                register: self.register() + x as u16,
+                value: Self::u16ify(self.values(), x as usize * 2),
+            })
+        }
+
+        r
     }
 
     // Private
