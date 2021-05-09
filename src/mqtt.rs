@@ -31,6 +31,7 @@ impl Message {
         match packet.packet_type() {
             PacketType::Heartbeat => {}
             PacketType::WriteSingle => {} // ignore for now..?
+            PacketType::WriteMulti => {}  // ignore for now..?
             PacketType::ReadHold => {
                 for pair in packet.pairs() {
                     r.push(Self {

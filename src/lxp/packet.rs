@@ -206,6 +206,7 @@ pub enum PacketType {
     ReadInput2,
     ReadInput3,
     WriteSingle,
+    WriteMulti,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -352,7 +353,7 @@ impl Packet {
                     _ => unimplemented!(),
                 },
                 DeviceFunction::WriteSingle => PacketType::WriteSingle,
-                _ => unimplemented!(),
+                DeviceFunction::WriteMulti => PacketType::WriteMulti,
             },
             _ => unimplemented!(),
         }
