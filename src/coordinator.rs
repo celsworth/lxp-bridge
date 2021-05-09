@@ -260,7 +260,7 @@ impl Coordinator {
     }
 
     fn channel<T: Clone>() -> broadcast::Sender<T> {
-        let (tx, _) = broadcast::channel(16);
+        let (tx, _) = broadcast::channel(128);
         tx
     }
 }
