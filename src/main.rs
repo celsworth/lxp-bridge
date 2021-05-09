@@ -1,10 +1,10 @@
-mod command;
-mod config;
-mod coordinator;
+pub mod command;
+pub mod config;
+pub mod coordinator;
 pub mod lxp;
 pub mod mqtt;
-mod options;
-mod prelude;
+pub mod options;
+pub mod prelude;
 
 use crate::prelude::*;
 

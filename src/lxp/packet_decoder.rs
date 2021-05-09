@@ -7,6 +7,7 @@ use tokio_util::codec::Decoder;
 pub struct PacketDecoder(());
 
 impl PacketDecoder {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self(())
     }

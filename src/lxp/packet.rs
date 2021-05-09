@@ -5,6 +5,8 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
 use std::convert::TryFrom;
 
+const HEADER_LENGTH: usize = 20;
+
 fn le_u16_div10(input: &[u8]) -> nom::IResult<&[u8], f64> {
     let (input, num) = nom::number::complete::le_u16(input)?;
     Ok((input, num as f64 / 10.0))
@@ -226,13 +228,14 @@ pub enum RegisterBit {
 
 #[derive(Debug, Clone)]
 pub struct Packet {
-    pub header: [u8; 20],
+    pub header: [u8; HEADER_LENGTH],
     pub data: Vec<u8>,
 }
 
 impl Packet {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        let mut header = [0; 20];
+        let mut header = [0; HEADER_LENGTH];
         let data = vec![0; 16];
 
         header[0] = 161;
@@ -255,7 +258,7 @@ impl Packet {
 
     pub fn bytes(&self) -> Vec<u8> {
         // header + data + checksum
-        let len = 20 + self.data.len() + 2;
+        let len = HEADER_LENGTH + self.data.len() + 2;
         let mut r = Vec::with_capacity(len);
 
         r.extend_from_slice(&self.header);
@@ -273,14 +276,14 @@ impl Packet {
         // used to think this was 20 bytes, but heartbeats only have 19?
         // so do all packets actually have a 19 byte header and always
         // have a nullbyte after?
-        let mut header = [0; 20];
+        let mut header = [0; HEADER_LENGTH];
         header[0..19].copy_from_slice(&input[0..19]);
 
         let len = input.len();
 
         let data = if len > 19 {
             // header=19, null?byte, so data starts at 20.
-            input[20..len - 2].to_owned() // -2 to exclude checksum
+            input[HEADER_LENGTH..len - 2].to_owned() // -2 to exclude checksum
         } else {
             // Heartbeat
             Vec::new()
@@ -465,16 +468,14 @@ impl Packet {
 
     // Vec of register/value pairs in this packet
     pub fn pairs(&self) -> Vec<Pair> {
-        let mut r = Vec::new();
-
-        for x in 0..(self.value_length() / 2) {
-            r.push(Pair {
-                register: self.register() + x as u16,
-                value: Self::u16ify(self.values(), x as usize * 2),
+        self.values()
+            .chunks(2)
+            .enumerate()
+            .map(|(pos, value)| Pair {
+                register: self.register() + pos as u16,
+                value: Self::u16ify(value, 0),
             })
-        }
-
-        r
+            .collect()
     }
 
     // Private
