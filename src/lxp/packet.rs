@@ -205,6 +205,7 @@ pub enum PacketType {
     ReadInput1,
     ReadInput2,
     ReadInput3,
+    WriteSingle,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -350,6 +351,7 @@ impl Packet {
                     80 => PacketType::ReadInput3,
                     _ => unimplemented!(),
                 },
+                DeviceFunction::WriteSingle => PacketType::WriteSingle,
                 _ => unimplemented!(),
             },
             _ => unimplemented!(),
