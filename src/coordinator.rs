@@ -18,11 +18,13 @@ pub struct Coordinator {
 }
 
 impl Coordinator {
-    pub fn new(config: Rc<Config>) -> Self {
+    pub fn new(config: Config) -> Self {
         let from_inverter = Self::channel();
         let to_inverter = Self::channel();
         let from_mqtt = Self::channel();
         let to_mqtt = Self::channel();
+
+        let config = Rc::new(config);
 
         // process messages from/to inverter, passing Packets
         let inverter = Inverter::new(
@@ -134,20 +136,15 @@ impl Coordinator {
     }
 
     async fn read_register(&self, register: u16) -> Result<()> {
-        let mut receiver = self.from_inverter.subscribe();
-
         let packet = self.make_packet(lxp::packet::DeviceFunction::ReadHold, register);
         self.to_inverter.send(Some(packet))?;
 
-        Self::wait_for_packet(&mut receiver, register).await?;
-
-        // note that we don't have to send an MQTT reply here.
+        // note that we don't have to wait for a reply and send over MQTT here.
         // inverter_receiver will do it for us!
 
         Ok(())
     }
 
-    // TODO: could merge with update_register?
     async fn set_register(&self, register: u16, value: u16) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
@@ -155,7 +152,12 @@ impl Coordinator {
         packet.set_value(value);
         self.to_inverter.send(Some(packet))?;
 
-        let packet = Self::wait_for_packet(&mut receiver, register).await?;
+        let packet = Self::wait_for_packet(
+            &mut receiver,
+            lxp::packet::DeviceFunction::WriteSingle,
+            register,
+        )
+        .await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to set register {:?}, got back value {} (wanted {})",
@@ -180,7 +182,12 @@ impl Coordinator {
         let packet = self.make_packet(lxp::packet::DeviceFunction::ReadHold, register);
         self.to_inverter.send(Some(packet))?;
 
-        let packet = Self::wait_for_packet(&mut receiver, register).await?;
+        let packet = Self::wait_for_packet(
+            &mut receiver,
+            lxp::packet::DeviceFunction::ReadHold,
+            register,
+        )
+        .await?;
         let value = if enable {
             packet.value() | u16::from(bit)
         } else {
@@ -192,7 +199,12 @@ impl Coordinator {
         packet.set_value(value);
         self.to_inverter.send(Some(packet))?;
 
-        let packet = Self::wait_for_packet(&mut receiver, register).await?;
+        let packet = Self::wait_for_packet(
+            &mut receiver,
+            lxp::packet::DeviceFunction::WriteSingle,
+            register,
+        )
+        .await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to update register {:?}, got back value {} (wanted {})",
@@ -220,6 +232,7 @@ impl Coordinator {
 
     async fn wait_for_packet(
         receiver: &mut broadcast::Receiver<Option<Packet>>,
+        function: lxp::packet::DeviceFunction,
         register: u16,
     ) -> Result<Packet> {
         let start = std::time::Instant::now();
@@ -227,7 +240,7 @@ impl Coordinator {
         loop {
             match receiver.try_recv() {
                 Ok(Some(packet)) => {
-                    if packet.register() == register {
+                    if packet.register() == register && packet.device_function() == function {
                         return Ok(packet);
                     }
                 }

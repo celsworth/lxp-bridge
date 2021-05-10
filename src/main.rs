@@ -35,7 +35,7 @@ async fn app() -> Result<()> {
 
     let options = Options::new()?;
 
-    let config = Rc::new(Config::new(options.config_file)?);
+    let config = Config::new(options.config_file)?;
 
     /*
     let mut packet = Packet::new();
@@ -47,7 +47,7 @@ async fn app() -> Result<()> {
     packet.set_value(1);
     */
 
-    let coordinator = Coordinator::new(Rc::clone(&config));
+    let coordinator = Coordinator::new(config);
 
     futures::try_join!(
         coordinator.start(),
