@@ -20,7 +20,16 @@ fn main() {
 
 async fn app() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
-        .format_timestamp_millis()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "[{} {} {}] {}",
+                chrono::Local::now().format("%Y-%m-%dT%H:%M:%S%.3f"),
+                record.level(),
+                record.module_path().unwrap_or(""),
+                record.args()
+            )
+        })
         .write_style(env_logger::WriteStyle::Never)
         .init();
 
