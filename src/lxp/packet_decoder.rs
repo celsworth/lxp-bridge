@@ -48,6 +48,8 @@ impl Decoder for PacketDecoder {
         let data = &src[..frame_len].to_owned();
         src.advance(frame_len);
 
+        debug!("{} bytes in: {:?}", data.len(), data);
+
         match lxp::packet::Packet::from_data(data) {
             Ok(packet) => Ok(Some(packet)),
             Err(e) => Err(Error::new(ErrorKind::InvalidData, e)),

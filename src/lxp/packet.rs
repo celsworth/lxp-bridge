@@ -180,7 +180,7 @@ pub struct ReadInput3 {
     pub bat_count: u16,
 } // }}}
 
-#[derive(PartialEq, TryFromPrimitive)]
+#[derive(Debug, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum TcpFunction {
     Heartbeat = 193,
@@ -189,7 +189,7 @@ pub enum TcpFunction {
     WriteParam = 196,
 }
 
-#[derive(PartialEq, TryFromPrimitive)]
+#[derive(Debug, PartialEq, TryFromPrimitive)]
 #[repr(u8)]
 pub enum DeviceFunction {
     ReadHold = 3,
@@ -228,10 +228,21 @@ pub enum RegisterBit {
     ForcedDischargeEnable = 1 << 10,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Packet {
     pub header: [u8; HEADER_LENGTH],
     pub data: Vec<u8>,
+}
+
+impl std::fmt::Debug for Packet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Packet")
+            .field("tcp_function", &self.tcp_function())
+            .field("device_function", &self.device_function())
+            .field("header", &self.header)
+            .field("data", &self.data)
+            .finish()
+    }
 }
 
 impl Packet {

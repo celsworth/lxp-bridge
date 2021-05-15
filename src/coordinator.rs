@@ -63,15 +63,14 @@ impl Coordinator {
             let message = receiver.recv().await?;
             //debug!("got message {:?}", message);
 
-            let c = Command::try_from(message);
-            match c {
+            match Self::message_to_command(message) {
                 Ok(command) => {
                     debug!("parsed command {:?}", command);
 
                     let result = self.process_command(&command).await;
 
                     self.to_mqtt.send(mqtt::Message::command_result(
-                        command.mqtt_topic(),
+                        &Self::command_to_mqtt_topic(&command),
                         result.is_ok(),
                     ))?;
 
@@ -93,6 +92,7 @@ impl Coordinator {
 
         match *command {
             Command::ReadHold(register) => self.read_register(register).await,
+            Command::SetHold(register, value) => self.set_register(register, value).await,
             Command::AcCharge(enable) => {
                 self.update_register(
                     Register::Register21.into(),
@@ -264,7 +264,8 @@ impl Coordinator {
         loop {
             if let Some(packet) = receiver.recv().await? {
                 // returns a Vec of messages to send. could be none;
-                // not every packet needs an MQ message (eg, heartbeats)
+                // not every packet produces an MQ message (eg, heartbeats),
+                // and some produce >1 (multi-register ReadHold)
                 for message in mqtt::Message::from_packet(packet)? {
                     self.to_mqtt.send(message)?;
                 }
@@ -275,5 +276,49 @@ impl Coordinator {
     fn channel<T: Clone>() -> broadcast::Sender<T> {
         let (tx, _) = broadcast::channel(128);
         tx
+    }
+
+    // borrow a Command and return the MQTT topic we should send our result on
+    fn command_to_mqtt_topic(command: &Command) -> String {
+        match command {
+            Command::ReadHold(register) => format!("read/hold/{}", register),
+            Command::SetHold(register, _) => format!("set/hold/{}", register),
+            Command::AcCharge(_) => "set/ac_charge".to_string(),
+            Command::ForcedDischarge(_) => "set/forced_discharge".to_string(),
+            Command::ChargeRate(_) => "set/charge_rate_pct".to_string(),
+            Command::DischargeRate(_) => "set/discharge_rate_pct".to_string(),
+            Command::AcChargeRate(_) => "set/ac_charge_rate_pct".to_string(),
+            Command::AcChargeSocLimit(_) => "set/ac_charge_soc_limit_pct".to_string(),
+            Command::DischargeCutoffSocLimit(_) => "set/discharge_cutoff_soc_limit_pct".to_string(),
+        }
+    }
+
+    // consume an incoming mqtt message (from lxp/cmd/..) and return a populated Command
+    fn message_to_command(message: mqtt::Message) -> Result<Command> {
+        use Command::*;
+
+        let parts: Vec<&str> = message.topic.split('/').collect();
+        let parts = &parts[2..]; // drop lxp/cmd
+
+        match parts {
+            // read input
+            ["read", "hold", register] => Ok(ReadHold(register.parse()?)),
+            ["set", "hold", register] => Ok(SetHold(register.parse()?, message.payload_int()?)),
+            ["set", "ac_charge"] => Ok(AcCharge(message.payload_bool())),
+
+            ["set", "forced_discharge"] => Ok(ForcedDischarge(message.payload_bool())),
+
+            ["set", "charge_rate_pct"] => Ok(ChargeRate(message.payload_int()?)),
+            ["set", "discharge_rate_pct"] => Ok(DischargeRate(message.payload_int()?)),
+            ["set", "ac_charge_rate_pct"] => Ok(AcChargeRate(message.payload_int()?)),
+
+            ["set", "ac_charge_soc_limit_pct"] => Ok(AcChargeSocLimit(message.payload_int()?)),
+
+            ["set", "discharge_cutoff_soc_limit_pct"] => {
+                Ok(DischargeCutoffSocLimit(message.payload_int()?))
+            }
+
+            [..] => Err(anyhow!("unhandled: {:?}", parts)),
+        }
     }
 }

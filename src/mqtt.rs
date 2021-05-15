@@ -61,11 +61,10 @@ impl Message {
         Ok(r)
     }
 
-    pub fn payload_percent(&self) -> Result<u16> {
+    pub fn payload_int(&self) -> Result<u16> {
         match self.payload.parse() {
-            Ok(i) if i <= 100 => Ok(i),
-            Ok(i) => Err(anyhow!("{} is too high (max 100)", i)),
-            Err(err) => Err(anyhow!("payload_percent: {}", err)),
+            Ok(i) => Ok(i),
+            Err(err) => Err(anyhow!("payload_int: {}", err)),
         }
     }
 
@@ -114,10 +113,7 @@ impl Mqtt {
 
         info!("mqtt connected!");
 
-        client.subscribe("lxp/cmd/+", QoS::AtMostOnce).await?;
-        client
-            .subscribe("lxp/cmd/read_hold/+", QoS::AtMostOnce)
-            .await?;
+        client.subscribe("lxp/cmd/#", QoS::AtMostOnce).await?;
 
         futures::try_join!(self.receiver(eventloop), self.sender(client))?;
 
@@ -154,7 +150,7 @@ impl Mqtt {
         let mut receiver = self.from_coordinator.subscribe();
         loop {
             let message = receiver.recv().await?;
-            debug!("MQTT publishing: {:?}", message);
+            debug!("publishing: {} = {}", message.topic, message.payload);
             client
                 .publish(message.topic, QoS::AtLeastOnce, false, message.payload)
                 .await?;

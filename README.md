@@ -25,3 +25,50 @@ A range of binaries are provided on the Releases page, otherwise you can compile
 ## Configuration
 
 All configuration is done in a YAML config file; see example config.yaml.
+
+## Usage
+
+As the inverter sends out packets, the bridge will translate the interesting ones (ie not heartbeats) into MQTT messages, as follows.
+
+### `lxp/hold/1`
+
+Where 1 is any number from 1 to 179 (though registers above 125 don't seem to be used). This is sent when the inverter sends out the current value of a holding register. This is normally done in response to the inverter being asked for it (which you can do yourself with `lxp/cmd/read_hold/1`, see below).
+
+You will see a whole bunch of these if you press "Read" under the Maintain tab in the LXP Web Monitor; this is the website reading all the values from your inverter so it can fill in the form with current values.
+
+### `lxp/inputs/1` (and 2, and 3)
+
+These are a JSON hash of transient so-called input data, which generally means the current state of power flows, voltages, temperatures and so on. The inverter sends these at 3 minute intervals.
+
+Not sure what determines the interval, and I'm pretty sure it used to be 2 minutes so this interval might be stored in a register somewhere?
+
+There are 3 of them just because that's how the inverter sends the data.
+
+TODO: think you can request these to be sent immediately, once I make `lxp/cmd/read_inputs` work..
+
+
+### Commands
+
+When you want lxp-bridge to do something, you send a message under `lxp/cmd/...`; responses to commands will be sent under `lxp/result/...` where ... is the same as the command you sent. So sending `lxp/cmd/set/ac_charge` will return a response under `lxp/result/ac_charge`. This will be `OK` or `FAIL` depending on the result.
+
+*boolean* values recognised as `true` in payloads are `1`, `t`, `true`, `on`, `y`, and `yes`. They're all equivalent. Anything else will be interpreted as `false`.
+
+*percent* values should be an integer between 0 and 100.
+
+
+The following MQTT topics are recognised:
+
+#### topic = `lxp/cmd/set/ac_charge`, payload = boolean
+
+Send a boolean to this to enable or disable immediate AC Charging.
+
+
+#### topic = `lxp/cmd/read/hold/1`, payload = empty
+
+This is a pretty low-level command which you may not normally need.
+
+Publishing an empty message to this will read the value of register 1.
+
+The unprocessed reply will appear in `lxp/hold/1`. Depending on which register you're reading, this may need further post-processing to make sense.
+
+
