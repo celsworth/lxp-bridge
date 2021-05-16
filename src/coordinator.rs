@@ -255,6 +255,8 @@ impl Coordinator {
     ) -> Result<Packet> {
         let start = std::time::Instant::now();
 
+        let function = Some(function); // move into Option
+
         loop {
             match receiver.try_recv() {
                 Ok(Some(packet)) => {

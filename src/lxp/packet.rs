@@ -185,8 +185,8 @@ pub struct ReadInput3 {
 pub enum TcpFunction {
     Heartbeat = 193,
     TranslatedData = 194,
-    ReadParam = 195,
-    WriteParam = 196,
+    ReadParam = 195,  // ReadParam and WriteParam are very unsupported so far.
+    WriteParam = 196, // it would be easier to make a new struct for them probably
 }
 
 #[derive(Debug, PartialEq, TryFromPrimitive)]
@@ -196,6 +196,9 @@ pub enum DeviceFunction {
     ReadInput = 4,
     WriteSingle = 6,
     WriteMulti = 16,
+    // UpdatePrepare = 33
+    // UpdateSendData = 34
+    // UpdateReset = 35
 }
 
 #[derive(PartialEq)]
@@ -238,7 +241,7 @@ impl std::fmt::Debug for Packet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Packet")
             .field("tcp_function", &self.tcp_function())
-            .field("device_function", &self.device_function_safe())
+            .field("device_function", &self.device_function())
             .field("header", &self.header)
             .field("data", &self.data)
             .finish()
@@ -305,8 +308,11 @@ impl Packet {
 
         let t = Self { header, data };
 
-        if t.packet_type() != PacketType::Heartbeat {
-            // last two bytes are checksum (but not for heartbeats)
+        if t.tcp_function() != TcpFunction::Heartbeat
+            && t.tcp_function() != TcpFunction::ReadParam
+            && t.tcp_function() != TcpFunction::WriteParam
+        {
+            // last two bytes are checksum (but not for heartbeats or param data apparently)
             let checksum = &input[len - 2..];
             if t.checksum() != checksum {
                 return Err(anyhow!(
@@ -357,15 +363,16 @@ impl Packet {
         match self.tcp_function() {
             TcpFunction::Heartbeat => PacketType::Heartbeat,
             TcpFunction::TranslatedData => match self.device_function() {
-                DeviceFunction::ReadHold => PacketType::ReadHold,
-                DeviceFunction::ReadInput => match self.register() {
+                Some(DeviceFunction::ReadHold) => PacketType::ReadHold,
+                Some(DeviceFunction::ReadInput) => match self.register() {
                     0 => PacketType::ReadInput1,
                     40 => PacketType::ReadInput2,
                     80 => PacketType::ReadInput3,
                     _ => unimplemented!(),
                 },
-                DeviceFunction::WriteSingle => PacketType::WriteSingle,
-                DeviceFunction::WriteMulti => PacketType::WriteMulti,
+                Some(DeviceFunction::WriteSingle) => PacketType::WriteSingle,
+                Some(DeviceFunction::WriteMulti) => PacketType::WriteMulti,
+                None => unimplemented!(), // None
             },
             _ => unimplemented!(),
         }
@@ -425,19 +432,16 @@ impl Packet {
     */
 
     // DATA
-    pub fn device_function(&self) -> DeviceFunction {
-        DeviceFunction::try_from(self.data[1]).unwrap()
+    pub fn device_function(&self) -> Option<DeviceFunction> {
+        use TcpFunction::*;
+        match self.tcp_function() {
+            Heartbeat => None,
+            ReadParam | WriteParam => None,
+            TranslatedData => Some(DeviceFunction::try_from(self.data[1]).unwrap()),
+        }
     }
     pub fn set_device_function(&mut self, device_function: DeviceFunction) {
         self.data[1] = device_function as u8
-    }
-    // this bodgy little function is only used for Packet debugging formatting
-    fn device_function_safe(&self) -> Option<DeviceFunction> {
-        if !self.data.is_empty() && self.data[1] != 0 {
-            Some(self.device_function())
-        } else {
-            None
-        }
     }
 
     #[allow(dead_code)]
@@ -456,7 +460,7 @@ impl Packet {
     }
 
     pub fn has_value_length(&self) -> bool {
-        self.protocol() == 2 && self.device_function() != DeviceFunction::WriteSingle
+        self.protocol() == 2 && self.device_function() != Some(DeviceFunction::WriteSingle)
     }
 
     pub fn value_length(&self) -> u8 {
