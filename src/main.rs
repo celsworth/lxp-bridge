@@ -37,16 +37,6 @@ async fn app() -> Result<()> {
 
     let config = Config::new(options.config_file)?;
 
-    /*
-    let mut packet = Packet::new();
-    packet.set_tcp_function(TcpFunction::TranslatedData);
-    packet.set_device_function(DeviceFunction::ReadHold);
-    packet.set_datalog(&config.inverter.datalog);
-    packet.set_serial(&config.inverter.serial);
-    packet.set_register(105);
-    packet.set_value(1);
-    */
-
     let coordinator = Coordinator::new(config);
 
     futures::try_join!(

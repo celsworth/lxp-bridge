@@ -24,19 +24,19 @@ impl Message {
     }
 
     pub fn from_packet(packet: Packet) -> Result<Vec<Self>> {
-        use lxp::packet::PacketType;
+        use lxp::packet::PacketType::*;
 
         let mut r = Vec::new();
 
         match packet.packet_type() {
-            PacketType::Heartbeat => {}
-            PacketType::WriteSingle => {
+            Heartbeat => {}
+            WriteSingle => {
                 debug!("igoring WriteSingle packet")
             }
-            PacketType::WriteMulti => {
+            WriteMulti => {
                 debug!("igoring WriteMulti packet")
             }
-            PacketType::ReadHold => {
+            ReadHold => {
                 for pair in packet.pairs() {
                     r.push(Self {
                         topic: format!("lxp/hold/{}", pair.register),
@@ -44,15 +44,15 @@ impl Message {
                     });
                 }
             }
-            PacketType::ReadInput1 => r.push(Self {
+            ReadInput1 => r.push(Self {
                 topic: "lxp/inputs/1".to_owned(),
                 payload: serde_json::to_string(&packet.read_input1()?)?,
             }),
-            PacketType::ReadInput2 => r.push(Self {
+            ReadInput2 => r.push(Self {
                 topic: "lxp/inputs/2".to_owned(),
                 payload: serde_json::to_string(&packet.read_input2()?)?,
             }),
-            PacketType::ReadInput3 => r.push(Self {
+            ReadInput3 => r.push(Self {
                 topic: "lxp/inputs/3".to_owned(),
                 payload: serde_json::to_string(&packet.read_input3()?)?,
             }),

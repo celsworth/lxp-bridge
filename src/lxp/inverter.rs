@@ -2,10 +2,7 @@ use crate::prelude::*;
 
 use bytes::BytesMut;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::{
-    tcp::{OwnedReadHalf, OwnedWriteHalf},
-    TcpStream,
-};
+use tokio::net::TcpStream;
 use tokio_util::codec::Decoder;
 
 pub type PacketSender = broadcast::Sender<Option<Packet>>;
@@ -61,7 +58,7 @@ impl Inverter {
     }
 
     // inverter -> coordinator
-    async fn receiver(&self, mut socket: OwnedReadHalf) -> Result<()> {
+    async fn receiver(&self, mut socket: tokio::net::tcp::OwnedReadHalf) -> Result<()> {
         let mut buf = BytesMut::new();
         let mut decoder = lxp::packet_decoder::PacketDecoder::new();
 
@@ -87,7 +84,7 @@ impl Inverter {
     }
 
     // coordinator -> inverter
-    async fn sender(&self, mut socket: OwnedWriteHalf) -> Result<()> {
+    async fn sender(&self, mut socket: tokio::net::tcp::OwnedWriteHalf) -> Result<()> {
         let mut receiver = self.from_coordinator.subscribe();
 
         while let Some(packet) = receiver.recv().await? {
