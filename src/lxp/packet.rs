@@ -238,7 +238,7 @@ impl std::fmt::Debug for Packet {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Packet")
             .field("tcp_function", &self.tcp_function())
-            .field("device_function", &self.device_function())
+            .field("device_function", &self.device_function_safe())
             .field("header", &self.header)
             .field("data", &self.data)
             .finish()
@@ -282,6 +282,7 @@ impl Packet {
     }
 
     pub fn from_data(input: &[u8]) -> Result<Self> {
+        debug!("input = {:?}", input);
         if input[0..2] != [161, 26] {
             return Err(anyhow!("invalid packet"));
         }
@@ -429,6 +430,14 @@ impl Packet {
     }
     pub fn set_device_function(&mut self, device_function: DeviceFunction) {
         self.data[1] = device_function as u8
+    }
+    // this bodgy little function is only used for Packet debugging formatting
+    fn device_function_safe(&self) -> Option<DeviceFunction> {
+        if !self.data.is_empty() {
+            Some(self.device_function())
+        } else {
+            None
+        }
     }
 
     #[allow(dead_code)]
