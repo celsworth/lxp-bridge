@@ -433,7 +433,7 @@ impl Packet {
     }
     // this bodgy little function is only used for Packet debugging formatting
     fn device_function_safe(&self) -> Option<DeviceFunction> {
-        if !self.data.is_empty() {
+        if !self.data.is_empty() && self.data[1] != 0 {
             Some(self.device_function())
         } else {
             None

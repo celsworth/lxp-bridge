@@ -90,14 +90,6 @@ impl Inverter {
         while let Some(packet) = receiver.recv().await? {
             debug!("TX ({} bytes): {:?}", packet.bytes().len(), packet);
 
-            // temporary special greppable logging for Param packets as I try to
-            // work out what they do :)
-            if packet.tcp_function() == lxp::packet::TcpFunction::ReadParam
-                || packet.tcp_function() == lxp::packet::TcpFunction::WriteParam
-            {
-                warn!("got a Param packet! {:?}", packet);
-            }
-
             socket.write_all(&packet.bytes()).await?
         }
 

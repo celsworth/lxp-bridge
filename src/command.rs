@@ -1,6 +1,7 @@
 #[derive(Debug)]
 pub enum Command {
     ReadHold(u16),
+    ReadParam(u16),
     SetHold(u16, u16),
     ChargeRate(u16),
     DischargeRate(u16),

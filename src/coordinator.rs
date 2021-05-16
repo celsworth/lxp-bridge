@@ -92,6 +92,7 @@ impl Coordinator {
 
         match *command {
             Command::ReadHold(register) => self.read_register(register).await,
+            Command::ReadParam(register) => self.read_param(register).await,
             Command::SetHold(register, value) => self.set_register(register, value).await,
             Command::AcCharge(enable) => {
                 self.update_register(
@@ -137,6 +138,23 @@ impl Coordinator {
 
     async fn read_register(&self, register: u16) -> Result<()> {
         let packet = self.make_packet(lxp::packet::DeviceFunction::ReadHold, register);
+        self.to_inverter.send(Some(packet))?;
+
+        // note that we don't have to wait for a reply and send over MQTT here.
+        // inverter_receiver will do it for us!
+
+        Ok(())
+    }
+
+    async fn read_param(&self, register: u16) -> Result<()> {
+        let mut packet = Packet::new();
+
+        packet.set_tcp_function(lxp::packet::TcpFunction::ReadParam);
+        packet.set_datalog(&self.config.inverter.datalog);
+        packet.set_serial(&self.config.inverter.serial);
+        packet.set_register(register);
+        packet.set_value(1);
+
         self.to_inverter.send(Some(packet))?;
 
         // note that we don't have to wait for a reply and send over MQTT here.
@@ -263,6 +281,14 @@ impl Coordinator {
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
             if let Some(packet) = receiver.recv().await? {
+                // temporary special greppable logging for Param packets as I try to
+                // work out what they do :)
+                if packet.tcp_function() == lxp::packet::TcpFunction::ReadParam
+                    || packet.tcp_function() == lxp::packet::TcpFunction::WriteParam
+                {
+                    warn!("got a Param packet! {:?}", packet);
+                }
+
                 // returns a Vec of messages to send. could be none;
                 // not every packet produces an MQ message (eg, heartbeats),
                 // and some produce >1 (multi-register ReadHold)
@@ -282,6 +308,7 @@ impl Coordinator {
     fn command_to_mqtt_topic(command: &Command) -> String {
         match command {
             Command::ReadHold(register) => format!("read/hold/{}", register),
+            Command::ReadParam(register) => format!("read/param/{}", register),
             Command::SetHold(register, _) => format!("set/hold/{}", register),
             Command::AcCharge(_) => "set/ac_charge".to_string(),
             Command::ForcedDischarge(_) => "set/forced_discharge".to_string(),
@@ -303,6 +330,7 @@ impl Coordinator {
         match parts {
             // read input
             ["read", "hold", register] => Ok(ReadHold(register.parse()?)),
+            ["read", "param", register] => Ok(ReadParam(register.parse()?)),
             ["set", "hold", register] => Ok(SetHold(register.parse()?, message.payload_int()?)),
             ["set", "ac_charge"] => Ok(AcCharge(message.payload_bool())),
 
