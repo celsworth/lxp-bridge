@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+use lxp::packet2::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
+
 // the coordinator takes messages from both MQ and the inverter and decides
 // what to do with them.
 //
@@ -87,8 +89,8 @@ impl Coordinator {
     }
 
     async fn process_command(&self, command: &Command) -> Result<()> {
-        use lxp::packet::Register;
-        use lxp::packet::RegisterBit;
+        use lxp::packet2::Register;
+        use lxp::packet2::RegisterBit;
 
         match *command {
             Command::ReadHold(register) => self.read_register(register).await,
@@ -137,7 +139,14 @@ impl Coordinator {
     }
 
     async fn read_register(&self, register: u16) -> Result<()> {
-        let packet = self.make_packet(lxp::packet::DeviceFunction::ReadHold, register);
+        let packet = Packet::TranslatedData(TranslatedData {
+            datalog: self.config.inverter.datalog.to_owned(),
+            device_function: DeviceFunction::ReadHold,
+            inverter: self.config.inverter.serial.to_owned(),
+            register,
+            values: vec![1],
+        });
+
         self.to_inverter.send(Some(packet))?;
 
         // note that we don't have to wait for a reply and send over MQTT here.
@@ -147,13 +156,11 @@ impl Coordinator {
     }
 
     async fn read_param(&self, register: u16) -> Result<()> {
-        let mut packet = Packet::new();
-
-        packet.set_tcp_function(lxp::packet::TcpFunction::ReadParam);
-        packet.set_datalog(&self.config.inverter.datalog);
-        packet.set_serial(&self.config.inverter.serial);
-        packet.set_register(register);
-        packet.set_value(1);
+        let packet = Packet::ReadParam(ReadParam {
+            datalog: self.config.inverter.datalog.to_owned(),
+            register,
+            values: vec![1],
+        });
 
         self.to_inverter.send(Some(packet))?;
 
@@ -166,19 +173,20 @@ impl Coordinator {
     async fn set_register(&self, register: u16, value: u16) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
-        let mut packet = self.make_packet(lxp::packet::DeviceFunction::WriteSingle, register);
-        packet.set_value(value);
+        let packet = Packet::TranslatedData(TranslatedData {
+            datalog: self.config.inverter.datalog.to_owned(),
+            device_function: DeviceFunction::WriteSingle,
+            inverter: self.config.inverter.serial.to_owned(),
+            register,
+            values: value.to_le_bytes().to_vec(),
+        });
         self.to_inverter.send(Some(packet))?;
 
-        let packet = Self::wait_for_packet(
-            &mut receiver,
-            lxp::packet::DeviceFunction::WriteSingle,
-            register,
-        )
-        .await?;
+        let packet =
+            Self::wait_for_packet(&mut receiver, DeviceFunction::WriteSingle, register).await?;
         if packet.value() != value {
             return Err(anyhow!(
-                "failed to set register {:?}, got back value {} (wanted {})",
+                "failed to set register {}, got back value {} (wanted {})",
                 register,
                 packet.value(),
                 value
@@ -191,21 +199,23 @@ impl Coordinator {
     async fn update_register(
         &self,
         register: u16,
-        bit: lxp::packet::RegisterBit,
+        bit: lxp::packet2::RegisterBit,
         enable: bool,
     ) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
         // get register from inverter
-        let packet = self.make_packet(lxp::packet::DeviceFunction::ReadHold, register);
+        let packet = Packet::TranslatedData(TranslatedData {
+            datalog: self.config.inverter.datalog.to_owned(),
+            device_function: DeviceFunction::ReadHold,
+            inverter: self.config.inverter.serial.to_owned(),
+            register,
+            values: vec![1],
+        });
         self.to_inverter.send(Some(packet))?;
 
-        let packet = Self::wait_for_packet(
-            &mut receiver,
-            lxp::packet::DeviceFunction::ReadHold,
-            register,
-        )
-        .await?;
+        let packet =
+            Self::wait_for_packet(&mut receiver, DeviceFunction::ReadHold, register).await?;
         let value = if enable {
             packet.value() | u16::from(bit)
         } else {
@@ -213,16 +223,18 @@ impl Coordinator {
         };
 
         // new packet to set register with a new value
-        let mut packet = self.make_packet(lxp::packet::DeviceFunction::WriteSingle, register);
-        packet.set_value(value);
+        let values = value.to_le_bytes().to_vec();
+        let packet = Packet::TranslatedData(TranslatedData {
+            datalog: self.config.inverter.datalog.to_owned(),
+            device_function: DeviceFunction::WriteSingle,
+            inverter: self.config.inverter.serial.to_owned(),
+            register,
+            values,
+        });
         self.to_inverter.send(Some(packet))?;
 
-        let packet = Self::wait_for_packet(
-            &mut receiver,
-            lxp::packet::DeviceFunction::WriteSingle,
-            register,
-        )
-        .await?;
+        let packet =
+            Self::wait_for_packet(&mut receiver, DeviceFunction::WriteSingle, register).await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to update register {:?}, got back value {} (wanted {})",
@@ -235,35 +247,22 @@ impl Coordinator {
         Ok(())
     }
 
-    fn make_packet(&self, function: lxp::packet::DeviceFunction, register: u16) -> Packet {
-        let mut packet = Packet::new();
-
-        packet.set_tcp_function(lxp::packet::TcpFunction::TranslatedData);
-        packet.set_device_function(function);
-        packet.set_datalog(&self.config.inverter.datalog);
-        packet.set_serial(&self.config.inverter.serial);
-        packet.set_register(register);
-        packet.set_value(1);
-
-        packet
-    }
-
     async fn wait_for_packet(
         receiver: &mut broadcast::Receiver<Option<Packet>>,
-        function: lxp::packet::DeviceFunction,
+        function: DeviceFunction,
         register: u16,
     ) -> Result<Packet> {
         let start = std::time::Instant::now();
 
-        let function = Some(function); // move into Option
-
         loop {
             match receiver.try_recv() {
-                Ok(Some(packet)) => {
-                    if packet.register() == register && packet.device_function() == function {
-                        return Ok(packet);
+                Ok(Some(Packet::TranslatedData(td))) => {
+                    if td.register == register && td.device_function == function {
+                        return Ok(Packet::TranslatedData(td));
                     }
                 }
+                Ok(Some(_)) => {} // TODO ReadParam and WriteParam
+
                 Ok(None) => return Err(anyhow!("inverter disconnect?")),
                 Err(broadcast::error::TryRecvError::Empty) => {} // ignore and loop
                 Err(err) => return Err(anyhow!("try_recv error: {:?}", err)),
@@ -283,12 +282,16 @@ impl Coordinator {
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
             if let Some(packet) = receiver.recv().await? {
-                // temporary special greppable logging for Param packets as I try to
-                // work out what they do :)
-                if packet.tcp_function() == lxp::packet::TcpFunction::ReadParam
-                    || packet.tcp_function() == lxp::packet::TcpFunction::WriteParam
-                {
-                    warn!("got a Param packet! {:?}", packet);
+                debug!("RX: {:?}", packet);
+
+                if let Packet::TranslatedData(td) = &packet {
+                    // temporary special greppable logging for Param packets as I try to
+                    // work out what they do :)
+                    if td.tcp_function() == TcpFunction::ReadParam
+                        || td.tcp_function() == TcpFunction::WriteParam
+                    {
+                        warn!("got a Param packet! {:?}", td);
+                    }
                 }
 
                 // returns a Vec of messages to send. could be none;

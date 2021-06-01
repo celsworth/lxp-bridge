@@ -180,7 +180,7 @@ pub struct ReadInput3 {
     pub bat_count: u16,
 } // }}}
 
-#[derive(Debug, PartialEq, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum TcpFunction {
     Heartbeat = 193,
@@ -189,7 +189,7 @@ pub enum TcpFunction {
     WriteParam = 196, // it would be easier to make a new struct for them probably
 }
 
-#[derive(Debug, PartialEq, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum DeviceFunction {
     ReadHold = 3,

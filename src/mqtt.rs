@@ -24,38 +24,49 @@ impl Message {
     }
 
     pub fn from_packet(packet: Packet) -> Result<Vec<Self>> {
-        use lxp::packet::PacketType::*;
+        use lxp::packet2::DeviceFunction;
 
         let mut r = Vec::new();
 
-        match packet.packet_type() {
-            Heartbeat => {}
-            WriteSingle => {
-                debug!("igoring WriteSingle packet")
-            }
-            WriteMulti => {
-                debug!("igoring WriteMulti packet")
-            }
-            ReadHold => {
-                for pair in packet.pairs() {
+        match packet {
+            Packet::Heartbeat(_) => {}
+            Packet::TranslatedData(t) => match t.device_function {
+                DeviceFunction::ReadHold => {
+                    for (register, value) in t.pairs() {
+                        r.push(Self {
+                            topic: format!("lxp/hold/{}", register),
+                            payload: serde_json::to_string(&value)?,
+                        });
+                    }
+                }
+                DeviceFunction::ReadInput => match t.register {
+                    0 => r.push(Self {
+                        topic: String::from("lxp/inputs/1"),
+                        payload: serde_json::to_string(&t.read_input1()?)?,
+                    }),
+                    40 => r.push(Self {
+                        topic: String::from("lxp/inputs/2"),
+                        payload: serde_json::to_string(&t.read_input2()?)?,
+                    }),
+                    80 => r.push(Self {
+                        topic: String::from("lxp/inputs/3"),
+                        payload: serde_json::to_string(&t.read_input3()?)?,
+                    }),
+                    _ => {
+                        warn!("unhandled ReadInput register={}", t.register);
+                    }
+                },
+                DeviceFunction::WriteSingle => {}
+                DeviceFunction::WriteMulti => {}
+            },
+            Packet::ReadParam(rp) => {
+                for (register, value) in rp.pairs() {
                     r.push(Self {
-                        topic: format!("lxp/hold/{}", pair.register),
-                        payload: serde_json::to_string(&pair.value)?,
+                        topic: format!("lxp/param/{}", register),
+                        payload: serde_json::to_string(&value)?,
                     });
                 }
             }
-            ReadInput1 => r.push(Self {
-                topic: "lxp/inputs/1".to_owned(),
-                payload: serde_json::to_string(&packet.read_input1()?)?,
-            }),
-            ReadInput2 => r.push(Self {
-                topic: "lxp/inputs/2".to_owned(),
-                payload: serde_json::to_string(&packet.read_input2()?)?,
-            }),
-            ReadInput3 => r.push(Self {
-                topic: "lxp/inputs/3".to_owned(),
-                payload: serde_json::to_string(&packet.read_input3()?)?,
-            }),
         };
 
         Ok(r)

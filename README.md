@@ -30,21 +30,31 @@ All configuration is done in a YAML config file; see example config.yaml.
 
 As the inverter sends out packets, the bridge will translate the interesting ones (ie not heartbeats) into MQTT messages, as follows.
 
+First thing to note is there are two types of registers in the inverter:
+
+  * holdings - read/write, storing settings
+  * inputs - read-only, storing transient power data, temperatures, counters etc
+
 ### `lxp/hold/1`
 
-Where 1 is any number from 1 to 179 (though registers above 125 don't seem to be used). This is sent when the inverter sends out the current value of a holding register. This is normally done in response to the inverter being asked for it (which you can do yourself with `lxp/cmd/read_hold/1`, see below).
+1 is actually any number from 1 to 179.
+
+These are unprocessed raw values, sent when the inverter tells us the contents of a register.  This is normally done in response to the inverter being asked for it (which you can do yourself with `lxp/cmd/read_hold/1`, see below).
+
+In some cases, they require further processing to make much sense. For example, registers 2-6 contain the serial number, but it's returned as 5xu16 and needs separating into 10xu8 to match the result you'll see on the inverter's screen. Example 2; register 100 is the lead-acid discharge cut-out voltage, but is in 0.1V units, so divide by 10 to get Volts.
+
 
 You will see a whole bunch of these if you press "Read" under the Maintain tab in the LXP Web Monitor; this is the website reading all the values from your inverter so it can fill in the form with current values.
 
 ### `lxp/inputs/1` (and 2, and 3)
 
-These are a JSON hash of transient so-called input data, which generally means the current state of power flows, voltages, temperatures and so on. The inverter sends these at 3 minute intervals.
+These are JSON hashes of post-processed data. There are 3 of them just because that's how the inverter sends the data. They are sent at 3 minute intervals.
 
 Not sure what determines the interval, and I'm pretty sure it used to be 2 minutes so this interval might be stored in a register somewhere?
 
-There are 3 of them just because that's how the inverter sends the data.
-
 TODO: think you can request these to be sent immediately, once I make `lxp/cmd/read_inputs` work..
+
+TODO: document the JSON hashes.
 
 
 ### Commands
