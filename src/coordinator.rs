@@ -63,7 +63,6 @@ impl Coordinator {
 
         loop {
             let message = receiver.recv().await?;
-            //debug!("got message {:?}", message);
 
             match Self::message_to_command(message) {
                 Ok(command) => {

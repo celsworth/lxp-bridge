@@ -5,23 +5,6 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
 use std::convert::TryFrom;
 
-fn le_u16_div10(input: &[u8]) -> nom::IResult<&[u8], f64> {
-    let (input, num) = nom::number::complete::le_u16(input)?;
-    Ok((input, num as f64 / 10.0))
-}
-fn le_u16_div100(input: &[u8]) -> nom::IResult<&[u8], f64> {
-    let (input, num) = nom::number::complete::le_u16(input)?;
-    Ok((input, num as f64 / 100.0))
-}
-fn le_u16_div1000(input: &[u8]) -> nom::IResult<&[u8], f64> {
-    let (input, num) = nom::number::complete::le_u16(input)?;
-    Ok((input, num as f64 / 1000.0))
-}
-fn le_u32_div10(input: &[u8]) -> nom::IResult<&[u8], f64> {
-    let (input, num) = nom::number::complete::le_u32(input)?;
-    Ok((input, num as f64 / 10.0))
-}
-
 // {{{ ReadInput1
 #[derive(Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
@@ -29,13 +12,13 @@ pub struct ReadInput1 {
     pub status: u16,
     #[nom(Ignore)]
     pub v_pv: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_pv_1: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_pv_2: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_pv_3: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_bat: f64,
 
     pub soc: u8,
@@ -49,29 +32,29 @@ pub struct ReadInput1 {
     pub p_charge: u16,
     pub p_discharge: u16,
 
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_ac_r: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_ac_s: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_ac_t: f64,
-    #[nom(Parse = "le_u16_div100")]
+    #[nom(Parse = "utils::le_u16_div100")]
     pub f_ac: f64,
 
     pub p_inv: u16,
     pub p_rec: u16,
 
     #[nom(SkipBefore(2))]
-    #[nom(Parse = "le_u16_div1000")]
+    #[nom(Parse = "utils::le_u16_div1000")]
     pub pf: f64,
 
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_eps_r: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_eps_s: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_eps_t: f64,
-    #[nom(Parse = "le_u16_div100")]
+    #[nom(Parse = "utils::le_u16_div100")]
     pub f_eps: f64,
     #[nom(SkipBefore(4))] // peps and seps
     pub p_to_grid: u16,
@@ -79,31 +62,31 @@ pub struct ReadInput1 {
 
     #[nom(Ignore)]
     pub e_pv_day: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_pv_day_1: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_pv_day_2: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_pv_day_3: f64,
 
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_inv_day: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_rec_day: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_chg_day: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_dischg_day: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_eps_day: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_to_grid_day: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub e_to_user_day: f64,
 
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_bus_1: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub v_bus_2: f64,
 } // }}}
 
@@ -113,26 +96,26 @@ pub struct ReadInput1 {
 pub struct ReadInput2 {
     #[nom(Ignore)]
     pub e_pv_all: f64,
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_pv_all_1: f64,
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_pv_all_2: f64,
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_pv_all_3: f64,
 
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_inv_all: f64,
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_rec_all: f64,
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_chg_all: f64,
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_dischg_all: f64,
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_eps_all: f64,
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_to_grid_all: f64,
-    #[nom(Parse = "le_u32_div10")]
+    #[nom(Parse = "utils::le_u32_div10")]
     pub e_to_user_all: f64,
 
     #[nom(SkipBefore(8))] // 4 byte fault code, 4 byte warning code?
@@ -142,7 +125,8 @@ pub struct ReadInput2 {
     pub t_bat: u16,
 
     #[nom(SkipBefore(2))] // reserved
-    pub uptime: u32,
+    pub runtime: u32,
+    // bunch of auto_test stuff here I'm not doing yet
 } // }}}
 
 // {{{ ReadInput3
@@ -150,13 +134,13 @@ pub struct ReadInput2 {
 #[nom(LittleEndian)]
 pub struct ReadInput3 {
     #[nom(SkipBefore(2))] // bat_brand, bat_com_type
-    #[nom(Parse = "le_u16_div100")]
+    #[nom(Parse = "utils::le_u16_div100")]
     pub max_chg_curr: f64,
-    #[nom(Parse = "le_u16_div100")]
+    #[nom(Parse = "utils::le_u16_div100")]
     pub max_dischg_curr: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub charge_volt_ref: f64,
-    #[nom(Parse = "le_u16_div10")]
+    #[nom(Parse = "utils::le_u16_div10")]
     pub dischg_cut_volt: f64,
 
     pub bat_status_0: u16,
@@ -175,6 +159,7 @@ pub struct ReadInput3 {
     pub bat_capacity: u16,
 } // }}}
 
+// {{{ TcpFunction
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum TcpFunction {
@@ -182,8 +167,9 @@ pub enum TcpFunction {
     TranslatedData = 194,
     ReadParam = 195,
     WriteParam = 196,
-}
+} // }}}
 
+// {{{ DeviceFunction
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum DeviceFunction {
@@ -194,7 +180,7 @@ pub enum DeviceFunction {
     // UpdatePrepare = 33
     // UpdateSendData = 34
     // UpdateReset = 35
-}
+} // }}}
 
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
@@ -253,6 +239,14 @@ impl TcpFrameFactory {
 
         r
     }
+}
+
+#[enum_dispatch(TcpFrameable)]
+#[derive(Debug, Clone)]
+pub enum Packet {
+    Heartbeat(Heartbeat),
+    TranslatedData(TranslatedData),
+    ReadParam(ReadParam),
 }
 
 /////////////
@@ -477,9 +471,12 @@ impl TcpFrameable for TranslatedData {
     }
 }
 
+/////////////
 //
 // READ PARAM
 //
+/////////////
+
 #[derive(Clone, Debug)]
 pub struct ReadParam {
     pub datalog: String,
@@ -557,13 +554,6 @@ impl TcpFrameable for ReadParam {
     fn value(&self) -> u16 {
         utils::u16ify(&self.values, 0)
     }
-}
-#[enum_dispatch(TcpFrameable)]
-#[derive(Debug, Clone)]
-pub enum Packet {
-    Heartbeat(Heartbeat),
-    TranslatedData(TranslatedData),
-    ReadParam(ReadParam),
 }
 
 pub struct Parser;
