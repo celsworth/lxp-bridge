@@ -5,8 +5,6 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
 use std::convert::TryFrom;
 
-const HEADER_LENGTH: usize = 20;
-
 fn le_u16_div10(input: &[u8]) -> nom::IResult<&[u8], f64> {
     let (input, num) = nom::number::complete::le_u16(input)?;
     Ok((input, num as f64 / 10.0))
@@ -22,11 +20,6 @@ fn le_u16_div1000(input: &[u8]) -> nom::IResult<&[u8], f64> {
 fn le_u32_div10(input: &[u8]) -> nom::IResult<&[u8], f64> {
     let (input, num) = nom::number::complete::le_u32(input)?;
     Ok((input, num as f64 / 10.0))
-}
-
-pub struct Pair {
-    pub register: u16,
-    pub value: u16,
 }
 
 // {{{ ReadInput1
@@ -46,7 +39,8 @@ pub struct ReadInput1 {
     pub v_bat: f64,
 
     pub soc: u8,
-    #[nom(SkipBefore(3))]
+    pub soh: u8,
+    #[nom(SkipBefore(2))]
     #[nom(Ignore)]
     pub p_pv: u16,
     pub p_pv_1: u16,
@@ -147,7 +141,7 @@ pub struct ReadInput2 {
     pub t_rad_2: u16,
     pub t_bat: u16,
 
-    #[nom(SkipBefore(2))] // no idea
+    #[nom(SkipBefore(2))] // reserved
     pub uptime: u32,
 } // }}}
 
@@ -155,7 +149,7 @@ pub struct ReadInput2 {
 #[derive(Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
 pub struct ReadInput3 {
-    #[nom(SkipBefore(2))] // unsure, observed : 10)
+    #[nom(SkipBefore(2))] // bat_brand, bat_com_type
     #[nom(Parse = "le_u16_div100")]
     pub max_chg_curr: f64,
     #[nom(Parse = "le_u16_div100")]
@@ -178,6 +172,7 @@ pub struct ReadInput3 {
     pub bat_status_inv: u16,
 
     pub bat_count: u16,
+    pub bat_capacity: u16,
 } // }}}
 
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -185,8 +180,8 @@ pub struct ReadInput3 {
 pub enum TcpFunction {
     Heartbeat = 193,
     TranslatedData = 194,
-    ReadParam = 195,  // ReadParam and WriteParam are very unsupported so far.
-    WriteParam = 196, // it would be easier to make a new struct for them probably
+    ReadParam = 195,
+    WriteParam = 196,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -199,17 +194,6 @@ pub enum DeviceFunction {
     // UpdatePrepare = 33
     // UpdateSendData = 34
     // UpdateReset = 35
-}
-
-#[derive(PartialEq)]
-pub enum PacketType {
-    Heartbeat,
-    ReadHold,
-    ReadInput1,
-    ReadInput2,
-    ReadInput3,
-    WriteSingle,
-    WriteMulti,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -231,103 +215,128 @@ pub enum RegisterBit {
     ForcedDischargeEnable = 1 << 10,
 }
 
-#[derive(Clone)]
-pub struct Packet {
-    pub header: [u8; HEADER_LENGTH],
-    pub data: Vec<u8>,
-}
-
-impl std::fmt::Debug for Packet {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Packet")
-            .field("tcp_function", &self.tcp_function())
-            .field("device_function", &self.device_function())
-            .field("header", &self.header)
-            .field("data", &self.data)
-            .finish()
+#[enum_dispatch]
+pub trait TcpFrameable {
+    fn datalog(&self) -> &str;
+    fn protocol(&self) -> u16;
+    fn tcp_function(&self) -> TcpFunction;
+    fn bytes(&self) -> Vec<u8> {
+        Vec::new()
     }
+    fn register(&self) -> u16;
+    fn value(&self) -> u16;
 }
 
-impl Packet {
-    #[allow(clippy::new_without_default)]
-    pub fn new() -> Self {
-        let mut header = [0; HEADER_LENGTH];
-        let data = vec![0; 16];
+pub struct TcpFrameFactory;
+impl TcpFrameFactory {
+    pub fn build<T>(data: T) -> Vec<u8>
+    where
+        T: TcpFrameable,
+    {
+        let data_bytes = data.bytes();
+        let data_length = data_bytes.len() as u8;
+        let frame_length = (19 + data_length) as u16;
 
-        header[0] = 161;
-        header[1] = 26;
-        header[6] = 1; // unsure, always seems to be 1
+        // debug!("data_length={}, frame_length={}", data_length, frame_length);
 
-        let mut r = Self { header, data };
+        let mut r = vec![0; frame_length as usize];
 
-        r.set_protocol(1);
-
-        // TODO: could do this in bytes()
-        // header-6 + data + checksum?
-        r.set_packet_length((14 + r.data.len() + 2) as u16);
-
-        // TODO: update in bytes() ?
-        r.set_data_length((r.data.len() + 2) as u8);
+        r[0] = 161;
+        r[1] = 26;
+        r[2..4].copy_from_slice(&data.protocol().to_le_bytes());
+        r[4..6].copy_from_slice(&(frame_length - 6).to_le_bytes());
+        r[6] = 1; // unsure what this is, always seems to be 1
+        r[7] = data.tcp_function() as u8;
+        r[8..18].copy_from_slice(&data.datalog().as_bytes());
+        r[18] = data_length;
+        r[19..].copy_from_slice(&data_bytes);
 
         r
     }
+}
 
-    pub fn bytes(&self) -> Vec<u8> {
-        // header + data + checksum
-        let len = HEADER_LENGTH + self.data.len() + 2;
-        let mut r = Vec::with_capacity(len);
+/////////////
+//
+// HEARTBEATS
+//
+/////////////
 
-        r.extend_from_slice(&self.header);
-        r.extend_from_slice(&self.data);
-        r.extend_from_slice(&self.checksum());
-
-        r
-    }
-
-    pub fn from_data(input: &[u8]) -> Result<Self> {
-        debug!("input = {:?}", input);
-        if input[0..2] != [161, 26] {
-            return Err(anyhow!("invalid packet"));
-        }
-
-        // used to think this was 20 bytes, but heartbeats only have 19?
-        // so do all packets actually have a 19 byte header and always
-        // have a nullbyte after?
-        let mut header = [0; HEADER_LENGTH];
-        header[0..19].copy_from_slice(&input[0..19]);
-
+#[derive(Clone, Debug)]
+pub struct Heartbeat {
+    pub datalog: String,
+}
+impl Heartbeat {
+    fn decode_bytes(input: &[u8]) -> Result<Self> {
         let len = input.len();
-
-        let data = if len > 19 {
-            // header=19, null?byte, so data starts at 20.
-            input[HEADER_LENGTH..len - 2].to_owned() // -2 to exclude checksum
-        } else {
-            // Heartbeat
-            Vec::new()
-        };
-
-        let t = Self { header, data };
-
-        if t.tcp_function() != TcpFunction::Heartbeat
-            && t.tcp_function() != TcpFunction::ReadParam
-            && t.tcp_function() != TcpFunction::WriteParam
-        {
-            // last two bytes are checksum (but not for heartbeats or param data apparently)
-            let checksum = &input[len - 2..];
-            if t.checksum() != checksum {
-                return Err(anyhow!(
-                    "checksum mismatch - got {:?}, expected {:?}",
-                    checksum,
-                    t.checksum()
-                ));
-            }
+        if len < 19 {
+            return Err(anyhow!("heartbeat packet too short"));
         }
 
-        Ok(t)
+        // assert that the final byte is 0, meaning 0 data bytes follow it
+        if input[18] != 0 {
+            return Err(anyhow!(
+                "heartbeat with non-zero ({}) length byte?",
+                input[18]
+            ));
+        }
+
+        let datalog = String::from_utf8_lossy(&input[8..18]).into_owned();
+
+        Ok(Self { datalog })
+    }
+}
+
+impl TcpFrameable for Heartbeat {
+    fn protocol(&self) -> u16 {
+        2
+    }
+
+    fn datalog(&self) -> &str {
+        &self.datalog
+    }
+
+    fn tcp_function(&self) -> TcpFunction {
+        TcpFunction::Heartbeat
+    }
+
+    fn register(&self) -> u16 {
+        unimplemented!("register() not implemented for heartbeats");
+    }
+
+    fn value(&self) -> u16 {
+        unimplemented!("value() not implemented for heartbeats");
+    }
+}
+
+/////////////
+//
+// TRANSLATED DATA
+//
+/////////////
+
+#[derive(Clone, Debug)]
+pub struct TranslatedData {
+    pub datalog: String,
+    pub device_function: DeviceFunction, // ReadHold or ReadInput etc..
+    pub inverter: String,                // inverter serial
+    pub register: u16,                   // first register of values
+    pub values: Vec<u8>,                 // undecoded, since can be u16 or u32s?
+}
+impl TranslatedData {
+    pub fn value(&self) -> u16 {
+        utils::u16ify(&self.values, 0)
+    }
+
+    pub fn pairs(&self) -> Vec<(u16, u16)> {
+        self.values
+            .chunks(2)
+            .enumerate()
+            .map(|(pos, value)| (self.register + pos as u16, utils::u16ify(value, 0)))
+            .collect()
     }
 
     pub fn read_input1(&self) -> Result<ReadInput1> {
-        match ReadInput1::parse(&self.values()) {
+        match ReadInput1::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
                 r.v_pv = r.v_pv_1 + r.v_pv_2 + r.v_pv_3;
@@ -339,7 +348,7 @@ impl Packet {
     }
 
     pub fn read_input2(&self) -> Result<ReadInput2> {
-        match ReadInput2::parse(&self.values()) {
+        match ReadInput2::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.e_pv_all = r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3;
                 Ok(r)
@@ -349,178 +358,243 @@ impl Packet {
     }
 
     pub fn read_input3(&self) -> Result<ReadInput3> {
-        match ReadInput3::parse(&self.values()) {
+        match ReadInput3::parse(&self.values) {
             Ok((_, r)) => Ok(r),
             Err(_) => Err(anyhow!("meh")),
         }
     }
 
-    // Low-level Public Setters/Getters
-
-    // HEADER
-
-    pub fn packet_type(&self) -> PacketType {
-        match self.tcp_function() {
-            TcpFunction::Heartbeat => PacketType::Heartbeat,
-            TcpFunction::TranslatedData => match self.device_function() {
-                Some(DeviceFunction::ReadHold) => PacketType::ReadHold,
-                Some(DeviceFunction::ReadInput) => match self.register() {
-                    0 => PacketType::ReadInput1,
-                    40 => PacketType::ReadInput2,
-                    80 => PacketType::ReadInput3,
-                    _ => unimplemented!(),
-                },
-                Some(DeviceFunction::WriteSingle) => PacketType::WriteSingle,
-                Some(DeviceFunction::WriteMulti) => PacketType::WriteMulti,
-                None => unimplemented!(), // None
-            },
-            _ => unimplemented!(),
+    fn decode_bytes(input: &[u8]) -> Result<Self> {
+        let len = input.len();
+        if len < 38 {
+            return Err(anyhow!("packet too short"));
         }
-    }
 
-    pub fn protocol(&self) -> u16 {
-        Self::u16ify(&self.header, 2)
-    }
-    pub fn set_protocol(&mut self, protocol: u16) {
-        self.header[2..4].copy_from_slice(&protocol.to_le_bytes())
-    }
+        let datalog = String::from_utf8_lossy(&input[8..18]).into_owned();
 
-    #[allow(dead_code)]
-    pub fn packet_length(&self) -> u16 {
-        Self::u16ify(&self.header, 4)
-    }
-    pub fn set_packet_length(&mut self, packet_length: u16) {
-        self.header[4..6].copy_from_slice(&packet_length.to_le_bytes())
-    }
+        let data = &input[20..len - 2];
 
-    pub fn tcp_function(&self) -> TcpFunction {
-        TcpFunction::try_from(self.header[7]).unwrap()
-    }
-    pub fn set_tcp_function(&mut self, tcp_function: TcpFunction) {
-        self.header[7] = tcp_function as u8
-    }
-
-    #[allow(dead_code)]
-    pub fn datalog(&self) -> &str {
-        std::str::from_utf8(&self.header[8..18]).unwrap()
-    }
-    pub fn set_datalog(&mut self, datalog: &str) {
-        self.header[8..18].copy_from_slice(&datalog.as_bytes())
-    }
-
-    /* not quite sure if this is u8 or u16.
-     *
-     * heartbeats have a u8 zero in header[18], and stop there.
-     * all other data packets I've seen have a zero in header[19].
-     *
-     * so what's 19 ever used for?
-     */
-    #[allow(dead_code)]
-    pub fn data_length(&self) -> u8 {
-        self.header[18]
-    }
-    pub fn set_data_length(&mut self, data_length: u8) {
-        self.header[18] = data_length;
-    }
-    /*
-    pub fn data_length(&self) -> u16 {
-        Self::u16ify(&self.header, 18)
-    }
-    pub fn set_data_length(&mut self, data_length: u16) {
-        self.header[18..20].copy_from_slice(&data_length.to_le_bytes())
-    }
-    */
-
-    // DATA
-    pub fn device_function(&self) -> Option<DeviceFunction> {
-        use TcpFunction::*;
-        match self.tcp_function() {
-            Heartbeat => None,
-            ReadParam | WriteParam => None,
-            TranslatedData => Some(DeviceFunction::try_from(self.data[1]).unwrap()),
+        let checksum = &input[len - 2..];
+        if Self::checksum(data) != checksum {
+            return Err(anyhow!(
+                "TranslatedData::decode_bytes checksum mismatch - got {:?}, expected {:?}",
+                checksum,
+                Self::checksum(data)
+            ));
         }
-    }
-    pub fn set_device_function(&mut self, device_function: DeviceFunction) {
-        self.data[1] = device_function as u8
-    }
 
-    #[allow(dead_code)]
-    pub fn serial(&self) -> &str {
-        std::str::from_utf8(&self.data[2..12]).unwrap()
-    }
-    pub fn set_serial(&mut self, serial: &str) {
-        self.data[2..12].copy_from_slice(&serial.as_bytes())
-    }
+        //let address = data[0]; // 0=client, 1=inverter?
+        let device_function = DeviceFunction::try_from(data[1])?;
+        let inverter = String::from_utf8_lossy(&data[2..12]).into_owned();
+        let register = utils::u16ify(data, 12);
 
-    pub fn register(&self) -> u16 {
-        Self::u16ify(&self.data, 12)
-    }
-    pub fn set_register(&mut self, register: u16) {
-        self.data[12..14].copy_from_slice(&register.to_le_bytes())
-    }
+        let mut value_len = 2;
+        let mut value_offset = 14;
 
-    pub fn has_value_length(&self) -> bool {
-        self.protocol() == 2 && self.device_function() != Some(DeviceFunction::WriteSingle)
-    }
-
-    pub fn value_length(&self) -> u8 {
-        if self.has_value_length() {
-            //u16::from_le_bytes([self.data[13], self.data[14]])
-            self.data[14]
-        } else {
-            2
+        let protocol = utils::u16ify(input, 2);
+        if Self::has_value_length_byte(protocol, device_function) {
+            value_len = data[value_offset] as usize;
+            value_offset += 1;
         }
-    }
 
-    // value as u16, usually from ReadSingle
-    pub fn value(&self) -> u16 {
-        Self::u16ify(self.values(), 0)
-    }
-    pub fn set_value(&mut self, value: u16) {
-        // TODO: only works for protocol 1!
-        self.data[14..16].copy_from_slice(&value.to_le_bytes())
-    }
+        let values = data[value_offset..].to_vec();
 
-    // slice of unprocessed u8 values
-    pub fn values(&self) -> &[u8] {
-        if self.has_value_length() {
-            // protocol 2 normally has length at 14, then that many bytes of values
-            let value_length = self.value_length() as usize;
-            &self.data[15..15 + value_length]
-        } else {
-            // protocol 1 has value at 14 and 15
-            &self.data[14..16]
+        if values.len() != value_len {
+            return Err(anyhow!(
+                "TranslatedData::decode_bytes mismatch: values.len()={}, value_length_byte={}",
+                values.len(),
+                value_len
+            ));
         }
+
+        Ok(Self {
+            datalog,
+            device_function,
+            inverter,
+            register,
+            values,
+        })
     }
 
-    // Vec of register/value pairs in this packet
-    pub fn pairs(&self) -> Vec<Pair> {
-        self.values()
+    // this isn't quite right. it's true if:
+    // protocol=2 source=inverter type=readhold or readinput
+    // protocol=2 source=client type=writemulti
+    //   writemulti is more involved anyway, has start addr AND register.. shrug
+    // also note writesingle never has one
+    fn has_value_length_byte(protocol: u16, device_function: DeviceFunction) -> bool {
+        // this might only actually apply on packets *from* the inverter..
+        protocol == 2 && device_function != DeviceFunction::WriteSingle
+    }
+
+    fn checksum(data: &[u8]) -> [u8; 2] {
+        crc16::State::<crc16::MODBUS>::calculate(data).to_le_bytes()
+    }
+}
+
+impl TcpFrameable for TranslatedData {
+    fn protocol(&self) -> u16 {
+        1
+    }
+
+    fn datalog(&self) -> &str {
+        &self.datalog
+    }
+
+    fn tcp_function(&self) -> TcpFunction {
+        TcpFunction::TranslatedData
+    }
+
+    fn bytes(&self) -> Vec<u8> {
+        let mut r = vec![0; 14];
+
+        // r[0] is 0 when writing to inverter, 1 when reading from it?
+        r[1] = self.device_function as u8;
+        r[2..12].copy_from_slice(&self.inverter.as_bytes());
+        r[12..14].copy_from_slice(&self.register.to_le_bytes());
+
+        if self.protocol() == 2 && self.device_function != DeviceFunction::WriteSingle {
+            let len = self.values.len() as u8;
+            r.extend_from_slice(&[len]);
+        }
+
+        let mut m = Vec::new();
+        for i in &self.values {
+            m.extend_from_slice(&i.to_le_bytes());
+        }
+        r.append(&mut m);
+
+        r.extend_from_slice(&Self::checksum(&r));
+
+        r
+    }
+
+    fn register(&self) -> u16 {
+        self.register
+    }
+
+    fn value(&self) -> u16 {
+        utils::u16ify(&self.values, 0)
+    }
+}
+
+//
+// READ PARAM
+//
+#[derive(Clone, Debug)]
+pub struct ReadParam {
+    pub datalog: String,
+    pub register: u16,   // first register of values
+    pub values: Vec<u8>, // undecoded, since can be u16 or u32s?
+}
+impl ReadParam {
+    pub fn pairs(&self) -> Vec<(u16, u16)> {
+        self.values
             .chunks(2)
             .enumerate()
-            .map(|(pos, value)| Pair {
-                register: self.register() + pos as u16,
-                value: Self::u16ify(value, 0),
-            })
+            .map(|(pos, value)| (self.register + pos as u16, utils::u16ify(value, 0)))
             .collect()
     }
 
-    // Private
-    fn checksum(&self) -> [u8; 2] {
-        crc16::State::<crc16::MODBUS>::calculate(&self.data).to_le_bytes()
+    fn decode_bytes(input: &[u8]) -> Result<Self> {
+        let len = input.len();
+        if len < 24 {
+            return Err(anyhow!("packet too short"));
+        }
+
+        let protocol = utils::u16ify(input, 2);
+        let datalog = String::from_utf8_lossy(&input[8..18]).into_owned();
+
+        let data = &input[18..];
+        let register = utils::u16ify(data, 0);
+
+        let mut value_len = 2;
+        let mut value_offset = 2;
+
+        if Self::has_value_length_bytes(protocol) {
+            value_len = utils::u16ify(data, value_offset) as usize;
+            value_offset += 2;
+        }
+
+        let values = data[value_offset..].to_vec();
+
+        if values.len() != value_len {
+            return Err(anyhow!(
+                "ReadParam::decode_bytes mismatch: values.len()={}, value_length_byte={}",
+                values.len(),
+                value_len
+            ));
+        }
+
+        Ok(Self {
+            datalog,
+            register,
+            values,
+        })
     }
 
-    fn u16ify(array: &[u8], offset: usize) -> u16 {
-        u16::from_le_bytes([array[offset], array[offset + 1]])
+    fn has_value_length_bytes(protocol: u16) -> bool {
+        protocol == 2
     }
-    /*
-    fn u32ify(array: &[u8], offset: usize) -> u32 {
-        u32::from_le_bytes([
-            array[offset],
-            array[offset + 1],
-            array[offset + 2],
-            array[offset + 3],
-        ])
+}
+
+impl TcpFrameable for ReadParam {
+    fn protocol(&self) -> u16 {
+        2
     }
-    */
+
+    fn datalog(&self) -> &str {
+        &self.datalog
+    }
+
+    fn tcp_function(&self) -> TcpFunction {
+        TcpFunction::ReadParam
+    }
+
+    fn register(&self) -> u16 {
+        self.register
+    }
+
+    fn value(&self) -> u16 {
+        utils::u16ify(&self.values, 0)
+    }
+}
+#[enum_dispatch(TcpFrameable)]
+#[derive(Debug, Clone)]
+pub enum Packet {
+    Heartbeat(Heartbeat),
+    TranslatedData(TranslatedData),
+    ReadParam(ReadParam),
+}
+
+pub struct Parser;
+impl Parser {
+    pub fn from_bytes(input: &[u8]) -> Result<Packet> {
+        let input_len = input.len() as u8;
+        if input_len < 18 {
+            return Err(anyhow!("packet less than 18 bytes?"));
+        }
+
+        if input[0..2] != [161, 26] {
+            return Err(anyhow!("invalid packet prefix"));
+        }
+
+        if input_len < input[4] - 6 {
+            return Err(anyhow!(
+                "Parser::from_bytes mismatch: input.len()={},  frame_length={}",
+                input_len,
+                input[4] - 6
+            ));
+        }
+
+        let packet = match TcpFunction::try_from(input[7]) {
+            Ok(TcpFunction::Heartbeat) => Ok(Packet::Heartbeat(Heartbeat::decode_bytes(input)?)),
+            Ok(TcpFunction::TranslatedData) => {
+                Ok(Packet::TranslatedData(TranslatedData::decode_bytes(input)?))
+            }
+            Ok(TcpFunction::ReadParam) => Ok(Packet::ReadParam(ReadParam::decode_bytes(input)?)),
+            _ => Err(anyhow!("not handled: tcp_function={}", input[7])),
+        };
+
+        packet
+    }
 }

@@ -16,7 +16,7 @@ pub use crate::{
     lxp,
     lxp::{
         inverter::Inverter,
-        packet2::{Packet, TcpFrameable},
+        packet::{Packet, TcpFrameable},
     },
     mqtt,
     options::Options,

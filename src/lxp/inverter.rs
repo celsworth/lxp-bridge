@@ -5,7 +5,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_util::codec::Decoder;
 
-use lxp::packet2::TcpFrameFactory;
+use lxp::packet::TcpFrameFactory;
 
 pub type PacketSender = broadcast::Sender<Option<Packet>>;
 

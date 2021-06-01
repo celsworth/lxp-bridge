@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use lxp::packet2::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
+use lxp::packet::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
 
 // the coordinator takes messages from both MQ and the inverter and decides
 // what to do with them.
@@ -89,8 +89,8 @@ impl Coordinator {
     }
 
     async fn process_command(&self, command: &Command) -> Result<()> {
-        use lxp::packet2::Register;
-        use lxp::packet2::RegisterBit;
+        use lxp::packet::Register;
+        use lxp::packet::RegisterBit;
 
         match *command {
             Command::ReadHold(register) => self.read_register(register).await,
@@ -199,7 +199,7 @@ impl Coordinator {
     async fn update_register(
         &self,
         register: u16,
-        bit: lxp::packet2::RegisterBit,
+        bit: lxp::packet::RegisterBit,
         enable: bool,
     ) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();

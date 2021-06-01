@@ -24,7 +24,7 @@ impl Message {
     }
 
     pub fn from_packet(packet: Packet) -> Result<Vec<Self>> {
-        use lxp::packet2::DeviceFunction;
+        use lxp::packet::DeviceFunction;
 
         let mut r = Vec::new();
 
