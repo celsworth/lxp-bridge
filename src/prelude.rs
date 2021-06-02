@@ -1,3 +1,4 @@
+pub use std::convert::TryFrom;
 pub use std::io::Write;
 pub use std::rc::Rc;
 
@@ -11,7 +12,11 @@ pub use crate::{
     config::Config,
     coordinator::Coordinator,
     lxp,
-    lxp::{inverter::Inverter, packet::Packet},
+    lxp::{
+        inverter::Inverter,
+        packet::{Packet, PacketCommon, TcpFrameable},
+    },
     mqtt,
     options::Options,
+    utils,
 };

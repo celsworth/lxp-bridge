@@ -5,6 +5,8 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio_util::codec::Decoder;
 
+use lxp::packet::TcpFrameFactory;
+
 pub type PacketSender = broadcast::Sender<Option<Packet>>;
 
 pub struct Inverter {
@@ -66,16 +68,19 @@ impl Inverter {
             // read_buf appends to buf rather than overwrite existing data
             let len = socket.read_buf(&mut buf).await?;
 
+            // TODO: reconnect if nothing for 5 minutes?
+            // or maybe send our own heartbeats?
+
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
-                    debug!("RX ({} bytes): {:?}", packet.bytes().len(), packet);
+                    debug!("RX {:?}", packet);
                     self.to_coordinator.send(Some(packet))?;
                 }
                 break;
             }
 
             while let Some(packet) = decoder.decode(&mut buf)? {
-                debug!("RX ({} bytes): {:?}", packet.bytes().len(), packet);
+                //debug!("RX ({} bytes): {:?}", packet.bytes().len(), packet);
                 self.to_coordinator.send(Some(packet))?;
             }
         }
@@ -88,9 +93,11 @@ impl Inverter {
         let mut receiver = self.from_coordinator.subscribe();
 
         while let Some(packet) = receiver.recv().await? {
-            debug!("TX ({} bytes): {:?}", packet.bytes().len(), packet);
+            debug!("TX {:?}", packet);
 
-            socket.write_all(&packet.bytes()).await?
+            let bytes = TcpFrameFactory::build(packet);
+
+            socket.write_all(&bytes).await?
         }
 
         Err(anyhow!(

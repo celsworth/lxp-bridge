@@ -14,7 +14,7 @@ impl PacketDecoder {
 }
 
 impl Decoder for PacketDecoder {
-    type Item = lxp::packet::Packet;
+    type Item = Packet;
     type Error = Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
@@ -50,7 +50,7 @@ impl Decoder for PacketDecoder {
 
         debug!("{} bytes in: {:?}", data.len(), data);
 
-        match lxp::packet::Packet::from_data(data) {
+        match lxp::packet::Parser::parse(data) {
             Ok(packet) => Ok(Some(packet)),
             Err(e) => Err(Error::new(ErrorKind::InvalidData, e)),
         }
