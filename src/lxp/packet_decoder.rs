@@ -50,7 +50,7 @@ impl Decoder for PacketDecoder {
 
         debug!("{} bytes in: {:?}", data.len(), data);
 
-        match lxp::packet::Parser::from_bytes(data) {
+        match lxp::packet::Parser::parse(data) {
             Ok(packet) => Ok(Some(packet)),
             Err(e) => Err(Error::new(ErrorKind::InvalidData, e)),
         }

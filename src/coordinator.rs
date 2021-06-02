@@ -90,12 +90,13 @@ impl Coordinator {
     async fn process_command(&self, command: &Command) -> Result<()> {
         use lxp::packet::Register;
         use lxp::packet::RegisterBit;
+        use Command::*;
 
         match *command {
-            Command::ReadHold(register) => self.read_register(register).await,
-            Command::ReadParam(register) => self.read_param(register).await,
-            Command::SetHold(register, value) => self.set_register(register, value).await,
-            Command::AcCharge(enable) => {
+            ReadHold(register) => self.read_register(register).await,
+            ReadParam(register) => self.read_param(register).await,
+            SetHold(register, value) => self.set_register(register, value).await,
+            AcCharge(enable) => {
                 self.update_register(
                     Register::Register21.into(),
                     RegisterBit::AcChargeEnable,
@@ -103,7 +104,7 @@ impl Coordinator {
                 )
                 .await
             }
-            Command::ForcedDischarge(enable) => {
+            ForcedDischarge(enable) => {
                 self.update_register(
                     Register::Register21.into(),
                     RegisterBit::ForcedDischargeEnable,
@@ -111,26 +112,26 @@ impl Coordinator {
                 )
                 .await
             }
-            Command::ChargeRate(pct) => {
+            ChargeRate(pct) => {
                 self.set_register(Register::ChargePowerPercentCmd.into(), pct)
                     .await
             }
-            Command::DischargeRate(pct) => {
+            DischargeRate(pct) => {
                 self.set_register(Register::DischgPowerPercentCmd.into(), pct)
                     .await
             }
 
-            Command::AcChargeRate(pct) => {
+            AcChargeRate(pct) => {
                 self.set_register(Register::AcChargePowerCmd.into(), pct)
                     .await
             }
 
-            Command::AcChargeSocLimit(pct) => {
+            AcChargeSocLimit(pct) => {
                 self.set_register(Register::AcChargeSocLimit.into(), pct)
                     .await
             }
 
-            Command::DischargeCutoffSocLimit(pct) => {
+            DischargeCutoffSocLimit(pct) => {
                 self.set_register(Register::DischgCutOffSocEod.into(), pct)
                     .await
             }
@@ -310,17 +311,19 @@ impl Coordinator {
 
     // borrow a Command and return the MQTT topic we should send our result on
     fn command_to_mqtt_topic(command: &Command) -> String {
+        use Command::*;
+
         match command {
-            Command::ReadHold(register) => format!("read/hold/{}", register),
-            Command::ReadParam(register) => format!("read/param/{}", register),
-            Command::SetHold(register, _) => format!("set/hold/{}", register),
-            Command::AcCharge(_) => "set/ac_charge".to_string(),
-            Command::ForcedDischarge(_) => "set/forced_discharge".to_string(),
-            Command::ChargeRate(_) => "set/charge_rate_pct".to_string(),
-            Command::DischargeRate(_) => "set/discharge_rate_pct".to_string(),
-            Command::AcChargeRate(_) => "set/ac_charge_rate_pct".to_string(),
-            Command::AcChargeSocLimit(_) => "set/ac_charge_soc_limit_pct".to_string(),
-            Command::DischargeCutoffSocLimit(_) => "set/discharge_cutoff_soc_limit_pct".to_string(),
+            ReadHold(register) => format!("read/hold/{}", register),
+            ReadParam(register) => format!("read/param/{}", register),
+            SetHold(register, _) => format!("set/hold/{}", register),
+            AcCharge(_) => "set/ac_charge".to_string(),
+            ForcedDischarge(_) => "set/forced_discharge".to_string(),
+            ChargeRate(_) => "set/charge_rate_pct".to_string(),
+            DischargeRate(_) => "set/discharge_rate_pct".to_string(),
+            AcChargeRate(_) => "set/ac_charge_rate_pct".to_string(),
+            AcChargeSocLimit(_) => "set/ac_charge_soc_limit_pct".to_string(),
+            DischargeCutoffSocLimit(_) => "set/discharge_cutoff_soc_limit_pct".to_string(),
         }
     }
 

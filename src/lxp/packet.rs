@@ -1,9 +1,15 @@
 use crate::prelude::*;
 
+use enum_dispatch::*;
 use nom_derive::{Nom, Parse};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
-use std::convert::TryFrom;
+
+#[derive(PartialEq)]
+enum PacketSource {
+    Inverter,
+    Client,
+}
 
 // {{{ ReadInput1
 #[derive(Debug, Serialize, Nom)]
@@ -202,6 +208,18 @@ pub enum RegisterBit {
 }
 
 #[enum_dispatch]
+pub trait PacketCommon {
+    fn register(&self) -> u16 {
+        unimplemented!("register() not implemented");
+    }
+    fn value(&self) -> u16 {
+        unimplemented!("value() not implemented");
+    }
+}
+
+// this contains method that TcpFrameFactory needs to make a TCP frame
+// from a class.
+#[enum_dispatch]
 pub trait TcpFrameable {
     fn datalog(&self) -> &str;
     fn protocol(&self) -> u16;
@@ -209,8 +227,6 @@ pub trait TcpFrameable {
     fn bytes(&self) -> Vec<u8> {
         Vec::new()
     }
-    fn register(&self) -> u16;
-    fn value(&self) -> u16;
 }
 
 pub struct TcpFrameFactory;
@@ -241,7 +257,7 @@ impl TcpFrameFactory {
     }
 }
 
-#[enum_dispatch(TcpFrameable)]
+#[enum_dispatch(PacketCommon, TcpFrameable)]
 #[derive(Debug, Clone)]
 pub enum Packet {
     Heartbeat(Heartbeat),
@@ -260,7 +276,7 @@ pub struct Heartbeat {
     pub datalog: String,
 }
 impl Heartbeat {
-    fn decode_bytes(input: &[u8]) -> Result<Self> {
+    fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 19 {
             return Err(anyhow!("heartbeat packet too short"));
@@ -292,15 +308,8 @@ impl TcpFrameable for Heartbeat {
     fn tcp_function(&self) -> TcpFunction {
         TcpFunction::Heartbeat
     }
-
-    fn register(&self) -> u16 {
-        unimplemented!("register() not implemented for heartbeats");
-    }
-
-    fn value(&self) -> u16 {
-        unimplemented!("value() not implemented for heartbeats");
-    }
 }
+impl PacketCommon for Heartbeat {}
 
 /////////////
 //
@@ -358,12 +367,13 @@ impl TranslatedData {
         }
     }
 
-    fn decode_bytes(input: &[u8]) -> Result<Self> {
+    fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 38 {
             return Err(anyhow!("packet too short"));
         }
 
+        let protocol = utils::u16ify(input, 2);
         let datalog = String::from_utf8_lossy(&input[8..18]).into_owned();
 
         let data = &input[20..len - 2];
@@ -371,7 +381,7 @@ impl TranslatedData {
         let checksum = &input[len - 2..];
         if Self::checksum(data) != checksum {
             return Err(anyhow!(
-                "TranslatedData::decode_bytes checksum mismatch - got {:?}, expected {:?}",
+                "TranslatedData::decode checksum mismatch - got {:?}, expected {:?}",
                 checksum,
                 Self::checksum(data)
             ));
@@ -385,8 +395,7 @@ impl TranslatedData {
         let mut value_len = 2;
         let mut value_offset = 14;
 
-        let protocol = utils::u16ify(input, 2);
-        if Self::has_value_length_byte(protocol, device_function) {
+        if Self::has_value_length_byte(PacketSource::Inverter, protocol, device_function) {
             value_len = data[value_offset] as usize;
             value_offset += 1;
         }
@@ -395,7 +404,7 @@ impl TranslatedData {
 
         if values.len() != value_len {
             return Err(anyhow!(
-                "TranslatedData::decode_bytes mismatch: values.len()={}, value_length_byte={}",
+                "TranslatedData::decode mismatch: values.len()={}, value_length_byte={}",
                 values.len(),
                 value_len
             ));
@@ -410,14 +419,20 @@ impl TranslatedData {
         })
     }
 
-    // this isn't quite right. it's true if:
-    // protocol=2 source=inverter type=readhold or readinput
-    // protocol=2 source=client type=writemulti
-    //   writemulti is more involved anyway, has start addr AND register.. shrug
-    // also note writesingle never has one
-    fn has_value_length_byte(protocol: u16, device_function: DeviceFunction) -> bool {
-        // this might only actually apply on packets *from* the inverter..
-        protocol == 2 && device_function != DeviceFunction::WriteSingle
+    fn has_value_length_byte(
+        source: PacketSource,
+        protocol: u16,
+        device_function: DeviceFunction,
+    ) -> bool {
+        use DeviceFunction::*;
+
+        let p2 = protocol == 2;
+        let psi = source == PacketSource::Inverter;
+
+        p2 && psi && (device_function == ReadHold || device_function == ReadInput)
+
+        /* for future support, we don't actually do WriteMulti yet anyway */
+        // let b2 = p2 && !psi && device_function == WriteMulti;
     }
 
     fn checksum(data: &[u8]) -> [u8; 2] {
@@ -446,7 +461,8 @@ impl TcpFrameable for TranslatedData {
         r[2..12].copy_from_slice(&self.inverter.as_bytes());
         r[12..14].copy_from_slice(&self.register.to_le_bytes());
 
-        if self.protocol() == 2 && self.device_function != DeviceFunction::WriteSingle {
+        if Self::has_value_length_byte(PacketSource::Client, self.protocol(), self.device_function)
+        {
             let len = self.values.len() as u8;
             r.extend_from_slice(&[len]);
         }
@@ -461,7 +477,9 @@ impl TcpFrameable for TranslatedData {
 
         r
     }
+}
 
+impl PacketCommon for TranslatedData {
     fn register(&self) -> u16 {
         self.register
     }
@@ -492,7 +510,7 @@ impl ReadParam {
             .collect()
     }
 
-    fn decode_bytes(input: &[u8]) -> Result<Self> {
+    fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 24 {
             return Err(anyhow!("packet too short"));
@@ -516,7 +534,7 @@ impl ReadParam {
 
         if values.len() != value_len {
             return Err(anyhow!(
-                "ReadParam::decode_bytes mismatch: values.len()={}, value_length_byte={}",
+                "ReadParam::decode mismatch: values.len()={}, value_length_byte={}",
                 values.len(),
                 value_len
             ));
@@ -547,6 +565,28 @@ impl TcpFrameable for ReadParam {
         TcpFunction::ReadParam
     }
 
+    fn bytes(&self) -> Vec<u8> {
+        let mut r = vec![0; 14];
+
+        // r[0] is 0 when writing to inverter, 1 when reading from it?
+        r[0..2].copy_from_slice(&self.register.to_le_bytes());
+
+        if Self::has_value_length_bytes(self.protocol()) {
+            let len = self.values.len() as u8;
+            r.extend_from_slice(&[len]);
+        }
+
+        let mut m = Vec::new();
+        for i in &self.values {
+            m.extend_from_slice(&i.to_le_bytes());
+        }
+        r.append(&mut m);
+
+        r
+    }
+}
+
+impl PacketCommon for ReadParam {
     fn register(&self) -> u16 {
         self.register
     }
@@ -558,7 +598,7 @@ impl TcpFrameable for ReadParam {
 
 pub struct Parser;
 impl Parser {
-    pub fn from_bytes(input: &[u8]) -> Result<Packet> {
+    pub fn parse(input: &[u8]) -> Result<Packet> {
         let input_len = input.len() as u8;
         if input_len < 18 {
             return Err(anyhow!("packet less than 18 bytes?"));
@@ -570,21 +610,19 @@ impl Parser {
 
         if input_len < input[4] - 6 {
             return Err(anyhow!(
-                "Parser::from_bytes mismatch: input.len()={},  frame_length={}",
+                "Parser::parse mismatch: input.len()={},  frame_length={}",
                 input_len,
                 input[4] - 6
             ));
         }
 
-        let packet = match TcpFunction::try_from(input[7]) {
-            Ok(TcpFunction::Heartbeat) => Ok(Packet::Heartbeat(Heartbeat::decode_bytes(input)?)),
-            Ok(TcpFunction::TranslatedData) => {
-                Ok(Packet::TranslatedData(TranslatedData::decode_bytes(input)?))
+        match TcpFunction::try_from(input[7])? {
+            TcpFunction::Heartbeat => Ok(Packet::Heartbeat(Heartbeat::decode(input)?)),
+            TcpFunction::TranslatedData => {
+                Ok(Packet::TranslatedData(TranslatedData::decode(input)?))
             }
-            Ok(TcpFunction::ReadParam) => Ok(Packet::ReadParam(ReadParam::decode_bytes(input)?)),
+            TcpFunction::ReadParam => Ok(Packet::ReadParam(ReadParam::decode(input)?)),
             _ => Err(anyhow!("not handled: tcp_function={}", input[7])),
-        };
-
-        packet
+        }
     }
 }

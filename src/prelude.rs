@@ -7,8 +7,6 @@ pub use log::{debug, error, info, trace, warn};
 
 pub use tokio::sync::broadcast;
 
-pub use enum_dispatch::*;
-
 pub use crate::{
     command::Command,
     config::Config,
@@ -16,7 +14,7 @@ pub use crate::{
     lxp,
     lxp::{
         inverter::Inverter,
-        packet::{Packet, TcpFrameable},
+        packet::{Packet, PacketCommon, TcpFrameable},
     },
     mqtt,
     options::Options,
