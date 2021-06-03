@@ -385,10 +385,16 @@ impl Coordinator {
     fn message_to_command(&self, message: mqtt::Message) -> Result<Command> {
         use Command::*;
 
-        let parts: Vec<&str> = message.topic.split('/').collect();
+        // skip past the configured mqtt namespace and the first /.
+        // doing it this way means we don't break if namespace happens to contain a /
+        let topic = &message.topic[self.config.mqtt.namespace.len() + 1..];
 
-        // bail if the topic is too short to handle
-        if parts.len() < 3 {
+        // this now starts at cmd/{datalog}/..
+        let parts: Vec<&str> = topic.split('/').collect();
+
+        // bail if the topic is too short to handle.
+        // this *shouldn't* happen as our subscribe is for lxp/cmd/{datalog}/#
+        if parts.len() < 2 {
             return Err(anyhow!(
                 "ignoring badly formed MQTT topic: {}",
                 message.topic
@@ -397,11 +403,11 @@ impl Coordinator {
 
         // bail if next part isn't our inverter's datalog
         // this shouldn't actually happen as our subscribe is for lxp/cmd/{datalog}/#
-        if parts[2] != self.config.inverter.datalog {
+        if parts[1] != self.config.inverter.datalog {
             return Err(anyhow!("ignoring message for another datalog"));
         }
 
-        let parts = &parts[3..]; // drop lxp/cmd/{datalog}
+        let parts = &parts[2..]; // drop cmd/{datalog}
 
         let r = match parts {
             // TODO: read input
