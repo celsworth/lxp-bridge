@@ -111,7 +111,12 @@ impl Mqtt {
 
         info!("mqtt connected!");
 
-        client.subscribe("lxp/cmd/#", QoS::AtMostOnce).await?;
+        client
+            .subscribe(
+                format!("lxp/cmd/{}/#", self.config.inverter.datalog),
+                QoS::AtMostOnce,
+            )
+            .await?;
 
         futures::try_join!(self.receiver(eventloop), self.sender(client))?;
 

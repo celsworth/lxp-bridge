@@ -344,9 +344,9 @@ impl Coordinator {
         }
 
         // bail if next part isn't our inverter's datalog
+        // this shouldn't actually happen as our subscribe is for lxp/cmd/{datalog}/#
         if parts[2] != self.config.inverter.datalog {
-            warn!("ignoring message for another datalog");
-            return Err(anyhow!("ignoring"));
+            return Err(anyhow!("ignoring message for another datalog"));
         }
 
         let parts = &parts[3..]; // drop lxp/cmd/{datalog}
