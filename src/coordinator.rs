@@ -351,26 +351,28 @@ impl Coordinator {
 
         let parts = &parts[3..]; // drop lxp/cmd/{datalog}
 
-        match parts {
+        let r = match parts {
             // TODO: read input
-            ["read", "hold", register] => Ok(ReadHold(register.parse()?)),
-            ["read", "param", register] => Ok(ReadParam(register.parse()?)),
-            ["set", "hold", register] => Ok(SetHold(register.parse()?, message.payload_int()?)),
-            ["set", "ac_charge"] => Ok(AcCharge(message.payload_bool())),
+            ["read", "hold", register] => ReadHold(register.parse()?),
+            ["read", "param", register] => ReadParam(register.parse()?),
+            ["set", "hold", register] => SetHold(register.parse()?, message.payload_int()?),
+            ["set", "ac_charge"] => AcCharge(message.payload_bool()),
 
-            ["set", "forced_discharge"] => Ok(ForcedDischarge(message.payload_bool())),
+            ["set", "forced_discharge"] => ForcedDischarge(message.payload_bool()),
 
-            ["set", "charge_rate_pct"] => Ok(ChargeRate(message.payload_int()?)),
-            ["set", "discharge_rate_pct"] => Ok(DischargeRate(message.payload_int()?)),
-            ["set", "ac_charge_rate_pct"] => Ok(AcChargeRate(message.payload_int()?)),
+            ["set", "charge_rate_pct"] => ChargeRate(message.payload_int()?),
+            ["set", "discharge_rate_pct"] => DischargeRate(message.payload_int()?),
+            ["set", "ac_charge_rate_pct"] => AcChargeRate(message.payload_int()?),
 
-            ["set", "ac_charge_soc_limit_pct"] => Ok(AcChargeSocLimit(message.payload_int()?)),
+            ["set", "ac_charge_soc_limit_pct"] => AcChargeSocLimit(message.payload_int()?),
 
             ["set", "discharge_cutoff_soc_limit_pct"] => {
-                Ok(DischargeCutoffSocLimit(message.payload_int()?))
+                DischargeCutoffSocLimit(message.payload_int()?)
             }
 
-            [..] => Err(anyhow!("unhandled: {:?}", parts)),
-        }
+            [..] => return Err(anyhow!("unhandled: {:?}", parts)),
+        };
+
+        Ok(r)
     }
 }
