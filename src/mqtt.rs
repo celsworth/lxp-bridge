@@ -34,22 +34,22 @@ impl Message {
                 DeviceFunction::ReadHold => {
                     for (register, value) in t.pairs() {
                         r.push(Self {
-                            topic: format!("lxp/hold/{}", register),
+                            topic: format!("lxp/{}/hold/{}", t.datalog, register),
                             payload: serde_json::to_string(&value)?,
                         });
                     }
                 }
                 DeviceFunction::ReadInput => match t.register {
                     0 => r.push(Self {
-                        topic: String::from("lxp/inputs/1"),
+                        topic: format!("lxp/{}/inputs/1", t.datalog),
                         payload: serde_json::to_string(&t.read_input1()?)?,
                     }),
                     40 => r.push(Self {
-                        topic: String::from("lxp/inputs/2"),
+                        topic: format!("lxp/{}/inputs/2", t.datalog),
                         payload: serde_json::to_string(&t.read_input2()?)?,
                     }),
                     80 => r.push(Self {
-                        topic: String::from("lxp/inputs/3"),
+                        topic: format!("lxp/{}/inputs/3", t.datalog),
                         payload: serde_json::to_string(&t.read_input3()?)?,
                     }),
                     _ => {
@@ -62,7 +62,7 @@ impl Message {
             Packet::ReadParam(rp) => {
                 for (register, value) in rp.pairs() {
                     r.push(Self {
-                        topic: format!("lxp/param/{}", register),
+                        topic: format!("lxp/{}/param/{}", rp.datalog, register),
                         payload: serde_json::to_string(&value)?,
                     });
                 }
