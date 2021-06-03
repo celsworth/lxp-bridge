@@ -64,23 +64,23 @@ impl Coordinator {
         loop {
             let message = receiver.recv().await?;
 
-            match Self::message_to_command(message) {
+            match self.message_to_command(message) {
                 Ok(command) => {
                     debug!("parsed command {:?}", command);
 
                     let result = self.process_command(&command).await;
 
-                    self.to_mqtt.send(mqtt::Message::command_result(
-                        &Self::command_to_mqtt_topic(&command),
-                        result.is_ok(),
-                    ))?;
+                    let reply = mqtt::Message {
+                        topic: self.command_to_mqtt_topic(&command),
+                        payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
+                    };
+                    self.to_mqtt.send(reply)?;
 
                     if let Err(err) = result {
                         error!("{:?}: {:?}", command, err);
                     }
                 }
                 Err(err) => {
-                    // TODO need to send a FAIL here really
                     error!("{:?}", err);
                 }
             }
@@ -310,10 +310,10 @@ impl Coordinator {
     }
 
     // borrow a Command and return the MQTT topic we should send our result on
-    fn command_to_mqtt_topic(command: &Command) -> String {
+    fn command_to_mqtt_topic(&self, command: &Command) -> String {
         use Command::*;
 
-        match command {
+        let r = match command {
             ReadHold(register) => format!("read/hold/{}", register),
             ReadParam(register) => format!("read/param/{}", register),
             SetHold(register, _) => format!("set/hold/{}", register),
@@ -324,18 +324,35 @@ impl Coordinator {
             AcChargeRate(_) => "set/ac_charge_rate_pct".to_string(),
             AcChargeSocLimit(_) => "set/ac_charge_soc_limit_pct".to_string(),
             DischargeCutoffSocLimit(_) => "set/discharge_cutoff_soc_limit_pct".to_string(),
-        }
+        };
+
+        format!("lxp/result/{}/{}", self.config.inverter.datalog, r)
     }
 
     // consume an incoming mqtt message (from lxp/cmd/..) and return a populated Command
-    fn message_to_command(message: mqtt::Message) -> Result<Command> {
+    fn message_to_command(&self, message: mqtt::Message) -> Result<Command> {
         use Command::*;
 
         let parts: Vec<&str> = message.topic.split('/').collect();
-        let parts = &parts[2..]; // drop lxp/cmd
+
+        // bail if the topic is too short to handle
+        if parts.len() < 3 {
+            return Err(anyhow!(
+                "ignoring badly formed MQTT topic: {}",
+                message.topic
+            ));
+        }
+
+        // bail if next part isn't our inverter's datalog
+        if parts[2] != self.config.inverter.datalog {
+            warn!("ignoring message for another datalog");
+            return Err(anyhow!("ignoring"));
+        }
+
+        let parts = &parts[3..]; // drop lxp/cmd/{datalog}
 
         match parts {
-            // read input
+            // TODO: read input
             ["read", "hold", register] => Ok(ReadHold(register.parse()?)),
             ["read", "param", register] => Ok(ReadParam(register.parse()?)),
             ["set", "hold", register] => Ok(SetHold(register.parse()?, message.payload_int()?)),

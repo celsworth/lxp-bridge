@@ -10,19 +10,6 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn command_result(final_part: &str, success: bool) -> Self {
-        let mut topic = "lxp/result/".to_owned();
-        topic.push_str(&final_part);
-
-        let payload = match success {
-            true => "OK",
-            false => "FAIL",
-        }
-        .to_string();
-
-        Self { topic, payload }
-    }
-
     pub fn from_packet(packet: Packet) -> Result<Vec<Self>> {
         use lxp::packet::DeviceFunction;
 
@@ -136,9 +123,7 @@ impl Mqtt {
         loop {
             match eventloop.poll().await {
                 Ok(Event::Incoming(Incoming::Publish(publish))) => {
-                    let message = Self::parse_message(publish)?;
-                    debug!("RX: {:?}", message);
-                    self.to_coordinator.send(message)?;
+                    self.handle_message(publish)?;
                 }
                 Err(e) => {
                     // should automatically reconnect on next poll()..
@@ -149,11 +134,19 @@ impl Mqtt {
         }
     }
 
-    fn parse_message(publish: Publish) -> Result<Message> {
-        Ok(Message {
+    fn handle_message(&self, publish: Publish) -> Result<()> {
+        let message = Message {
             topic: publish.topic,
             payload: String::from_utf8(publish.payload.to_vec())?,
-        })
+        };
+
+        debug!("RX: {:?}", message);
+
+        // ignore this message if it's not for this inverter
+
+        self.to_coordinator.send(message)?;
+
+        Ok(())
     }
 
     // coordinator -> mqtt
