@@ -139,11 +139,7 @@ impl Mqtt {
             topic: publish.topic,
             payload: String::from_utf8(publish.payload.to_vec())?,
         };
-
         debug!("RX: {:?}", message);
-
-        // ignore this message if it's not for this inverter
-
         self.to_coordinator.send(message)?;
 
         Ok(())
