@@ -11,10 +11,9 @@ pub struct Message {
 
 impl Message {
     pub fn payload_int(&self) -> Result<u16> {
-        match self.payload.parse() {
-            Ok(i) => Ok(i),
-            Err(err) => Err(anyhow!("payload_int: {}", err)),
-        }
+        self.payload
+            .parse()
+            .map_err(|err| anyhow!("payload_int: {}", err))
     }
 
     pub fn payload_bool(&self) -> bool {
