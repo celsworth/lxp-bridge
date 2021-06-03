@@ -9,3 +9,4 @@ mqtt:
   port: 1883
   username:
   password:
+  # namespace: lxp

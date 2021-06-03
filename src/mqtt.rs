@@ -10,55 +10,6 @@ pub struct Message {
 }
 
 impl Message {
-    pub fn from_packet(packet: Packet) -> Result<Vec<Self>> {
-        use lxp::packet::DeviceFunction;
-
-        let mut r = Vec::new();
-
-        match packet {
-            Packet::Heartbeat(_) => {}
-            Packet::TranslatedData(t) => match t.device_function {
-                DeviceFunction::ReadHold => {
-                    for (register, value) in t.pairs() {
-                        r.push(Self {
-                            topic: format!("lxp/{}/hold/{}", t.datalog, register),
-                            payload: serde_json::to_string(&value)?,
-                        });
-                    }
-                }
-                DeviceFunction::ReadInput => match t.register {
-                    0 => r.push(Self {
-                        topic: format!("lxp/{}/inputs/1", t.datalog),
-                        payload: serde_json::to_string(&t.read_input1()?)?,
-                    }),
-                    40 => r.push(Self {
-                        topic: format!("lxp/{}/inputs/2", t.datalog),
-                        payload: serde_json::to_string(&t.read_input2()?)?,
-                    }),
-                    80 => r.push(Self {
-                        topic: format!("lxp/{}/inputs/3", t.datalog),
-                        payload: serde_json::to_string(&t.read_input3()?)?,
-                    }),
-                    _ => {
-                        warn!("unhandled ReadInput register={}", t.register);
-                    }
-                },
-                DeviceFunction::WriteSingle => {}
-                DeviceFunction::WriteMulti => {}
-            },
-            Packet::ReadParam(rp) => {
-                for (register, value) in rp.pairs() {
-                    r.push(Self {
-                        topic: format!("lxp/{}/param/{}", rp.datalog, register),
-                        payload: serde_json::to_string(&value)?,
-                    });
-                }
-            }
-        };
-
-        Ok(r)
-    }
-
     pub fn payload_int(&self) -> Result<u16> {
         match self.payload.parse() {
             Ok(i) => Ok(i),
@@ -113,7 +64,10 @@ impl Mqtt {
 
         client
             .subscribe(
-                format!("lxp/cmd/{}/#", self.config.inverter.datalog),
+                format!(
+                    "{}/cmd/{}/#",
+                    self.config.mqtt.namespace, self.config.inverter.datalog
+                ),
                 QoS::AtMostOnce,
             )
             .await?;

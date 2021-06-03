@@ -297,11 +297,60 @@ impl Coordinator {
                 // returns a Vec of messages to send. could be none;
                 // not every packet produces an MQ message (eg, heartbeats),
                 // and some produce >1 (multi-register ReadHold)
-                for message in mqtt::Message::from_packet(packet)? {
+                for message in self.packet_to_messages(packet)? {
                     self.to_mqtt.send(message)?;
                 }
             }
         }
+    }
+
+    fn packet_to_messages(&self, packet: Packet) -> Result<Vec<mqtt::Message>> {
+        let mut r = Vec::new();
+
+        let prefix = format!("{}/{}", self.config.mqtt.namespace, packet.datalog());
+
+        match packet {
+            Packet::Heartbeat(_) => {}
+            Packet::TranslatedData(t) => match t.device_function {
+                DeviceFunction::ReadHold => {
+                    for (register, value) in t.pairs() {
+                        r.push(mqtt::Message {
+                            topic: format!("{}/hold/{}", prefix, register),
+                            payload: serde_json::to_string(&value)?,
+                        });
+                    }
+                }
+                DeviceFunction::ReadInput => match t.register {
+                    0 => r.push(mqtt::Message {
+                        topic: format!("{}/inputs/1", prefix),
+                        payload: serde_json::to_string(&t.read_input1()?)?,
+                    }),
+                    40 => r.push(mqtt::Message {
+                        topic: format!("{}/inputs/2", prefix),
+                        payload: serde_json::to_string(&t.read_input2()?)?,
+                    }),
+                    80 => r.push(mqtt::Message {
+                        topic: format!("{}/inputs/3", prefix),
+                        payload: serde_json::to_string(&t.read_input3()?)?,
+                    }),
+                    _ => {
+                        warn!("unhandled ReadInput register={}", t.register);
+                    }
+                },
+                DeviceFunction::WriteSingle => {}
+                DeviceFunction::WriteMulti => {}
+            },
+            Packet::ReadParam(rp) => {
+                for (register, value) in rp.pairs() {
+                    r.push(mqtt::Message {
+                        topic: format!("{}/param/{}", prefix, register),
+                        payload: serde_json::to_string(&value)?,
+                    });
+                }
+            }
+        };
+
+        Ok(r)
     }
 
     fn channel<T: Clone>() -> broadcast::Sender<T> {
@@ -313,7 +362,7 @@ impl Coordinator {
     fn command_to_mqtt_topic(&self, command: &Command) -> String {
         use Command::*;
 
-        let r = match command {
+        let rest = match command {
             ReadHold(register) => format!("read/hold/{}", register),
             ReadParam(register) => format!("read/param/{}", register),
             SetHold(register, _) => format!("set/hold/{}", register),
@@ -326,7 +375,10 @@ impl Coordinator {
             DischargeCutoffSocLimit(_) => "set/discharge_cutoff_soc_limit_pct".to_string(),
         };
 
-        format!("lxp/result/{}/{}", self.config.inverter.datalog, r)
+        format!(
+            "{}/result/{}/{}",
+            self.config.mqtt.namespace, self.config.inverter.datalog, rest
+        )
     }
 
     // consume an incoming mqtt message (from lxp/cmd/..) and return a populated Command

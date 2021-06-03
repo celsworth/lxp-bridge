@@ -19,9 +19,13 @@ pub struct Inverter {
 #[derive(Debug, Deserialize)]
 pub struct Mqtt {
     pub host: String,
+    #[serde(default = "Config::default_mqtt_port")]
     pub port: u16,
     pub username: Option<String>,
     pub password: Option<String>,
+
+    #[serde(default = "Config::default_mqtt_namespace")]
+    pub namespace: String,
 }
 
 impl Config {
@@ -30,5 +34,12 @@ impl Config {
         let config = serde_yaml::from_str(&content)?;
 
         Ok(config)
+    }
+
+    fn default_mqtt_port() -> u16 {
+        1883
+    }
+    fn default_mqtt_namespace() -> String {
+        "lxp".to_string()
     }
 }
