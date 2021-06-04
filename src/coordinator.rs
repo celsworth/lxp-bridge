@@ -159,7 +159,7 @@ impl Coordinator {
         let packet = Packet::ReadParam(ReadParam {
             datalog: self.config.inverter.datalog.to_owned(),
             register,
-            values: vec![1, 0],
+            values: vec![]// unused
         });
 
         self.to_inverter.send(Some(packet))?;

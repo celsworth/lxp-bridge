@@ -566,21 +566,10 @@ impl TcpFrameable for ReadParam {
     }
 
     fn bytes(&self) -> Vec<u8> {
-        let mut r = vec![0; 14];
+        let mut r = vec![0; 2];
 
         // r[0] is 0 when writing to inverter, 1 when reading from it?
         r[0..2].copy_from_slice(&self.register.to_le_bytes());
-
-        if Self::has_value_length_bytes(self.protocol()) {
-            let len = self.values.len() as u8;
-            r.extend_from_slice(&[len]);
-        }
-
-        let mut m = Vec::new();
-        for i in &self.values {
-            m.extend_from_slice(&i.to_le_bytes());
-        }
-        r.append(&mut m);
 
         r
     }
