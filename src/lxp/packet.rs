@@ -237,7 +237,7 @@ impl TcpFrameFactory {
     {
         let data_bytes = data.bytes();
         let data_length = data_bytes.len() as u8;
-        let frame_length = (19 + data_length) as u16;
+        let frame_length = (20 + data_length) as u16; // 19 or 20?
 
         // debug!("data_length={}, frame_length={}", data_length, frame_length);
 
@@ -250,8 +250,8 @@ impl TcpFrameFactory {
         r[6] = 1; // unsure what this is, always seems to be 1
         r[7] = data.tcp_function() as u8;
         r[8..18].copy_from_slice(&data.datalog().as_bytes());
-        r[18] = data_length;
-        r[19..].copy_from_slice(&data_bytes);
+        r[18..19].copy_from_slice(&data_length.to_le_bytes());
+        r[20..].copy_from_slice(&data_bytes);
 
         r
     }

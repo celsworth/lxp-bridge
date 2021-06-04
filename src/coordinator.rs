@@ -144,7 +144,7 @@ impl Coordinator {
             device_function: DeviceFunction::ReadHold,
             inverter: self.config.inverter.serial.to_owned(),
             register,
-            values: vec![1],
+            values: vec![1, 0],
         });
 
         self.to_inverter.send(Some(packet))?;
@@ -159,7 +159,7 @@ impl Coordinator {
         let packet = Packet::ReadParam(ReadParam {
             datalog: self.config.inverter.datalog.to_owned(),
             register,
-            values: vec![1],
+            values: vec![1, 0],
         });
 
         self.to_inverter.send(Some(packet))?;
@@ -210,7 +210,7 @@ impl Coordinator {
             device_function: DeviceFunction::ReadHold,
             inverter: self.config.inverter.serial.to_owned(),
             register,
-            values: vec![1],
+            values: vec![1, 0],
         });
         self.to_inverter.send(Some(packet))?;
 

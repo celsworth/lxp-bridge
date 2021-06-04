@@ -96,6 +96,7 @@ impl Inverter {
             debug!("TX {:?}", packet);
 
             let bytes = TcpFrameFactory::build(packet);
+            debug!("TX {:?}", bytes);
 
             socket.write_all(&bytes).await?
         }
