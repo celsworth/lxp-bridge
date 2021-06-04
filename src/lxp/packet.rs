@@ -237,7 +237,7 @@ impl TcpFrameFactory {
     {
         let data_bytes = data.bytes();
         let data_length = data_bytes.len() as u8;
-        let frame_length = (20 + data_length) as u16; // 19 or 20?
+        let frame_length = (18 + data_length) as u16;
 
         // debug!("data_length={}, frame_length={}", data_length, frame_length);
 
@@ -249,9 +249,12 @@ impl TcpFrameFactory {
         r[4..6].copy_from_slice(&(frame_length - 6).to_le_bytes());
         r[6] = 1; // unsure what this is, always seems to be 1
         r[7] = data.tcp_function() as u8;
+
         r[8..18].copy_from_slice(&data.datalog().as_bytes());
-        r[18..19].copy_from_slice(&data_length.to_le_bytes());
-        r[20..].copy_from_slice(&data_bytes);
+        // WIP - trying to work out how to learn the inverter sn
+        //r[8..18].copy_from_slice(&[0; 10]);
+
+        r[18..].copy_from_slice(&data_bytes);
 
         r
     }
@@ -454,26 +457,35 @@ impl TcpFrameable for TranslatedData {
     }
 
     fn bytes(&self) -> Vec<u8> {
-        let mut r = vec![0; 14];
+        let mut data = vec![0; 14];
 
-        // r[0] is 0 when writing to inverter, 1 when reading from it?
-        r[1] = self.device_function as u8;
-        r[2..12].copy_from_slice(&self.inverter.as_bytes());
-        r[12..14].copy_from_slice(&self.register.to_le_bytes());
+        // data[0] is 0 when writing to inverter, 1 when reading from it?
+        data[1] = self.device_function as u8;
+        data[2..12].copy_from_slice(&self.inverter.as_bytes());
+        // WIP - trying to work out how to learn the datalog sn
+        //data[2..12].copy_from_slice(&[0xFF; 10]);
+        data[12..14].copy_from_slice(&self.register.to_le_bytes());
 
         if Self::has_value_length_byte(PacketSource::Client, self.protocol(), self.device_function)
         {
             let len = self.values.len() as u8;
-            r.extend_from_slice(&[len]);
+            data.extend_from_slice(&[len]);
         }
 
         let mut m = Vec::new();
         for i in &self.values {
             m.extend_from_slice(&i.to_le_bytes());
         }
-        r.append(&mut m);
+        data.append(&mut m);
 
-        r.extend_from_slice(&Self::checksum(&r));
+        data.extend_from_slice(&Self::checksum(&data));
+
+        // the first two bytes now have to be the length, but not including the length bytes.
+        // this could probably be a lot neater..
+        let data_length = data.len();
+        let mut r = Vec::with_capacity(2 + data_length);
+        r.extend_from_slice(&(data_length as u16).to_le_bytes());
+        r.extend(data);
 
         r
     }
@@ -568,7 +580,6 @@ impl TcpFrameable for ReadParam {
     fn bytes(&self) -> Vec<u8> {
         let mut r = vec![0; 2];
 
-        // r[0] is 0 when writing to inverter, 1 when reading from it?
         r[0..2].copy_from_slice(&self.register.to_le_bytes());
 
         r
