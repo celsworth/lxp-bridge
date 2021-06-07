@@ -2,10 +2,7 @@ use crate::prelude::*;
 
 use bytes::BytesMut;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 use tokio_util::codec::Decoder;
-
-use lxp::packet::TcpFrameFactory;
 
 pub type PacketSender = broadcast::Sender<Option<Packet>>;
 
@@ -64,12 +61,14 @@ impl Inverter {
         info!("connecting to inverter at {}:{}", &config.host, config.port);
 
         let inverter_hp = (config.host.to_string(), config.port);
-        let (reader, writer) = TcpStream::connect(inverter_hp).await?.into_split();
+        let (reader, writer) = tokio::net::TcpStream::connect(inverter_hp)
+            .await?
+            .into_split();
 
         info!("inverter connected!");
 
         futures::try_join!(
-            Self::sender(from_coordinator, writer),
+            Self::sender(from_coordinator, writer, &config.datalog),
             Self::receiver(to_coordinator, reader)
         )?;
 
@@ -112,16 +111,16 @@ impl Inverter {
     async fn sender(
         from_coordinator: &PacketSender,
         mut socket: tokio::net::tcp::OwnedWriteHalf,
+        datalog: &str,
     ) -> Result<()> {
         let mut receiver = from_coordinator.subscribe();
 
         while let Some(packet) = receiver.recv().await? {
-            debug!("TX {:?}", packet);
-
-            let bytes = TcpFrameFactory::build(packet);
-            //debug!("TX {:?}", bytes);
-
-            socket.write_all(&bytes).await?
+            if packet.datalog() == datalog {
+                // debug!("TX {:?}", packet);
+                let bytes = lxp::packet::TcpFrameFactory::build(packet);
+                socket.write_all(&bytes).await?
+            }
         }
 
         Err(anyhow!(
