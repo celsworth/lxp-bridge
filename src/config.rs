@@ -4,11 +4,11 @@ use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
-    pub inverter: Inverter,
+    pub inverters: Vec<Inverter>,
     pub mqtt: Mqtt,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Inverter {
     pub host: String,
     pub port: u16,

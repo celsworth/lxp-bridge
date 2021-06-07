@@ -9,6 +9,7 @@ pub use tokio::sync::broadcast;
 
 pub use crate::{
     command::Command,
+    config,
     config::Config,
     coordinator::Coordinator,
     lxp,

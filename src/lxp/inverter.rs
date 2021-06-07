@@ -45,11 +45,11 @@ impl Inverter {
     }
 
     async fn connect(&self) -> Result<()> {
-        let i = &self.config.inverter;
+        let config = &self.config.inverters[0];
 
-        info!("connecting to inverter at {}:{}", &i.host, i.port);
+        info!("connecting to inverter at {}:{}", &config.host, config.port);
 
-        let inverter_hp = (i.host.to_string(), i.port);
+        let inverter_hp = (config.host.to_string(), config.port);
         let (reader, writer) = TcpStream::connect(inverter_hp).await?.into_split();
 
         info!("inverter connected!");

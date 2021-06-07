@@ -64,21 +64,23 @@ impl Coordinator {
         loop {
             let message = receiver.recv().await?;
 
-            match self.message_to_command(message) {
+            let inverter = self.inverter_for_message(&message).unwrap();
+            match message.to_command(inverter) {
                 Ok(command) => {
                     debug!("parsed command {:?}", command);
 
-                    let result = self.process_command(&command).await;
+                    let topic_reply = self.command_to_mqtt_topic(&command);
+                    let result = self.process_command(command).await;
 
                     let reply = mqtt::Message {
-                        topic: self.command_to_mqtt_topic(&command),
+                        topic: topic_reply,
                         payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
                     };
                     self.to_mqtt.send(reply)?;
 
-                    if let Err(err) = result {
-                        error!("{:?}: {:?}", command, err);
-                    }
+                    //if let Err(err) = result {
+                    //    error!("{:?}: {:?}", command, err);
+                    //}
                 }
                 Err(err) => {
                     error!("{:?}", err);
@@ -87,62 +89,66 @@ impl Coordinator {
         }
     }
 
-    async fn process_command(&self, command: &Command) -> Result<()> {
+    async fn process_command(&self, command: Command) -> Result<()> {
         use lxp::packet::Register;
         use lxp::packet::RegisterBit;
         use Command::*;
 
-        match *command {
-            ReadHold(register) => self.read_register(register).await,
-            ReadParam(register) => self.read_param(register).await,
-            SetHold(register, value) => self.set_register(register, value).await,
-            AcCharge(enable) => {
+        match command {
+            ReadHold(inverter, register) => self.read_register(inverter, register).await,
+            ReadParam(inverter, register) => self.read_param(inverter, register).await,
+            SetHold(inverter, register, value) => {
+                self.set_register(inverter, register, value).await
+            }
+            AcCharge(inverter, enable) => {
                 self.update_register(
+                    inverter,
                     Register::Register21.into(),
                     RegisterBit::AcChargeEnable,
                     enable,
                 )
                 .await
             }
-            ForcedDischarge(enable) => {
+            ForcedDischarge(inverter, enable) => {
                 self.update_register(
+                    inverter,
                     Register::Register21.into(),
                     RegisterBit::ForcedDischargeEnable,
                     enable,
                 )
                 .await
             }
-            ChargeRate(pct) => {
-                self.set_register(Register::ChargePowerPercentCmd.into(), pct)
+            ChargeRate(inverter, pct) => {
+                self.set_register(inverter, Register::ChargePowerPercentCmd.into(), pct)
                     .await
             }
-            DischargeRate(pct) => {
-                self.set_register(Register::DischgPowerPercentCmd.into(), pct)
-                    .await
-            }
-
-            AcChargeRate(pct) => {
-                self.set_register(Register::AcChargePowerCmd.into(), pct)
+            DischargeRate(inverter, pct) => {
+                self.set_register(inverter, Register::DischgPowerPercentCmd.into(), pct)
                     .await
             }
 
-            AcChargeSocLimit(pct) => {
-                self.set_register(Register::AcChargeSocLimit.into(), pct)
+            AcChargeRate(inverter, pct) => {
+                self.set_register(inverter, Register::AcChargePowerCmd.into(), pct)
                     .await
             }
 
-            DischargeCutoffSocLimit(pct) => {
-                self.set_register(Register::DischgCutOffSocEod.into(), pct)
+            AcChargeSocLimit(inverter, pct) => {
+                self.set_register(inverter, Register::AcChargeSocLimit.into(), pct)
+                    .await
+            }
+
+            DischargeCutoffSocLimit(inverter, pct) => {
+                self.set_register(inverter, Register::DischgCutOffSocEod.into(), pct)
                     .await
             }
         }
     }
 
-    async fn read_register(&self, register: u16) -> Result<()> {
+    async fn read_register(&self, inverter: config::Inverter, register: u16) -> Result<()> {
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: self.config.inverter.datalog.to_owned(),
+            datalog: inverter.datalog.to_owned(),
             device_function: DeviceFunction::ReadHold,
-            inverter: self.config.inverter.serial.to_owned(),
+            inverter: inverter.serial.to_owned(),
             register,
             values: vec![1, 0],
         });
@@ -155,11 +161,11 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn read_param(&self, register: u16) -> Result<()> {
+    async fn read_param(&self, inverter: config::Inverter, register: u16) -> Result<()> {
         let packet = Packet::ReadParam(ReadParam {
-            datalog: self.config.inverter.datalog.to_owned(),
+            datalog: inverter.datalog.to_owned(),
             register,
-            values: vec![]// unused
+            values: vec![], // unused
         });
 
         self.to_inverter.send(Some(packet))?;
@@ -170,13 +176,18 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn set_register(&self, register: u16, value: u16) -> Result<()> {
+    async fn set_register(
+        &self,
+        inverter: config::Inverter,
+        register: u16,
+        value: u16,
+    ) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: self.config.inverter.datalog.to_owned(),
+            datalog: inverter.datalog.to_owned(),
             device_function: DeviceFunction::WriteSingle,
-            inverter: self.config.inverter.serial.to_owned(),
+            inverter: inverter.serial.to_owned(),
             register,
             values: value.to_le_bytes().to_vec(),
         });
@@ -198,6 +209,7 @@ impl Coordinator {
 
     async fn update_register(
         &self,
+        inverter: config::Inverter,
         register: u16,
         bit: lxp::packet::RegisterBit,
         enable: bool,
@@ -206,9 +218,9 @@ impl Coordinator {
 
         // get register from inverter
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: self.config.inverter.datalog.to_owned(),
+            datalog: inverter.datalog.to_owned(),
             device_function: DeviceFunction::ReadHold,
-            inverter: self.config.inverter.serial.to_owned(),
+            inverter: inverter.serial.to_owned(),
             register,
             values: vec![1, 0],
         });
@@ -225,9 +237,9 @@ impl Coordinator {
         // new packet to set register with a new value
         let values = value.to_le_bytes().to_vec();
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: self.config.inverter.datalog.to_owned(),
+            datalog: inverter.datalog.to_owned(),
             device_function: DeviceFunction::WriteSingle,
-            inverter: self.config.inverter.serial.to_owned(),
+            inverter: inverter.serial.to_owned(),
             register,
             values,
         });
@@ -307,7 +319,7 @@ impl Coordinator {
     fn packet_to_messages(&self, packet: Packet) -> Result<Vec<mqtt::Message>> {
         let mut r = Vec::new();
 
-        let prefix = format!("{}/{}", self.config.mqtt.namespace, packet.datalog());
+        let prefix = format!("{}", packet.datalog());
 
         match packet {
             Packet::Heartbeat(_) => {}
@@ -363,74 +375,38 @@ impl Coordinator {
         use Command::*;
 
         let rest = match command {
-            ReadHold(register) => format!("read/hold/{}", register),
-            ReadParam(register) => format!("read/param/{}", register),
-            SetHold(register, _) => format!("set/hold/{}", register),
-            AcCharge(_) => "set/ac_charge".to_string(),
-            ForcedDischarge(_) => "set/forced_discharge".to_string(),
-            ChargeRate(_) => "set/charge_rate_pct".to_string(),
-            DischargeRate(_) => "set/discharge_rate_pct".to_string(),
-            AcChargeRate(_) => "set/ac_charge_rate_pct".to_string(),
-            AcChargeSocLimit(_) => "set/ac_charge_soc_limit_pct".to_string(),
-            DischargeCutoffSocLimit(_) => "set/discharge_cutoff_soc_limit_pct".to_string(),
+            ReadHold(inverter, register) => format!("{}/read/hold/{}", inverter.datalog, register),
+            ReadParam(inverter, register) => {
+                format!("{}/read/param/{}", inverter.datalog, register)
+            }
+            SetHold(inverter, register, _) => format!("{}/set/hold/{}", inverter.datalog, register),
+            AcCharge(inverter, _) => format!("{}/set/ac_charge", inverter.datalog),
+            ForcedDischarge(inverter, _) => format!("{}/set/forced_discharge", inverter.datalog),
+            ChargeRate(inverter, _) => format!("{}/set/charge_rate_pct", inverter.datalog),
+            DischargeRate(inverter, _) => format!("{}/set/discharge_rate_pct", inverter.datalog),
+            AcChargeRate(inverter, _) => format!("{}/set/ac_charge_rate_pct", inverter.datalog),
+            AcChargeSocLimit(inverter, _) => {
+                format!("{}/set/ac_charge_soc_limit_pct", inverter.datalog)
+            }
+            DischargeCutoffSocLimit(inverter, _) => {
+                format!("{}/set/discharge_cutoff_soc_limit_pct", inverter.datalog)
+            }
         };
 
-        format!(
-            "{}/result/{}/{}",
-            self.config.mqtt.namespace, self.config.inverter.datalog, rest
-        )
+        format!("result/{}", rest)
     }
 
-    // consume an incoming mqtt message (from lxp/cmd/..) and return a populated Command
-    fn message_to_command(&self, message: mqtt::Message) -> Result<Command> {
-        use Command::*;
+    // find the inverter in our config for the given message.
+    // this can then be put into a Command
+    fn inverter_for_message(&self, message: &mqtt::Message) -> Option<config::Inverter> {
+        // TODO is this ok()? sufficient? might be throwing away an error
+        let r = message.split_cmd_topic().ok()?;
 
-        // skip past the configured mqtt namespace and the first /.
-        // doing it this way means we don't break if namespace happens to contain a /
-        let topic = &message.topic[self.config.mqtt.namespace.len() + 1..];
-
-        // this now starts at cmd/{datalog}/..
-        let parts: Vec<&str> = topic.split('/').collect();
-
-        // bail if the topic is too short to handle.
-        // this *shouldn't* happen as our subscribe is for lxp/cmd/{datalog}/#
-        if parts.len() < 2 {
-            return Err(anyhow!(
-                "ignoring badly formed MQTT topic: {}",
-                message.topic
-            ));
-        }
-
-        // bail if next part isn't our inverter's datalog
-        // this shouldn't actually happen as our subscribe is for lxp/cmd/{datalog}/#
-        if parts[1] != self.config.inverter.datalog {
-            return Err(anyhow!("ignoring message for another datalog"));
-        }
-
-        let parts = &parts[2..]; // drop cmd/{datalog}
-
-        let r = match parts {
-            // TODO: read input
-            ["read", "hold", register] => ReadHold(register.parse()?),
-            ["read", "param", register] => ReadParam(register.parse()?),
-            ["set", "hold", register] => SetHold(register.parse()?, message.payload_int()?),
-            ["set", "ac_charge"] => AcCharge(message.payload_bool()),
-
-            ["set", "forced_discharge"] => ForcedDischarge(message.payload_bool()),
-
-            ["set", "charge_rate_pct"] => ChargeRate(message.payload_int()?),
-            ["set", "discharge_rate_pct"] => DischargeRate(message.payload_int()?),
-            ["set", "ac_charge_rate_pct"] => AcChargeRate(message.payload_int()?),
-
-            ["set", "ac_charge_soc_limit_pct"] => AcChargeSocLimit(message.payload_int()?),
-
-            ["set", "discharge_cutoff_soc_limit_pct"] => {
-                DischargeCutoffSocLimit(message.payload_int()?)
-            }
-
-            [..] => return Err(anyhow!("unhandled: {:?}", parts)),
-        };
-
-        Ok(r)
+        // search for inverter datalog in our config
+        self.config
+            .inverters
+            .iter()
+            .cloned()
+            .find(|i| i.datalog == r.datalog)
     }
 }
