@@ -37,24 +37,50 @@ impl Inverter {
                     let to = self.to_coordinator.clone();
 
                     tokio::task::spawn_local(async move {
-                        Self::foo(inverter, from, to).await.unwrap();
+                        Self::run_for_inverter(inverter, from, to).await?;
+                        Ok(()) as Result<()>
                     })
-                    .await
-                    .unwrap();
+                    .await??;
                 }
+                Ok(()) as Result<()>
             })
-            .await;
+            .await?;
 
         Ok(())
     }
 
-    async fn foo(
+    async fn run_for_inverter(
         config: config::Inverter,
         from_coordinator: PacketSender,
         to_coordinator: PacketSender,
     ) -> Result<()> {
+        loop {
+            match Self::connect(&config, &from_coordinator, &to_coordinator).await {
+                Ok(_) => break,
+                Err(e) => {
+                    error!("connect: {}", e);
+                    info!("attempting inverter reconnection in 5s");
+                    to_coordinator.send(None)?; // kill any waiting readers
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                }
+            };
+        }
+        Ok(())
+    }
+
+    async fn connect(
+        config: &config::Inverter,
+        from_coordinator: &PacketSender,
+        to_coordinator: &PacketSender,
+    ) -> Result<()> {
         info!("connecting to inverter at {}:{}", &config.host, config.port);
-        loop {}
+
+        let inverter_hp = (config.host.to_string(), config.port);
+        let (reader, writer) = TcpStream::connect(inverter_hp).await?.into_split();
+
+        info!("inverter connected!");
+
+        Ok(())
     }
 
     /*
