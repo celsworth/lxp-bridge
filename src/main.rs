@@ -8,8 +8,6 @@ pub mod prelude;
 pub mod utils;
 
 use crate::prelude::*;
-use futures::future::try_join_all;
-use futures::future::FutureExt;
 
 fn main() {
     let rt = tokio::runtime::Runtime::new().unwrap();

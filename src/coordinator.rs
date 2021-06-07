@@ -146,9 +146,9 @@ impl Coordinator {
 
     async fn read_register(&self, inverter: config::Inverter, register: u16) -> Result<()> {
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog.to_owned(),
+            datalog: inverter.datalog,
             device_function: DeviceFunction::ReadHold,
-            inverter: inverter.serial.to_owned(),
+            inverter: inverter.serial,
             register,
             values: vec![1, 0],
         });
@@ -163,7 +163,7 @@ impl Coordinator {
 
     async fn read_param(&self, inverter: config::Inverter, register: u16) -> Result<()> {
         let packet = Packet::ReadParam(ReadParam {
-            datalog: inverter.datalog.to_owned(),
+            datalog: inverter.datalog,
             register,
             values: vec![], // unused
         });
@@ -319,7 +319,7 @@ impl Coordinator {
     fn packet_to_messages(&self, packet: Packet) -> Result<Vec<mqtt::Message>> {
         let mut r = Vec::new();
 
-        let prefix = format!("{}", packet.datalog());
+        let prefix = packet.datalog().to_string();
 
         match packet {
             Packet::Heartbeat(_) => {}
