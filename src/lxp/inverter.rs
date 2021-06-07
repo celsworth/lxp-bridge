@@ -29,24 +29,20 @@ impl Inverter {
     }
 
     pub async fn start(&self) -> Result<()> {
-        let mut tasks = vec![];
+        let local = tokio::task::LocalSet::new();
 
-        tokio::task::LocalSet::new()
-            .run_until(async move {
-                for inverter in &self.config.inverters {
-                    let inverter = inverter.clone();
-                    let from = self.from_coordinator.clone();
-                    let to = self.to_coordinator.clone();
+        for inverter in &self.config.inverters {
+            let inverter = inverter.clone();
+            let from = self.from_coordinator.clone();
+            let to = self.to_coordinator.clone();
 
-                    tasks.push(tokio::task::spawn_local(async move {
-                        Self::run_for_inverter(inverter, from, to).await?;
-                        Ok(()) as Result<()>
-                    }));
-                }
-                futures::future::join_all(tasks).await;
+            local.spawn_local(async move {
+                Self::run_for_inverter(inverter, from, to).await?;
                 Ok(()) as Result<()>
-            })
-            .await?;
+            });
+        }
+
+        local.await;
 
         Ok(())
     }
