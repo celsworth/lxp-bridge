@@ -29,8 +29,14 @@ impl Inverter {
     }
 
     pub async fn start(&self) -> Result<()> {
+        let config = self.config.inverters[0];
+        tokio::task::spawn_local(async move { self.start2(&config) });
+
+        Ok(())
+    }
+
+    pub async fn start2(&self, config: &config::Inverter) -> Result<()> {
         loop {
-            let config = &self.config.inverters[0];
             match self.connect(config).await {
                 Ok(_) => break,
                 Err(e) => {
