@@ -30,7 +30,8 @@ impl Inverter {
 
     pub async fn start(&self) -> Result<()> {
         loop {
-            match self.connect().await {
+            let config = &self.config.inverters[0];
+            match self.connect(config).await {
                 Ok(_) => break,
                 Err(e) => {
                     error!("connect: {}", e);
@@ -44,9 +45,7 @@ impl Inverter {
         Ok(())
     }
 
-    async fn connect(&self) -> Result<()> {
-        let config = &self.config.inverters[0];
-
+    async fn connect(&self, config: &config::Inverter) -> Result<()> {
         info!("connecting to inverter at {}:{}", &config.host, config.port);
 
         let inverter_hp = (config.host.to_string(), config.port);
