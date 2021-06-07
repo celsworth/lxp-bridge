@@ -29,13 +29,37 @@ impl Inverter {
     }
 
     pub async fn start(&self) -> Result<()> {
-        let config = self.config.inverters[0];
-        tokio::task::spawn_local(async move { self.start2(&config) });
+        tokio::task::LocalSet::new()
+            .run_until(async move {
+                for inverter in &self.config.inverters {
+                    let inverter = inverter.clone();
+                    let from = self.from_coordinator.clone();
+                    let to = self.to_coordinator.clone();
+
+                    tokio::task::spawn_local(async move {
+                        Self::foo(inverter, from, to).await.unwrap();
+                    })
+                    .await
+                    .unwrap();
+                }
+            })
+            .await;
 
         Ok(())
     }
 
-    pub async fn start2(&self, config: &config::Inverter) -> Result<()> {
+    async fn foo(
+        config: config::Inverter,
+        from_coordinator: PacketSender,
+        to_coordinator: PacketSender,
+    ) -> Result<()> {
+        info!("connecting to inverter at {}:{}", &config.host, config.port);
+        loop {}
+    }
+
+    /*
+    pub async fn start(&self) -> Result<()> {
+        let config = &self.config.inverters[0];
         loop {
             match self.connect(config).await {
                 Ok(_) => break,
@@ -110,4 +134,5 @@ impl Inverter {
             "sender exiting due to receiving None from coordinator"
         ))
     }
+    */
 }
