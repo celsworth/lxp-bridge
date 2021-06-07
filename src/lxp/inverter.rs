@@ -29,6 +29,8 @@ impl Inverter {
     }
 
     pub async fn start(&self) -> Result<()> {
+        let mut tasks = vec![];
+
         tokio::task::LocalSet::new()
             .run_until(async move {
                 for inverter in &self.config.inverters {
@@ -36,12 +38,12 @@ impl Inverter {
                     let from = self.from_coordinator.clone();
                     let to = self.to_coordinator.clone();
 
-                    tokio::task::spawn_local(async move {
+                    tasks.push(tokio::task::spawn_local(async move {
                         Self::run_for_inverter(inverter, from, to).await?;
                         Ok(()) as Result<()>
-                    })
-                    .await??;
+                    }));
                 }
+                futures::future::join_all(tasks).await;
                 Ok(()) as Result<()>
             })
             .await?;
@@ -56,16 +58,15 @@ impl Inverter {
     ) -> Result<()> {
         loop {
             match Self::connect(&config, &from_coordinator, &to_coordinator).await {
-                Ok(_) => break,
+                Ok(_) => return Ok(()),
                 Err(e) => {
                     error!("connect: {}", e);
                     info!("attempting inverter reconnection in 5s");
                     to_coordinator.send(None)?; // kill any waiting readers
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
-            };
+            }
         }
-        Ok(())
     }
 
     async fn connect(
@@ -80,6 +81,7 @@ impl Inverter {
 
         info!("inverter connected!");
 
+        // start sender and writer..
         Ok(())
     }
 
