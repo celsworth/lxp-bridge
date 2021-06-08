@@ -10,7 +10,7 @@ pub struct Message {
 }
 
 pub struct MessageTopicParts {
-    pub datalog: Datalog,
+    pub datalog: Serial,
     pub parts: Vec<String>,
 }
 
@@ -59,7 +59,7 @@ impl Message {
         }
 
         Ok(MessageTopicParts {
-            datalog: Datalog::from_str(&parts[1]),
+            datalog: Serial::from_str(&parts[1])?,
             parts: parts[2..].to_vec(),
         })
     }

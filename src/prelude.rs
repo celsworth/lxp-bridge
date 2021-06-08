@@ -1,6 +1,7 @@
 pub use std::convert::TryFrom;
 pub use std::io::Write;
 pub use std::rc::Rc;
+pub use std::str::FromStr;
 
 pub use anyhow::{anyhow, bail, Error, Result};
 pub use log::{debug, error, info, trace, warn};

@@ -187,12 +187,11 @@ impl Coordinator {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: inverter.datalog,
             device_function: DeviceFunction::WriteSingle,
-            inverter: inverter.serial.to_owned(),
+            inverter: inverter.serial,
             register,
             values: value.to_le_bytes().to_vec(),
         });
-        self.to_inverter
-            .send((inverter.datalog.to_owned(), Some(packet)))?;
+        self.to_inverter.send((inverter.datalog, Some(packet)))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -226,12 +225,11 @@ impl Coordinator {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: inverter.datalog,
             device_function: DeviceFunction::ReadHold,
-            inverter: inverter.serial.to_owned(),
+            inverter: inverter.serial,
             register,
             values: vec![1, 0],
         });
-        self.to_inverter
-            .send((inverter.datalog.to_owned(), Some(packet)))?;
+        self.to_inverter.send((inverter.datalog, Some(packet)))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -249,14 +247,13 @@ impl Coordinator {
         // new packet to set register with a new value
         let values = value.to_le_bytes().to_vec();
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog.to_owned(),
+            datalog: inverter.datalog,
             device_function: DeviceFunction::WriteSingle,
-            inverter: inverter.serial.to_owned(),
+            inverter: inverter.serial,
             register,
             values,
         });
-        self.to_inverter
-            .send((inverter.datalog.to_owned(), Some(packet)))?;
+        self.to_inverter.send((inverter.datalog, Some(packet)))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -278,7 +275,7 @@ impl Coordinator {
     }
 
     async fn wait_for_packet(
-        datalog: Datalog,
+        datalog: Serial,
         receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
         function: DeviceFunction,
         register: u16,

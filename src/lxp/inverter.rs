@@ -4,7 +4,7 @@ use bytes::BytesMut;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec::Decoder;
 
-pub type ChannelContent = (Datalog, Option<Packet>);
+pub type ChannelContent = (Serial, Option<Packet>);
 pub type PacketSender = broadcast::Sender<ChannelContent>;
 
 pub struct Inverter {
@@ -47,7 +47,7 @@ impl Inverter {
                 Err(e) => {
                     error!("inverter {}: {}", config.datalog, e);
                     info!("inverter {}: reconnecting in 5s", config.datalog);
-                    to_coordinator.send((config.datalog.to_owned(), None))?; // kill any waiting readers
+                    to_coordinator.send((config.datalog, None))?; // kill any waiting readers
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
             }
@@ -83,7 +83,7 @@ impl Inverter {
     async fn receiver(
         to_coordinator: &PacketSender,
         mut socket: tokio::net::tcp::OwnedReadHalf,
-        datalog: Datalog,
+        datalog: Serial,
     ) -> Result<()> {
         let mut buf = BytesMut::new();
         let mut decoder = lxp::packet_decoder::PacketDecoder::new();
@@ -98,14 +98,14 @@ impl Inverter {
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
                     debug!("inverter {}: RX {:?}", datalog, packet);
-                    to_coordinator.send((datalog.to_owned(), Some(packet)))?;
+                    to_coordinator.send((datalog, Some(packet)))?;
                 }
                 break;
             }
 
             while let Some(packet) = decoder.decode(&mut buf)? {
                 debug!("inverter {}: RX {:?}", datalog, packet);
-                to_coordinator.send((datalog.to_owned(), Some(packet)))?;
+                to_coordinator.send((datalog, Some(packet)))?;
             }
         }
 
@@ -116,7 +116,7 @@ impl Inverter {
     async fn sender(
         from_coordinator: &PacketSender,
         mut socket: tokio::net::tcp::OwnedWriteHalf,
-        datalog: Datalog,
+        datalog: Serial,
     ) -> Result<()> {
         let mut receiver = from_coordinator.subscribe();
 
