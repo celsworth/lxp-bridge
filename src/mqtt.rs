@@ -10,7 +10,7 @@ pub struct Message {
 }
 
 pub struct MessageTopicParts {
-    pub datalog: String,
+    pub datalog: Datalog,
     pub parts: Vec<String>,
 }
 
@@ -18,9 +18,8 @@ impl Message {
     pub fn to_command(&self, inverter: config::Inverter) -> Result<Command> {
         use Command::*;
 
-        // FIXME: how do I extract this? returning Vec<&str> wants lifetimes :(
         let parts: Vec<&str> = self.topic.split('/').collect();
-        let datalog = parts[1];
+        let _datalog = parts[1];
         let parts = &parts[2..];
 
         let r = match parts {
@@ -48,8 +47,6 @@ impl Message {
     }
     // given a cmd Message, return the datalog it is intended for.
     //
-    // for now, for simplicity, this expects the part *after* the namespace
-    //
     // eg cmd/AB12345678/ac_charge => AB12345678
     pub fn split_cmd_topic(&self) -> Result<MessageTopicParts> {
         // this starts at cmd/{datalog}/..
@@ -62,7 +59,7 @@ impl Message {
         }
 
         Ok(MessageTopicParts {
-            datalog: parts[1].to_owned(),
+            datalog: Datalog::from_str(&parts[1]),
             parts: parts[2..].to_vec(),
         })
     }

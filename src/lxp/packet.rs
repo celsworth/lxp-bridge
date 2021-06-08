@@ -221,7 +221,7 @@ pub trait PacketCommon {
 // from a class.
 #[enum_dispatch]
 pub trait TcpFrameable {
-    fn datalog(&self) -> &str;
+    fn datalog(&self) -> Datalog;
     fn protocol(&self) -> u16;
     fn tcp_function(&self) -> TcpFunction;
     fn bytes(&self) -> Vec<u8> {
@@ -250,7 +250,7 @@ impl TcpFrameFactory {
         r[6] = 1; // unsure what this is, always seems to be 1
         r[7] = data.tcp_function() as u8;
 
-        r[8..18].copy_from_slice(&data.datalog().as_bytes());
+        r[8..18].copy_from_slice(&data.datalog().0);
         // WIP - trying to work out how to learn the inverter sn
         //r[8..18].copy_from_slice(&[0; 10]);
 
@@ -276,7 +276,7 @@ pub enum Packet {
 
 #[derive(Clone, Debug)]
 pub struct Heartbeat {
-    pub datalog: String,
+    pub datalog: Datalog,
 }
 impl Heartbeat {
     fn decode(input: &[u8]) -> Result<Self> {
@@ -293,7 +293,7 @@ impl Heartbeat {
             ));
         }
 
-        let datalog = String::from_utf8_lossy(&input[8..18]).into_owned();
+        let datalog = Datalog::new(&input[8..18]);
 
         Ok(Self { datalog })
     }
@@ -304,8 +304,8 @@ impl TcpFrameable for Heartbeat {
         2
     }
 
-    fn datalog(&self) -> &str {
-        &self.datalog
+    fn datalog(&self) -> Datalog {
+        self.datalog
     }
 
     fn tcp_function(&self) -> TcpFunction {
@@ -322,7 +322,7 @@ impl PacketCommon for Heartbeat {}
 
 #[derive(Clone, Debug)]
 pub struct TranslatedData {
-    pub datalog: String,
+    pub datalog: Datalog,
     pub device_function: DeviceFunction, // ReadHold or ReadInput etc..
     pub inverter: String,                // inverter serial
     pub register: u16,                   // first register of values
@@ -377,7 +377,7 @@ impl TranslatedData {
         }
 
         let protocol = utils::u16ify(input, 2);
-        let datalog = String::from_utf8_lossy(&input[8..18]).into_owned();
+        let datalog = Datalog::new(&input[8..18]);
 
         let data = &input[20..len - 2];
 
@@ -448,8 +448,8 @@ impl TcpFrameable for TranslatedData {
         1
     }
 
-    fn datalog(&self) -> &str {
-        &self.datalog
+    fn datalog(&self) -> Datalog {
+        self.datalog
     }
 
     fn tcp_function(&self) -> TcpFunction {
@@ -509,7 +509,7 @@ impl PacketCommon for TranslatedData {
 
 #[derive(Clone, Debug)]
 pub struct ReadParam {
-    pub datalog: String,
+    pub datalog: Datalog,
     pub register: u16,   // first register of values
     pub values: Vec<u8>, // undecoded, since can be u16 or u32s?
 }
@@ -529,7 +529,7 @@ impl ReadParam {
         }
 
         let protocol = utils::u16ify(input, 2);
-        let datalog = String::from_utf8_lossy(&input[8..18]).into_owned();
+        let datalog = Datalog::new(&input[8..18]);
 
         let data = &input[18..];
         let register = utils::u16ify(data, 0);
@@ -569,8 +569,8 @@ impl TcpFrameable for ReadParam {
         2
     }
 
-    fn datalog(&self) -> &str {
-        &self.datalog
+    fn datalog(&self) -> Datalog {
+        self.datalog
     }
 
     fn tcp_function(&self) -> TcpFunction {

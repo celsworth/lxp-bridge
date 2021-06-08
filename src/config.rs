@@ -13,7 +13,17 @@ pub struct Inverter {
     pub host: String,
     pub port: u16,
     pub serial: String,
-    pub datalog: String,
+    #[serde(deserialize_with = "de_datalog")]
+    pub datalog: Datalog,
+}
+
+fn de_datalog<'de, D>(deserializer: D) -> Result<Datalog, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+
+    Ok(Datalog::from_str(&raw))
 }
 
 #[derive(Debug, Deserialize)]

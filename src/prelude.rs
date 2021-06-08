@@ -19,5 +19,6 @@ pub use crate::{
     },
     mqtt,
     options::Options,
+    types::*,
     utils,
 };

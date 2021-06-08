@@ -153,7 +153,7 @@ impl Coordinator {
             values: vec![1, 0],
         });
 
-        self.to_inverter.send(Some(packet))?;
+        self.to_inverter.send((inverter.datalog, Some(packet)))?;
 
         // note that we don't have to wait for a reply and send over MQTT here.
         // inverter_receiver will do it for us!
@@ -168,7 +168,7 @@ impl Coordinator {
             values: vec![], // unused
         });
 
-        self.to_inverter.send(Some(packet))?;
+        self.to_inverter.send((inverter.datalog, Some(packet)))?;
 
         // note that we don't have to wait for a reply and send over MQTT here.
         // inverter_receiver will do it for us!
@@ -185,16 +185,22 @@ impl Coordinator {
         let mut receiver = self.from_inverter.subscribe();
 
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog.to_owned(),
+            datalog: inverter.datalog,
             device_function: DeviceFunction::WriteSingle,
             inverter: inverter.serial.to_owned(),
             register,
             values: value.to_le_bytes().to_vec(),
         });
-        self.to_inverter.send(Some(packet))?;
+        self.to_inverter
+            .send((inverter.datalog.to_owned(), Some(packet)))?;
 
-        let packet =
-            Self::wait_for_packet(&mut receiver, DeviceFunction::WriteSingle, register).await?;
+        let packet = Self::wait_for_packet(
+            inverter.datalog,
+            &mut receiver,
+            DeviceFunction::WriteSingle,
+            register,
+        )
+        .await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to set register {}, got back value {} (wanted {})",
@@ -218,16 +224,22 @@ impl Coordinator {
 
         // get register from inverter
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog.to_owned(),
+            datalog: inverter.datalog,
             device_function: DeviceFunction::ReadHold,
             inverter: inverter.serial.to_owned(),
             register,
             values: vec![1, 0],
         });
-        self.to_inverter.send(Some(packet))?;
+        self.to_inverter
+            .send((inverter.datalog.to_owned(), Some(packet)))?;
 
-        let packet =
-            Self::wait_for_packet(&mut receiver, DeviceFunction::ReadHold, register).await?;
+        let packet = Self::wait_for_packet(
+            inverter.datalog,
+            &mut receiver,
+            DeviceFunction::ReadHold,
+            register,
+        )
+        .await?;
         let value = if enable {
             packet.value() | u16::from(bit)
         } else {
@@ -243,10 +255,16 @@ impl Coordinator {
             register,
             values,
         });
-        self.to_inverter.send(Some(packet))?;
+        self.to_inverter
+            .send((inverter.datalog.to_owned(), Some(packet)))?;
 
-        let packet =
-            Self::wait_for_packet(&mut receiver, DeviceFunction::WriteSingle, register).await?;
+        let packet = Self::wait_for_packet(
+            inverter.datalog,
+            &mut receiver,
+            DeviceFunction::WriteSingle,
+            register,
+        )
+        .await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to update register {:?}, got back value {} (wanted {})",
@@ -260,7 +278,8 @@ impl Coordinator {
     }
 
     async fn wait_for_packet(
-        receiver: &mut broadcast::Receiver<Option<Packet>>,
+        datalog: Datalog,
+        receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
         function: DeviceFunction,
         register: u16,
     ) -> Result<Packet> {
@@ -268,14 +287,22 @@ impl Coordinator {
 
         loop {
             match receiver.try_recv() {
-                Ok(Some(Packet::TranslatedData(td))) => {
-                    if td.register == register && td.device_function == function {
+                Ok((inverter_datalog, Some(Packet::TranslatedData(td)))) => {
+                    if inverter_datalog == datalog
+                        && td.register == register
+                        && td.device_function == function
+                    {
                         return Ok(Packet::TranslatedData(td));
                     }
                 }
-                Ok(Some(_)) => {} // TODO ReadParam and WriteParam
+                Ok((_inverter_datalog, Some(_))) => {} // TODO ReadParam and WriteParam
 
-                Ok(None) => return Err(anyhow!("inverter disconnect?")),
+                Ok((inverter_datalog, None)) => {
+                    if inverter_datalog == datalog {
+                        return Err(anyhow!("inverter disconnect?"));
+                    }
+                }
+
                 Err(broadcast::error::TryRecvError::Empty) => {} // ignore and loop
                 Err(err) => return Err(anyhow!("try_recv error: {:?}", err)),
             }
@@ -293,7 +320,7 @@ impl Coordinator {
 
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
-            if let Some(packet) = receiver.recv().await? {
+            if let (_datalog, Some(packet)) = receiver.recv().await? {
                 debug!("RX: {:?}", packet);
 
                 if let Packet::TranslatedData(td) = &packet {
