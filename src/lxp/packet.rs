@@ -293,7 +293,7 @@ impl Heartbeat {
             ));
         }
 
-        let datalog = Serial::new(&input[8..18]);
+        let datalog = Serial::new(&input[8..18])?;
 
         Ok(Self { datalog })
     }
@@ -377,7 +377,7 @@ impl TranslatedData {
         }
 
         let protocol = utils::u16ify(input, 2);
-        let datalog = Serial::new(&input[8..18]);
+        let datalog = Serial::new(&input[8..18])?;
 
         let data = &input[20..len - 2];
 
@@ -392,7 +392,7 @@ impl TranslatedData {
 
         //let address = data[0]; // 0=client, 1=inverter?
         let device_function = DeviceFunction::try_from(data[1])?;
-        let inverter = Serial::new(&data[2..12]);
+        let inverter = Serial::new(&data[2..12])?;
         let register = utils::u16ify(data, 12);
 
         let mut value_len = 2;
@@ -529,7 +529,7 @@ impl ReadParam {
         }
 
         let protocol = utils::u16ify(input, 2);
-        let datalog = Serial::new(&input[8..18]);
+        let datalog = Serial::new(&input[8..18])?;
 
         let data = &input[18..];
         let register = utils::u16ify(data, 0);

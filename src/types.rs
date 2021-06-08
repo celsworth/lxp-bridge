@@ -6,10 +6,8 @@ use std::fmt;
 pub struct Serial([u8; 10]);
 
 impl Serial {
-    pub fn new(input: &[u8]) -> Self {
-        let mut r: [u8; 10] = Default::default();
-        r.copy_from_slice(input);
-        Self(r)
+    pub fn new(input: &[u8]) -> Result<Self> {
+        Ok(Self(input.try_into()?))
     }
 
     pub fn data(&self) -> [u8; 10] {
