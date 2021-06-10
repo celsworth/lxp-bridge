@@ -1,8 +1,13 @@
-inverter:
-  host: 127.0.0.1
-  port: 30000
-  serial: 1234567890
-  datalog: AB12345678
+inverters:
+  - host: 127.0.0.1
+    port: 30000
+    serial: 1234567890
+    datalog: AB12345670
+  - host: 127.0.0.1
+    port: 30001
+    serial: 1234567891
+    datalog: AB12345671
+
 
 mqtt:
   host: nas

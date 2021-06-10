@@ -9,7 +9,61 @@ pub struct Message {
     pub payload: String,
 }
 
+pub struct MessageTopicParts {
+    pub datalog: Serial,
+    pub parts: Vec<String>,
+}
+
 impl Message {
+    pub fn to_command(&self, inverter: config::Inverter) -> Result<Command> {
+        use Command::*;
+
+        let parts: Vec<&str> = self.topic.split('/').collect();
+        let _datalog = parts[1];
+        let parts = &parts[2..];
+
+        let r = match parts {
+            // TODO: read input
+            ["read", "hold", register] => ReadHold(inverter, register.parse()?),
+            ["read", "param", register] => ReadParam(inverter, register.parse()?),
+            ["set", "hold", register] => SetHold(inverter, register.parse()?, self.payload_int()?),
+            ["set", "ac_charge"] => AcCharge(inverter, self.payload_bool()),
+
+            ["set", "forced_discharge"] => ForcedDischarge(inverter, self.payload_bool()),
+            ["set", "charge_rate_pct"] => ChargeRate(inverter, self.payload_int()?),
+            ["set", "discharge_rate_pct"] => DischargeRate(inverter, self.payload_int()?),
+            ["set", "ac_charge_rate_pct"] => AcChargeRate(inverter, self.payload_int()?),
+
+            ["set", "ac_charge_soc_limit_pct"] => AcChargeSocLimit(inverter, self.payload_int()?),
+
+            ["set", "discharge_cutoff_soc_limit_pct"] => {
+                DischargeCutoffSocLimit(inverter, self.payload_int()?)
+            }
+
+            [..] => return Err(anyhow!("unhandled: {:?}", self)),
+        };
+
+        Ok(r)
+    }
+    // given a cmd Message, return the datalog it is intended for.
+    //
+    // eg cmd/AB12345678/ac_charge => AB12345678
+    pub fn split_cmd_topic(&self) -> Result<MessageTopicParts> {
+        // this starts at cmd/{datalog}/..
+        let parts: Vec<String> = self.topic.split('/').map(|x| x.to_string()).collect();
+
+        // bail if the topic is too short to handle.
+        // this *shouldn't* happen as our subscribe is for lxp/cmd/{datalog}/#
+        if parts.len() < 2 {
+            return Err(anyhow!("ignoring badly formed MQTT topic: {}", self.topic));
+        }
+
+        Ok(MessageTopicParts {
+            datalog: Serial::from_str(&parts[1])?,
+            parts: parts[2..].to_vec(),
+        })
+    }
+
     pub fn payload_int(&self) -> Result<u16> {
         self.payload
             .parse()
@@ -61,15 +115,14 @@ impl Mqtt {
 
         info!("mqtt connected!");
 
-        client
-            .subscribe(
-                format!(
-                    "{}/cmd/{}/#",
-                    self.config.mqtt.namespace, self.config.inverter.datalog
-                ),
-                QoS::AtMostOnce,
-            )
-            .await?;
+        for inverter in self.config.inverters.iter() {
+            client
+                .subscribe(
+                    format!("{}/cmd/{}/#", self.config.mqtt.namespace, inverter.datalog),
+                    QoS::AtMostOnce,
+                )
+                .await?;
+        }
 
         futures::try_join!(self.receiver(eventloop), self.sender(client))?;
 
@@ -93,8 +146,12 @@ impl Mqtt {
     }
 
     fn handle_message(&self, publish: Publish) -> Result<()> {
+        // remove the namespace, including the first /
+        // doing it this way means we don't break if namespace happens to contain a /
+        let topic = publish.topic[self.config.mqtt.namespace.len() + 1..].to_owned();
+
         let message = Message {
-            topic: publish.topic,
+            topic,
             payload: String::from_utf8(publish.payload.to_vec())?,
         };
         debug!("RX: {:?}", message);
@@ -108,9 +165,12 @@ impl Mqtt {
         let mut receiver = self.from_coordinator.subscribe();
         loop {
             let message = receiver.recv().await?;
-            debug!("publishing: {} = {}", message.topic, message.payload);
+
+            // this is the only place that cares about the mqtt namespace; add it here
+            let topic = format!("{}/{}", self.config.mqtt.namespace, message.topic);
+            debug!("publishing: {} = {}", topic, message.payload);
             client
-                .publish(message.topic, QoS::AtLeastOnce, false, message.payload)
+                .publish(topic, QoS::AtLeastOnce, false, message.payload)
                 .await?;
         }
     }

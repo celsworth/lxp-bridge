@@ -2,12 +2,10 @@ use crate::prelude::*;
 
 use bytes::BytesMut;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio::net::TcpStream;
 use tokio_util::codec::Decoder;
 
-use lxp::packet::TcpFrameFactory;
-
-pub type PacketSender = broadcast::Sender<Option<Packet>>;
+pub type ChannelContent = (Serial, Option<Packet>);
+pub type PacketSender = broadcast::Sender<ChannelContent>;
 
 pub struct Inverter {
     config: Rc<Config>,
@@ -29,38 +27,64 @@ impl Inverter {
     }
 
     pub async fn start(&self) -> Result<()> {
-        loop {
-            match self.connect().await {
-                Ok(_) => break,
-                Err(e) => {
-                    error!("connect: {}", e);
-                    info!("attempting inverter reconnection in 5s");
-                    self.to_coordinator.send(None)?; // kill any waiting readers
-                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                }
-            };
-        }
+        let futures = self.config.inverters.iter().cloned().map(|inverter| {
+            Self::run_for_inverter(inverter, &self.from_coordinator, &self.to_coordinator)
+        });
+
+        futures::future::join_all(futures).await;
 
         Ok(())
     }
 
-    async fn connect(&self) -> Result<()> {
-        let i = &self.config.inverter;
+    async fn run_for_inverter(
+        config: config::Inverter,
+        from_coordinator: &PacketSender,
+        to_coordinator: &PacketSender,
+    ) -> Result<()> {
+        loop {
+            match Self::connect(&config, from_coordinator, to_coordinator).await {
+                Ok(_) => return Ok(()),
+                Err(e) => {
+                    error!("inverter {}: {}", config.datalog, e);
+                    info!("inverter {}: reconnecting in 5s", config.datalog);
+                    to_coordinator.send((config.datalog, None))?; // kill any waiting readers
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                }
+            }
+        }
+    }
 
-        info!("connecting to inverter at {}:{}", &i.host, i.port);
+    async fn connect(
+        config: &config::Inverter,
+        from_coordinator: &PacketSender,
+        to_coordinator: &PacketSender,
+    ) -> Result<()> {
+        info!(
+            "connecting to inverter {} at {}:{}",
+            &config.datalog, &config.host, config.port
+        );
 
-        let inverter_hp = (i.host.to_string(), i.port);
-        let (reader, writer) = TcpStream::connect(inverter_hp).await?.into_split();
+        let inverter_hp = (config.host.to_string(), config.port);
+        let (reader, writer) = tokio::net::TcpStream::connect(inverter_hp)
+            .await?
+            .into_split();
 
-        info!("inverter connected!");
+        info!("inverter {}: connected!", config.datalog);
 
-        futures::try_join!(self.sender(writer), self.receiver(reader))?;
+        futures::try_join!(
+            Self::sender(from_coordinator, writer, config.datalog),
+            Self::receiver(to_coordinator, reader, config.datalog)
+        )?;
 
         Ok(())
     }
 
     // inverter -> coordinator
-    async fn receiver(&self, mut socket: tokio::net::tcp::OwnedReadHalf) -> Result<()> {
+    async fn receiver(
+        to_coordinator: &PacketSender,
+        mut socket: tokio::net::tcp::OwnedReadHalf,
+        datalog: Serial,
+    ) -> Result<()> {
         let mut buf = BytesMut::new();
         let mut decoder = lxp::packet_decoder::PacketDecoder::new();
 
@@ -73,34 +97,38 @@ impl Inverter {
 
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
-                    debug!("RX {:?}", packet);
-                    self.to_coordinator.send(Some(packet))?;
+                    debug!("inverter {}: RX {:?}", datalog, packet);
+                    to_coordinator.send((datalog, Some(packet)))?;
                 }
                 break;
             }
 
             while let Some(packet) = decoder.decode(&mut buf)? {
-                //debug!("RX ({} bytes): {:?}", packet.bytes().len(), packet);
-                self.to_coordinator.send(Some(packet))?;
+                debug!("inverter {}: RX {:?}", datalog, packet);
+                to_coordinator.send((datalog, Some(packet)))?;
             }
         }
 
-        Err(anyhow!("receiver exiting (inverter disconnect)"))
+        Err(anyhow!("lost connection"))
     }
 
     // coordinator -> inverter
-    async fn sender(&self, mut socket: tokio::net::tcp::OwnedWriteHalf) -> Result<()> {
-        let mut receiver = self.from_coordinator.subscribe();
+    async fn sender(
+        from_coordinator: &PacketSender,
+        mut socket: tokio::net::tcp::OwnedWriteHalf,
+        datalog: Serial,
+    ) -> Result<()> {
+        let mut receiver = from_coordinator.subscribe();
 
-        while let Some(packet) = receiver.recv().await? {
-            debug!("TX {:?}", packet);
-
-            let bytes = TcpFrameFactory::build(packet);
-            //debug!("TX {:?}", bytes);
-
-            socket.write_all(&bytes).await?
+        while let (packet_datalog, Some(packet)) = receiver.recv().await? {
+            if packet_datalog == datalog {
+                // debug!("inverter {}: TX {:?}", datalog, packet);
+                let bytes = lxp::packet::TcpFrameFactory::build(packet);
+                socket.write_all(&bytes).await?
+            }
         }
 
+        // this doesn't actually happen yet; None is never sent to this channel
         Err(anyhow!(
             "sender exiting due to receiving None from coordinator"
         ))
