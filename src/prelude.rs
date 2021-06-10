@@ -16,11 +16,10 @@ pub use crate::{
     coordinator::Coordinator,
     lxp,
     lxp::{
-        inverter::Inverter,
+        inverter::{Inverter, Serial},
         packet::{Packet, PacketCommon, TcpFrameable},
     },
     mqtt,
     options::Options,
-    types::*,
     utils,
 };

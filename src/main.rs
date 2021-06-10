@@ -5,7 +5,6 @@ pub mod lxp;
 pub mod mqtt;
 pub mod options;
 pub mod prelude;
-pub mod types;
 pub mod utils;
 
 use crate::prelude::*;
