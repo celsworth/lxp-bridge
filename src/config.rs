@@ -46,6 +46,18 @@ impl Config {
         Ok(config)
     }
 
+    // find the inverter in our config for the given message.
+    pub fn inverter_for_message(&self, message: &mqtt::Message) -> Option<Inverter> {
+        // TODO is this ok()? sufficient? might be throwing away an error
+        let r = message.split_cmd_topic().ok()?;
+
+        // search for inverter datalog in our config
+        self.inverters
+            .iter()
+            .cloned()
+            .find(|i| i.datalog == r.datalog)
+    }
+
     fn default_mqtt_port() -> u16 {
         1883
     }

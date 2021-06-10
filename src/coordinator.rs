@@ -65,13 +65,14 @@ impl Coordinator {
             let message = receiver.recv().await?;
 
             // TODO: inverters = self.inverters_for_message, then cope with "all" ?
-            let inverter = self.inverter_for_message(&message).unwrap();
+            let inverter = self.config.inverter_for_message(&message).unwrap();
             // TODO: message.to_commands and return a Vec to iterate over
             match message.to_command(inverter) {
                 Ok(command) => {
                     debug!("parsed command {:?}", command);
 
-                    let topic_reply = self.command_to_mqtt_topic(&command);
+                    let topic_reply = command.to_result_topic();
+                    //let topic_reply = self.command_to_result_topic(&command);
                     let result = self.process_command(command).await;
 
                     let reply = mqtt::Message {
@@ -335,17 +336,15 @@ impl Coordinator {
                 // returns a Vec of messages to send. could be none;
                 // not every packet produces an MQ message (eg, heartbeats),
                 // and some produce >1 (multi-register ReadHold)
-                for message in self.packet_to_messages(packet)? {
+                for message in Self::packet_to_messages(packet)? {
                     self.to_mqtt.send(message)?;
                 }
             }
         }
     }
 
-    fn packet_to_messages(&self, packet: Packet) -> Result<Vec<mqtt::Message>> {
+    fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
         let mut r = Vec::new();
-
-        let prefix = packet.datalog().to_string();
 
         match packet {
             Packet::Heartbeat(_) => {}
@@ -353,22 +352,22 @@ impl Coordinator {
                 DeviceFunction::ReadHold => {
                     for (register, value) in t.pairs() {
                         r.push(mqtt::Message {
-                            topic: format!("{}/hold/{}", prefix, register),
+                            topic: format!("{}/hold/{}", t.datalog, register),
                             payload: serde_json::to_string(&value)?,
                         });
                     }
                 }
                 DeviceFunction::ReadInput => match t.register {
                     0 => r.push(mqtt::Message {
-                        topic: format!("{}/inputs/1", prefix),
+                        topic: format!("{}/inputs/1", t.datalog),
                         payload: serde_json::to_string(&t.read_input1()?)?,
                     }),
                     40 => r.push(mqtt::Message {
-                        topic: format!("{}/inputs/2", prefix),
+                        topic: format!("{}/inputs/2", t.datalog),
                         payload: serde_json::to_string(&t.read_input2()?)?,
                     }),
                     80 => r.push(mqtt::Message {
-                        topic: format!("{}/inputs/3", prefix),
+                        topic: format!("{}/inputs/3", t.datalog),
                         payload: serde_json::to_string(&t.read_input3()?)?,
                     }),
                     _ => {
@@ -381,7 +380,7 @@ impl Coordinator {
             Packet::ReadParam(rp) => {
                 for (register, value) in rp.pairs() {
                     r.push(mqtt::Message {
-                        topic: format!("{}/param/{}", prefix, register),
+                        topic: format!("{}/param/{}", rp.datalog, register),
                         payload: serde_json::to_string(&value)?,
                     });
                 }
@@ -394,45 +393,5 @@ impl Coordinator {
     fn channel<T: Clone>() -> broadcast::Sender<T> {
         let (tx, _) = broadcast::channel(128);
         tx
-    }
-
-    // borrow a Command and return the MQTT topic we should send our result on
-    fn command_to_mqtt_topic(&self, command: &Command) -> String {
-        use Command::*;
-
-        let rest = match command {
-            ReadHold(inverter, register) => format!("{}/read/hold/{}", inverter.datalog, register),
-            ReadParam(inverter, register) => {
-                format!("{}/read/param/{}", inverter.datalog, register)
-            }
-            SetHold(inverter, register, _) => format!("{}/set/hold/{}", inverter.datalog, register),
-            AcCharge(inverter, _) => format!("{}/set/ac_charge", inverter.datalog),
-            ForcedDischarge(inverter, _) => format!("{}/set/forced_discharge", inverter.datalog),
-            ChargeRate(inverter, _) => format!("{}/set/charge_rate_pct", inverter.datalog),
-            DischargeRate(inverter, _) => format!("{}/set/discharge_rate_pct", inverter.datalog),
-            AcChargeRate(inverter, _) => format!("{}/set/ac_charge_rate_pct", inverter.datalog),
-            AcChargeSocLimit(inverter, _) => {
-                format!("{}/set/ac_charge_soc_limit_pct", inverter.datalog)
-            }
-            DischargeCutoffSocLimit(inverter, _) => {
-                format!("{}/set/discharge_cutoff_soc_limit_pct", inverter.datalog)
-            }
-        };
-
-        format!("result/{}", rest)
-    }
-
-    // find the inverter in our config for the given message.
-    // this can then be put into a Command
-    fn inverter_for_message(&self, message: &mqtt::Message) -> Option<config::Inverter> {
-        // TODO is this ok()? sufficient? might be throwing away an error
-        let r = message.split_cmd_topic().ok()?;
-
-        // search for inverter datalog in our config
-        self.config
-            .inverters
-            .iter()
-            .cloned()
-            .find(|i| i.datalog == r.datalog)
     }
 }
