@@ -1,7 +1,5 @@
 use crate::prelude::*;
 
-use std::fmt;
-
 #[derive(Clone, Copy, PartialEq)]
 pub struct Serial([u8; 10]);
 
@@ -29,14 +27,14 @@ impl std::str::FromStr for Serial {
     }
 }
 
-impl fmt::Display for Serial {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for Serial {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", String::from_utf8_lossy(&self.0))
     }
 }
 
-impl fmt::Debug for Serial {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Debug for Serial {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", String::from_utf8_lossy(&self.0))
     }
 }

@@ -64,7 +64,9 @@ impl Coordinator {
         loop {
             let message = receiver.recv().await?;
 
+            // TODO: inverters = self.inverters_for_message, then cope with "all" ?
             let inverter = self.inverter_for_message(&message).unwrap();
+            // TODO: message.to_commands and return a Vec to iterate over
             match message.to_command(inverter) {
                 Ok(command) => {
                     debug!("parsed command {:?}", command);
