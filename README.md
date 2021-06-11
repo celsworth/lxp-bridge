@@ -70,19 +70,65 @@ When you want lxp-bridge to do something, you send a message under `lxp/cmd/...`
 
 The following MQTT topics are recognised:
 
-#### topic = `lxp/cmd/{datalog}/set/ac_charge`, payload = boolean
-
-Send a boolean to this to enable or disable immediate AC Charging.
-
-
 #### topic = `lxp/cmd/{datalog}/read/hold/1`, payload = empty
 
 This is a pretty low-level command which you may not normally need.
 
-Publishing an empty message to this will read the value of register 1.
+Publishing an empty message to this will read the value of inverter register 1.
 
 The unprocessed reply will appear in `lxp/hold/1`. Depending on which register you're reading, this may need further post-processing to make sense.
 
-#### TODO: document the rest of them...
 
-there's more :)
+#### topic = `lxp/cmd/{datalog}/set/hold/1`, payload = int
+
+This is a pretty low-level command which you may not normally need.
+
+Publishing to this will set the given register to the payload, which should be a 16-bit integer.
+
+
+#### topic = `lxp/cmd/{datalog}/read/param/0`, payload = empty
+
+This is a pretty low-level command which you may not normally need.
+
+Publishing an empty message to this will read the value of datalog parameter 0.
+
+The unprocessed reply will appear in `lxp/param/0`. Depending on which parameter you're reading, this may need further post-processing to make sense.
+
+TODO: separate doc with known parameters? For now only 0 is known to work, which is the interval between inputs being published, in seconds.
+
+
+#### topic = `lxp/cmd/{datalog}/set/ac_charge`, payload = boolean
+
+Send a boolean to this to enable or disable immediate AC Charging (from the grid).
+
+
+#### topic = `lxp/cmd/{datalog}/set/forced_discharge`, payload = boolean
+
+Send a boolean to this to enable or disable immediate forced discharging.
+
+
+#### topic = `lxp/cmd/{datalog}/set/charge_rate_pct`, payload = percent
+
+Send an integer in the range 0-100 (%) to this to set the global system charge rate. 100% is full power (3.6kW or so generally).
+
+
+#### topic = `lxp/cmd/{datalog}/set/discharge_rate_pct`, payload = percent
+
+Send an integer in the range 0-100 (%) to this to set the global system discharge rate. 100% is full power (3.6kW or so generally).
+
+
+#### topic = `lxp/cmd/{datalog}/set/ac_charge_rate_pct`, payload = percent
+
+Send an integer in the range 0-100 (%) to this to set the charge rate when AC charging (from the grid). 100% is full power (3.6kW or so generally).
+
+
+#### topic = `lxp/cmd/{datalog}/set/ac_charge_soc_limit_pct`, payload = percent
+
+Send an integer in the range 0-100 (%) to this to set the battery SOC at which AC charging will stop.
+
+
+#### topic = `lxp/cmd/{datalog}/set/discharge_cutoff_soc_limit_pct`, payload = percent
+
+Send an integer in the range 0-100 (%) to this to set the battery SOC at which discharging will stop.
+
+
