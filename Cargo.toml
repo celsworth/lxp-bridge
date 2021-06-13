@@ -26,3 +26,4 @@ deadqueue = "~0.2"
 structopt = "~0.3"
 chrono = "~0.4"
 enum_dispatch = "~0.3"
+influxdb = { version = "~0.4", features = ["derive"] }

@@ -16,6 +16,10 @@ impl Serial {
         Ok(Self(input.try_into()?))
     }
 
+    pub fn default() -> Self {
+        Self([0; 10])
+    }
+
     pub fn data(&self) -> [u8; 10] {
         self.0
     }

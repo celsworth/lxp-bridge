@@ -94,6 +94,15 @@ pub struct ReadInput1 {
     pub v_bus_1: f64,
     #[nom(Parse = "utils::le_u16_div10")]
     pub v_bus_2: f64,
+
+    // following are for influx capability only
+    #[nom(Parse = "utils::current_time")]
+    #[serde(skip)]
+    pub time: DateTime<Utc>,
+    #[nom(Ignore)]
+    #[serde(skip)]
+    #[influxdb(tag)]
+    pub datalog: Serial,
 } // }}}
 
 // {{{ ReadInput2
