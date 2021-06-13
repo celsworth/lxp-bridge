@@ -15,3 +15,10 @@ mqtt:
   username:
   password:
   # namespace: lxp
+
+influx:
+  host: nas
+  port: 8086
+  database: lxp
+  username:
+  password:

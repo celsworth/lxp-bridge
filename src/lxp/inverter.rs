@@ -25,6 +25,12 @@ impl Serial {
     }
 }
 
+impl From<Serial> for influxdb::Type {
+    fn from(b: Serial) -> Self {
+        influxdb::Type::Text(b.to_string())
+    }
+}
+
 impl std::str::FromStr for Serial {
     type Err = anyhow::Error;
 

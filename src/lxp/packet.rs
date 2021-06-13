@@ -12,7 +12,7 @@ enum PacketSource {
 }
 
 // {{{ ReadInput1
-#[derive(Debug, Serialize, Nom)]
+#[derive(Debug, Serialize, Nom, InfluxDbWriteable)]
 #[nom(LittleEndian)]
 pub struct ReadInput1 {
     pub status: u16,
