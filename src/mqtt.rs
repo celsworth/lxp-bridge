@@ -102,6 +102,11 @@ impl Mqtt {
     pub async fn start(&self) -> Result<()> {
         let m = &self.config.mqtt;
 
+        if !m.enabled {
+            info!("mqtt disabled, skipping");
+            return Ok(());
+        }
+
         let mut options = MqttOptions::new("lxp-bridge", &m.host, m.port);
 
         options.set_keep_alive(60);

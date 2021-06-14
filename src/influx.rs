@@ -18,6 +18,11 @@ impl Influx {
     pub async fn start(&self) -> Result<()> {
         let config = &self.config.influx;
 
+        if !config.enabled {
+            info!("influx disabled, skipping");
+            return Ok(());
+        }
+
         info!("initializing influx at {}", config.url);
 
         let mut client = Client::new(&config.url, &config.database);

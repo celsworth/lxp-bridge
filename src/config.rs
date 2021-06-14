@@ -11,6 +11,9 @@ pub struct Config {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Inverter {
+    #[serde(default = "Config::default_inverter_enabled")]
+    pub enabled: bool,
+
     pub host: String,
     pub port: u16,
     #[serde(deserialize_with = "de_serial")]
@@ -29,6 +32,9 @@ where
 
 #[derive(Debug, Deserialize)]
 pub struct Mqtt {
+    #[serde(default = "Config::default_mqtt_enabled")]
+    pub enabled: bool,
+
     pub host: String,
     #[serde(default = "Config::default_mqtt_port")]
     pub port: u16,
@@ -41,6 +47,9 @@ pub struct Mqtt {
 
 #[derive(Debug, Deserialize)]
 pub struct Influx {
+    #[serde(default = "Config::default_influx_enabled")]
+    pub enabled: bool,
+
     pub url: String,
     pub username: Option<String>,
     pub password: Option<String>,
@@ -69,10 +78,21 @@ impl Config {
             .find(|i| i.datalog == r.datalog)
     }
 
+    fn default_inverter_enabled() -> bool {
+        true
+    }
+
+    fn default_mqtt_enabled() -> bool {
+        true
+    }
     fn default_mqtt_port() -> u16 {
         1883
     }
     fn default_mqtt_namespace() -> String {
         "lxp".to_string()
+    }
+
+    fn default_influx_enabled() -> bool {
+        true
     }
 }

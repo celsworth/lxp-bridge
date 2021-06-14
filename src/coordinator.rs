@@ -55,12 +55,12 @@ impl Coordinator {
     }
 
     pub async fn start(&self) -> Result<()> {
-        loop {
-            let f1 = self.inverter_receiver();
-            let f2 = self.mqtt_receiver();
+        let f1 = self.inverter_receiver();
+        let f2 = self.mqtt_receiver();
 
-            let _ = futures::try_join!(f1, f2); // ignore result, just re-loop and restart
-        }
+        let _ = futures::try_join!(f1, f2); // ignore result
+
+        Ok(())
     }
 
     async fn mqtt_receiver(&self) -> Result<()> {
@@ -348,6 +348,7 @@ impl Coordinator {
         }
     }
 
+    // TODO: packet.to_messages() ?
     fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
         use lxp::packet::ReadInput;
 
