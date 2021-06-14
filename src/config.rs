@@ -6,6 +6,7 @@ use serde::Deserialize;
 pub struct Config {
     pub inverters: Vec<Inverter>,
     pub mqtt: Mqtt,
+    pub influx: Influx,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -38,6 +39,18 @@ pub struct Mqtt {
     pub namespace: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct Influx {
+    pub host: String,
+    #[serde(default = "Config::default_influx_port")]
+    pub port: u16,
+    pub username: Option<String>,
+    pub password: Option<String>,
+
+    pub database: String,
+    pub measurement: String,
+}
+
 impl Config {
     pub fn new(file: String) -> Result<Self> {
         let content = std::fs::read_to_string(file)?;
@@ -63,5 +76,9 @@ impl Config {
     }
     fn default_mqtt_namespace() -> String {
         "lxp".to_string()
+    }
+
+    fn default_influx_port() -> u16 {
+        8086
     }
 }

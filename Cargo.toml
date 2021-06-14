@@ -26,4 +26,5 @@ deadqueue = "~0.2"
 structopt = "~0.3"
 chrono = "~0.4"
 enum_dispatch = "~0.3"
-influxdb = { version = "~0.4", features = ["derive"] }
+# git repo fork specified for tokio 1.0 compatibility
+influxdb = { version = "~0.4", features = ["derive"], git = "https://github.com/celsworth/influxdb-rust" }

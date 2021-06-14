@@ -22,3 +22,5 @@ influx:
   database: lxp
   username:
   password:
+  database: lxp
+  measurement: lxp

@@ -13,6 +13,7 @@ pub struct Coordinator {
     config: Rc<Config>,
     pub inverter: Inverter,
     pub mqtt: mqtt::Mqtt,
+    pub influx: influx::Influx,
     from_inverter: lxp::inverter::PacketSender,
     to_inverter: lxp::inverter::PacketSender,
     from_mqtt: mqtt::MessageSender,
@@ -38,10 +39,14 @@ impl Coordinator {
         // process messages from/to MQTT, passing Messages
         let mqtt = mqtt::Mqtt::new(Rc::clone(&config), to_mqtt.clone(), from_mqtt.clone());
 
+        // push messages to Influx
+        let influx = influx::Influx::new(Rc::clone(&config), from_inverter.clone());
+
         Self {
             config,
             inverter,
             mqtt,
+            influx,
             from_inverter,
             to_inverter,
             from_mqtt,
