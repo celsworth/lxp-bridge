@@ -19,7 +19,6 @@ mqtt:
 influx:
   host: nas
   port: 8086
-  database: lxp
   username:
   password:
   database: lxp
