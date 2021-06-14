@@ -17,8 +17,7 @@ mqtt:
   # namespace: lxp
 
 influx:
-  host: nas
-  port: 8086
+  url: http://nas-vpn.cae.me.uk:8086
   username:
   password:
   database: lxp

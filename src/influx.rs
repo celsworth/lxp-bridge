@@ -16,7 +16,22 @@ impl Influx {
     }
 
     pub async fn start(&self) -> Result<()> {
-        let client = Client::new("http://nas:8086", &self.config.influx.database);
+        let config = &self.config.influx;
+
+        info!("initializing influx at {}", config.url);
+
+        let mut client = Client::new(&config.url, &config.database);
+
+        if let (Some(u), Some(p)) = (&config.username, &config.password) {
+            client = client.with_auth(u, p);
+        }
+
+        match client.ping().await {
+            Ok((b, v)) => {
+                info!("influx responding ok: build {}, version {}", b, v);
+            }
+            Err(e) => return Err(anyhow!("influx error: {}", e)),
+        }
 
         futures::try_join!(self.sender(client))?;
 

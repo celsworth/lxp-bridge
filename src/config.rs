@@ -41,9 +41,7 @@ pub struct Mqtt {
 
 #[derive(Debug, Deserialize)]
 pub struct Influx {
-    pub host: String,
-    #[serde(default = "Config::default_influx_port")]
-    pub port: u16,
+    pub url: String,
     pub username: Option<String>,
     pub password: Option<String>,
 
@@ -76,9 +74,5 @@ impl Config {
     }
     fn default_mqtt_namespace() -> String {
         "lxp".to_string()
-    }
-
-    fn default_influx_port() -> u16 {
-        8086
     }
 }
