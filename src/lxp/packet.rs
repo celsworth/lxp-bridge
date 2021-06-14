@@ -5,10 +5,10 @@ use nom_derive::{Nom, Parse};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
 
-#[derive(PartialEq)]
-enum PacketSource {
-    Inverter,
-    Client,
+pub enum ReadInput {
+    ReadInput1(ReadInput1),
+    ReadInput2(ReadInput2),
+    ReadInput3(ReadInput3),
 }
 
 // {{{ ReadInput1
@@ -295,6 +295,12 @@ pub enum Packet {
     ReadParam(ReadParam),
 }
 
+#[derive(PartialEq)]
+enum PacketSource {
+    Inverter,
+    Client,
+}
+
 /////////////
 //
 // HEARTBEATS
@@ -368,7 +374,18 @@ impl TranslatedData {
             .collect()
     }
 
-    pub fn read_input1(&self) -> Result<ReadInput1> {
+    pub fn read_input(&self) -> Result<ReadInput> {
+        let r = match self.register {
+            0 => ReadInput::ReadInput1(self.read_input1()?),
+            40 => ReadInput::ReadInput2(self.read_input2()?),
+            80 => ReadInput::ReadInput3(self.read_input3()?),
+            _ => return Err(anyhow!("unhandled ReadInput register={}", self.register)),
+        };
+
+        Ok(r)
+    }
+
+    fn read_input1(&self) -> Result<ReadInput1> {
         match ReadInput1::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
@@ -381,7 +398,7 @@ impl TranslatedData {
         }
     }
 
-    pub fn read_input2(&self) -> Result<ReadInput2> {
+    fn read_input2(&self) -> Result<ReadInput2> {
         match ReadInput2::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.e_pv_all = r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3;
@@ -392,7 +409,7 @@ impl TranslatedData {
         }
     }
 
-    pub fn read_input3(&self) -> Result<ReadInput3> {
+    fn read_input3(&self) -> Result<ReadInput3> {
         match ReadInput3::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.datalog = self.datalog;

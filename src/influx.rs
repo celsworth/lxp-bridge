@@ -24,6 +24,8 @@ impl Influx {
     }
 
     async fn sender(&self, client: influxdb::Client) -> Result<()> {
+        use lxp::packet::ReadInput;
+
         let mut receiver = self.from_inverter.subscribe();
 
         loop {
@@ -31,10 +33,13 @@ impl Influx {
                 debug!("RX: {:?}", packet);
 
                 if let Packet::TranslatedData(td) = packet {
-                    let r = td.read_input1()?;
-                    client
-                        .query(&r.into_query(&self.config.influx.measurement))
-                        .await?;
+                    let query = match td.read_input()? {
+                        ReadInput::ReadInput1(r1) => r1.into_query(&self.config.influx.measurement),
+                        ReadInput::ReadInput2(r2) => r2.into_query(&self.config.influx.measurement),
+                        ReadInput::ReadInput3(r3) => r3.into_query(&self.config.influx.measurement),
+                    };
+
+                    client.query(&query).await?;
                 }
             }
         }

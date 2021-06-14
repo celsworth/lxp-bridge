@@ -349,6 +349,8 @@ impl Coordinator {
     }
 
     fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
+        use lxp::packet::ReadInput;
+
         let mut r = Vec::new();
 
         match packet {
@@ -362,22 +364,19 @@ impl Coordinator {
                         });
                     }
                 }
-                DeviceFunction::ReadInput => match t.register {
-                    0 => r.push(mqtt::Message {
+                DeviceFunction::ReadInput => match t.read_input()? {
+                    ReadInput::ReadInput1(r1) => r.push(mqtt::Message {
                         topic: format!("{}/inputs/1", t.datalog),
-                        payload: serde_json::to_string(&t.read_input1()?)?,
+                        payload: serde_json::to_string(&r1)?,
                     }),
-                    40 => r.push(mqtt::Message {
+                    ReadInput::ReadInput2(r2) => r.push(mqtt::Message {
                         topic: format!("{}/inputs/2", t.datalog),
-                        payload: serde_json::to_string(&t.read_input2()?)?,
+                        payload: serde_json::to_string(&r2)?,
                     }),
-                    80 => r.push(mqtt::Message {
+                    ReadInput::ReadInput3(r3) => r.push(mqtt::Message {
                         topic: format!("{}/inputs/3", t.datalog),
-                        payload: serde_json::to_string(&t.read_input3()?)?,
+                        payload: serde_json::to_string(&r3)?,
                     }),
-                    _ => {
-                        warn!("unhandled ReadInput register={}", t.register);
-                    }
                 },
                 DeviceFunction::WriteSingle => {}
                 DeviceFunction::WriteMulti => {}
