@@ -3,6 +3,7 @@ name = "lxp-bridge"
 version = "0.1.0"
 authors = ["Chris Elsworth <chris@cae.me.uk>"]
 edition = "2018"
+repository = "https://github.com/celsworth/lxp-bridge"
 
 [dependencies]
 anyhow = "~1"
@@ -18,7 +19,7 @@ rumqttc = "~0.8"
 serde = { version = "~1 ", features = ["derive"] }
 serde_json = "~1"
 serde_yaml = "~0.8"
-tokio = { version = "~1", features = ["full"] }
+tokio = { version = "~1", features = ["net"] }
 tokio-util = { version = "~0.6", features = ["codec"] }
 structopt = { version = "~0.3", default-features = false }
 chrono = "~0.4"
