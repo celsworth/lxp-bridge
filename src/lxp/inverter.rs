@@ -16,8 +16,18 @@ impl Serial {
         Ok(Self(input.try_into()?))
     }
 
+    pub fn default() -> Self {
+        Self([0; 10])
+    }
+
     pub fn data(&self) -> [u8; 10] {
         self.0
+    }
+}
+
+impl From<Serial> for influxdb::Type {
+    fn from(b: Serial) -> Self {
+        influxdb::Type::Text(b.to_string())
     }
 }
 
@@ -67,9 +77,15 @@ impl Inverter {
     }
 
     pub async fn start(&self) -> Result<()> {
-        let futures = self.config.inverters.iter().cloned().map(|inverter| {
-            Self::run_for_inverter(inverter, &self.from_coordinator, &self.to_coordinator)
-        });
+        let futures = self
+            .config
+            .inverters
+            .iter()
+            .filter(|inverter| inverter.enabled)
+            .cloned()
+            .map(|inverter| {
+                Self::run_for_inverter(inverter, &self.from_coordinator, &self.to_coordinator)
+            });
 
         futures::future::join_all(futures).await;
 

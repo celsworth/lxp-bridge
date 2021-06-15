@@ -4,11 +4,18 @@
 
 > more docs and features coming soon.
 
-lxp-bridge is a tool to get communications with a LuxPower inverter (commonly used with home-battery and solar setups) onto your MQTT network.
+lxp-bridge is a tool to communicate with a LuxPower inverter (commonly used with home-battery and solar setups).
 
-It allows you to control your inverter locally without any dependence on the manufacturer's own servers in China.
+It allows you to monitor and control your inverter locally without any dependence on the manufacturer's own servers in China.
 
-This builds on my earlier project [Octolux](https://github.com/celsworth/octolux), but where that attempted to be an all-in-one solution, this is a bit more tightly defined and doesn't attempt any control or intelligence of its own. This is simply a bridge from the inverter to MQTT. You get to do all the control on your own, from node-red or your own scripts or whatever.
+This builds on my earlier project [Octolux](https://github.com/celsworth/octolux), but where that attempted to be an all-in-one solution, this is a bit more tightly defined and doesn't attempt any control or intelligence of its own. This is simply a bridge from the inverter to commonly-used technologies (see below). You get to do all the control on your own, from node-red or your own scripts or whatever.
+
+Currently, lxp-bridge bridges to:
+
+* mqtt (push data for monitoring, listen to control commands)
+* InfluxDB (push power data up for graphing etc)
+
+In future, it might possibly run a HTTP server with endpoints to fetch power data or control the inverter via REST.
 
 
 ## Installation
@@ -26,17 +33,30 @@ A range of binaries are provided on the Releases page, otherwise you can compile
 
 All configuration is done in a YAML config file; see example config.yaml.
 
-## Usage
+Multiple inverters are supported via an array under the `inverters` key. Each one can be separately disabled if you want to temporarily stop connecting to one. Similarly, MQTT and InfluxDB can have `enabled = false` set to disable either output method.
 
-As the inverter sends out packets, the bridge will translate the interesting ones (ie not heartbeats) into MQTT messages, as follows.
+## Basics
 
-First thing to note is there are two types of registers in the inverter:
+First thing to note is there are three types of registers:
 
   * holdings - read/write, storing settings
   * inputs - read-only, storing transient power data, temperatures, counters etc
+  * params - read/write, these are actually on the datalog (the WiFi bit that plugs in) and currently all I think it does is set the interval at which inputs are broadcast.
 
 Second thing is whenever the inverter receives a packet, it broadcasts the reply out to *all* connected clients. So you may see unprompted messages for holding 12/13/14 for instance; this is LuxPower in China occasionally requesting the time from your inverter (presumably so they can correct it if needs be).
 
+## InfluxDB
+
+lxp-bridge can publish power data (the contents of the `input` registers) to InfluxDB as they are received.
+
+The database and measurement can be set in the configuration; there will be a single tag of the inverter's datalog, and then fields which correspond with the same as the JSON data sent via MQTT.
+
+Note that because the inverter sends the power data split across 3 packets, there will be 3 submissions to InfluxDB, each with slightly differing times (by about a second). This means all the data combined isn't an atomic snapshot of an instant in time, but in practise this shouldn't really matter.
+
+
+## MQTT
+
+As we receive packets from the inverter, we translate the interesting ones (ie not heartbeats) into MQTT messages, as follows.
 
 ### `lxp/{datalog}/hold/1`
 
@@ -57,6 +77,12 @@ Not sure what determines the interval, and I'm pretty sure it used to be 2 minut
 TODO: think you can request these to be sent immediately, once I make `lxp/cmd/{datalog}/read_inputs` work..
 
 TODO: document the JSON hashes.
+
+### `lxp/{datalog}/params/0`
+
+These are parameters stored on the datalog (the WiFi dongle), not the main inverter itself. The only parameter I'm aware of is 0 which appears to be the number of seconds between `inputs` broadcasts.
+
+This area is a bit unknown - TODO for myself: try changing params/0 and see if the broadcast interval changes accordingly.
 
 
 ### Commands

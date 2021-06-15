@@ -13,6 +13,7 @@ pub struct Coordinator {
     config: Rc<Config>,
     pub inverter: Inverter,
     pub mqtt: mqtt::Mqtt,
+    pub influx: influx::Influx,
     from_inverter: lxp::inverter::PacketSender,
     to_inverter: lxp::inverter::PacketSender,
     from_mqtt: mqtt::MessageSender,
@@ -38,10 +39,14 @@ impl Coordinator {
         // process messages from/to MQTT, passing Messages
         let mqtt = mqtt::Mqtt::new(Rc::clone(&config), to_mqtt.clone(), from_mqtt.clone());
 
+        // push messages to Influx
+        let influx = influx::Influx::new(Rc::clone(&config), from_inverter.clone());
+
         Self {
             config,
             inverter,
             mqtt,
+            influx,
             from_inverter,
             to_inverter,
             from_mqtt,
@@ -50,12 +55,12 @@ impl Coordinator {
     }
 
     pub async fn start(&self) -> Result<()> {
-        loop {
-            let f1 = self.inverter_receiver();
-            let f2 = self.mqtt_receiver();
+        let f1 = self.inverter_receiver();
+        let f2 = self.mqtt_receiver();
 
-            let _ = futures::try_join!(f1, f2); // ignore result, just re-loop and restart
-        }
+        let _ = futures::try_join!(f1, f2); // ignore result
+
+        Ok(())
     }
 
     async fn mqtt_receiver(&self) -> Result<()> {
@@ -343,7 +348,10 @@ impl Coordinator {
         }
     }
 
+    // TODO: packet.to_messages() ?
     fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
+        use lxp::packet::ReadInput;
+
         let mut r = Vec::new();
 
         match packet {
@@ -357,22 +365,19 @@ impl Coordinator {
                         });
                     }
                 }
-                DeviceFunction::ReadInput => match t.register {
-                    0 => r.push(mqtt::Message {
+                DeviceFunction::ReadInput => match t.read_input()? {
+                    ReadInput::ReadInput1(r1) => r.push(mqtt::Message {
                         topic: format!("{}/inputs/1", t.datalog),
-                        payload: serde_json::to_string(&t.read_input1()?)?,
+                        payload: serde_json::to_string(&r1)?,
                     }),
-                    40 => r.push(mqtt::Message {
+                    ReadInput::ReadInput2(r2) => r.push(mqtt::Message {
                         topic: format!("{}/inputs/2", t.datalog),
-                        payload: serde_json::to_string(&t.read_input2()?)?,
+                        payload: serde_json::to_string(&r2)?,
                     }),
-                    80 => r.push(mqtt::Message {
+                    ReadInput::ReadInput3(r3) => r.push(mqtt::Message {
                         topic: format!("{}/inputs/3", t.datalog),
-                        payload: serde_json::to_string(&t.read_input3()?)?,
+                        payload: serde_json::to_string(&r3)?,
                     }),
-                    _ => {
-                        warn!("unhandled ReadInput register={}", t.register);
-                    }
                 },
                 DeviceFunction::WriteSingle => {}
                 DeviceFunction::WriteMulti => {}

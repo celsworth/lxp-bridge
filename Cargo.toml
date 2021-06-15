@@ -3,14 +3,13 @@ name = "lxp-bridge"
 version = "0.1.0"
 authors = ["Chris Elsworth <chris@cae.me.uk>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+repository = "https://github.com/celsworth/lxp-bridge"
 
 [dependencies]
 anyhow = "~1"
 bytes = "~1"
 crc16 = "~0.4"
-env_logger = "~0.8"
+env_logger = { version = "~0.8", default-features = false, features = [] }
 futures = "~0.3"
 log = "~0.4"
 nom = "~6"
@@ -20,9 +19,10 @@ rumqttc = "~0.8"
 serde = { version = "~1 ", features = ["derive"] }
 serde_json = "~1"
 serde_yaml = "~0.8"
-tokio = { version = "~1", features = ["full"] }
+tokio = { version = "~1", features = ["net"] }
 tokio-util = { version = "~0.6", features = ["codec"] }
-deadqueue = "~0.2"
-structopt = "~0.3"
+structopt = { version = "~0.3", default-features = false }
 chrono = "~0.4"
 enum_dispatch = "~0.3"
+# git repo fork specified for tokio 1.0 compatibility
+influxdb = { version = "~0.4", features = ["derive"], git = "https://github.com/celsworth/influxdb-rust" }

@@ -1,6 +1,7 @@
 pub mod command;
 pub mod config;
 pub mod coordinator;
+pub mod influx;
 pub mod lxp;
 pub mod mqtt;
 pub mod options;
@@ -43,7 +44,8 @@ async fn app() -> Result<()> {
     futures::try_join!(
         coordinator.start(),
         coordinator.inverter.start(),
-        coordinator.mqtt.start()
+        coordinator.mqtt.start(),
+        coordinator.influx.start()
     )?;
 
     Ok(())

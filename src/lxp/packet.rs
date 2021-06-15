@@ -5,14 +5,14 @@ use nom_derive::{Nom, Parse};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
 
-#[derive(PartialEq)]
-enum PacketSource {
-    Inverter,
-    Client,
+pub enum ReadInput {
+    ReadInput1(ReadInput1),
+    ReadInput2(ReadInput2),
+    ReadInput3(ReadInput3),
 }
 
 // {{{ ReadInput1
-#[derive(Debug, Serialize, Nom)]
+#[derive(Debug, Serialize, Nom, InfluxDbWriteable)]
 #[nom(LittleEndian)]
 pub struct ReadInput1 {
     pub status: u16,
@@ -94,10 +94,19 @@ pub struct ReadInput1 {
     pub v_bus_1: f64,
     #[nom(Parse = "utils::le_u16_div10")]
     pub v_bus_2: f64,
+
+    // following are for influx capability only
+    #[nom(Parse = "utils::current_time")]
+    #[serde(skip)]
+    pub time: DateTime<Utc>,
+    #[nom(Ignore)]
+    #[serde(skip)]
+    #[influxdb(tag)]
+    pub datalog: Serial,
 } // }}}
 
 // {{{ ReadInput2
-#[derive(Debug, Serialize, Nom)]
+#[derive(Debug, Serialize, Nom, InfluxDbWriteable)]
 #[nom(Debug, LittleEndian)]
 pub struct ReadInput2 {
     #[nom(Ignore)]
@@ -133,10 +142,19 @@ pub struct ReadInput2 {
     #[nom(SkipBefore(2))] // reserved
     pub runtime: u32,
     // bunch of auto_test stuff here I'm not doing yet
+    //
+    // following are for influx capability only
+    #[nom(Parse = "utils::current_time")]
+    #[serde(skip)]
+    pub time: DateTime<Utc>,
+    #[nom(Ignore)]
+    #[serde(skip)]
+    #[influxdb(tag)]
+    pub datalog: Serial,
 } // }}}
 
 // {{{ ReadInput3
-#[derive(Debug, Serialize, Nom)]
+#[derive(Debug, Serialize, Nom, InfluxDbWriteable)]
 #[nom(LittleEndian)]
 pub struct ReadInput3 {
     #[nom(SkipBefore(2))] // bat_brand, bat_com_type
@@ -163,6 +181,15 @@ pub struct ReadInput3 {
 
     pub bat_count: u16,
     pub bat_capacity: u16,
+
+    // following are for influx capability only
+    #[nom(Parse = "utils::current_time")]
+    #[serde(skip)]
+    pub time: DateTime<Utc>,
+    #[nom(Ignore)]
+    #[serde(skip)]
+    #[influxdb(tag)]
+    pub datalog: Serial,
 } // }}}
 
 // {{{ TcpFunction
@@ -268,6 +295,12 @@ pub enum Packet {
     ReadParam(ReadParam),
 }
 
+#[derive(PartialEq)]
+enum PacketSource {
+    Inverter,
+    Client,
+}
+
 /////////////
 //
 // HEARTBEATS
@@ -341,31 +374,47 @@ impl TranslatedData {
             .collect()
     }
 
-    pub fn read_input1(&self) -> Result<ReadInput1> {
+    pub fn read_input(&self) -> Result<ReadInput> {
+        let r = match self.register {
+            0 => ReadInput::ReadInput1(self.read_input1()?),
+            40 => ReadInput::ReadInput2(self.read_input2()?),
+            80 => ReadInput::ReadInput3(self.read_input3()?),
+            _ => return Err(anyhow!("unhandled ReadInput register={}", self.register)),
+        };
+
+        Ok(r)
+    }
+
+    fn read_input1(&self) -> Result<ReadInput1> {
         match ReadInput1::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
                 r.v_pv = r.v_pv_1 + r.v_pv_2 + r.v_pv_3;
                 r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
+                r.datalog = self.datalog;
                 Ok(r)
             }
             Err(_) => Err(anyhow!("meh")),
         }
     }
 
-    pub fn read_input2(&self) -> Result<ReadInput2> {
+    fn read_input2(&self) -> Result<ReadInput2> {
         match ReadInput2::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.e_pv_all = r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3;
+                r.datalog = self.datalog;
                 Ok(r)
             }
             Err(_) => Err(anyhow!("meh")),
         }
     }
 
-    pub fn read_input3(&self) -> Result<ReadInput3> {
+    fn read_input3(&self) -> Result<ReadInput3> {
         match ReadInput3::parse(&self.values) {
-            Ok((_, r)) => Ok(r),
+            Ok((_, mut r)) => {
+                r.datalog = self.datalog;
+                Ok(r)
+            }
             Err(_) => Err(anyhow!("meh")),
         }
     }
