@@ -1,6 +1,6 @@
 inverters:
 - enabled: true
-  host: 127.0.0.1
+  host: 192.168.0.10
   port: 8000
   serial: 5555555555
   datalog: 2222222222
