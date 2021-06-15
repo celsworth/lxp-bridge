@@ -38,7 +38,6 @@ async fn app() -> Result<()> {
     let options = Options::new()?;
 
     let config = Config::new(options.config_file)?;
-    debug!("{:?}", config);
 
     let coordinator = Coordinator::new(config);
 
