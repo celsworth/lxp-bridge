@@ -8,6 +8,7 @@ edition = "2018"
 anyhow = "~1"
 bytes = "~1"
 crc16 = "~0.4"
+env_logger = { version = "~0.8", default-features = false, features = [] }
 futures = "~0.3"
 log = "~0.4"
 nom = "~6"
@@ -19,14 +20,8 @@ serde_json = "~1"
 serde_yaml = "~0.8"
 tokio = { version = "~1", features = ["full"] }
 tokio-util = { version = "~0.6", features = ["codec"] }
-deadqueue = "~0.2"
-structopt = "~0.3"
+structopt = { version = "~0.3", default-features = false }
 chrono = "~0.4"
 enum_dispatch = "~0.3"
 # git repo fork specified for tokio 1.0 compatibility
 influxdb = { version = "~0.4", features = ["derive"], git = "https://github.com/celsworth/influxdb-rust" }
-
-[dependencies.env_logger]
-version = "~0.8"
-default-features = false
-features = []
