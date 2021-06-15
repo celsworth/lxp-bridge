@@ -1,0 +1,27 @@
+inverters:
+- enabled: true
+  host: 127.0.0.1
+  port: 8000
+  serial: 5555555555
+  datalog: 2222222222
+- enabled: false
+  host: 192.168.0.163
+  port: 8000
+  serial: 9999999999
+  datalog: 3333333333
+
+mqtt:
+  enabled: true
+  host: localhost
+  port: 1883
+  username:
+  password:
+  namespace: lxp
+
+influx:
+  enabled: false
+  url: http://localhost:8086
+  username:
+  password:
+  database: lxp
+  measurement: lxp
