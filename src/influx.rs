@@ -44,16 +44,14 @@ impl Influx {
     }
 
     async fn sender(&self, client: influxdb::Client) -> Result<()> {
-        use lxp::packet::ReadInput;
+        use lxp::packet::{DeviceFunction, ReadInput};
 
         let mut receiver = self.from_inverter.subscribe();
 
         loop {
             if let (_datalog, Some(packet)) = receiver.recv().await? {
-                debug!("RX: {:?}", packet);
-
                 if let Packet::TranslatedData(td) = packet {
-                    if td.device_function == lxp::packet::DeviceFunction::ReadInput {
+                    if td.device_function == DeviceFunction::ReadInput {
                         let query = match td.read_input()? {
                             ReadInput::ReadInput1(r1) => {
                                 r1.into_query(&self.config.influx.measurement)
