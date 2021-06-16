@@ -53,13 +53,20 @@ impl Influx {
                 debug!("RX: {:?}", packet);
 
                 if let Packet::TranslatedData(td) = packet {
-                    let query = match td.read_input()? {
-                        ReadInput::ReadInput1(r1) => r1.into_query(&self.config.influx.measurement),
-                        ReadInput::ReadInput2(r2) => r2.into_query(&self.config.influx.measurement),
-                        ReadInput::ReadInput3(r3) => r3.into_query(&self.config.influx.measurement),
-                    };
-
-                    client.query(&query).await?;
+                    if td.device_function == lxp::packet::DeviceFunction::ReadInput {
+                        let query = match td.read_input()? {
+                            ReadInput::ReadInput1(r1) => {
+                                r1.into_query(&self.config.influx.measurement)
+                            }
+                            ReadInput::ReadInput2(r2) => {
+                                r2.into_query(&self.config.influx.measurement)
+                            }
+                            ReadInput::ReadInput3(r3) => {
+                                r3.into_query(&self.config.influx.measurement)
+                            }
+                        };
+                        client.query(&query).await?;
+                    }
                 }
             }
         }
