@@ -21,7 +21,6 @@ pub fn le_u32_div10(input: &[u8]) -> nom::IResult<&[u8], f64> {
     Ok((input, num as f64 / 10.0))
 }
 
-pub fn current_time(input: &[u8]) -> nom::IResult<&[u8], DateTime<Utc>> {
-    let r = chrono::offset::Utc::now();
-    Ok((input, r))
+pub fn current_time(input: &[u8]) -> nom::IResult<&[u8], UnixTime> {
+    Ok((input, UnixTime::now()))
 }

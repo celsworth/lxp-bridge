@@ -24,5 +24,6 @@ pub use crate::{
     },
     mqtt,
     options::Options,
+    unixtime::UnixTime,
     utils,
 };

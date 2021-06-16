@@ -98,7 +98,7 @@ pub struct ReadInput1 {
     // following are for influx capability only
     #[nom(Parse = "utils::current_time")]
     #[serde(skip)]
-    pub time: DateTime<Utc>,
+    pub time: UnixTime,
     #[nom(Ignore)]
     #[serde(skip)]
     #[influxdb(tag)]
@@ -146,7 +146,7 @@ pub struct ReadInput2 {
     // following are for influx capability only
     #[nom(Parse = "utils::current_time")]
     #[serde(skip)]
-    pub time: DateTime<Utc>,
+    pub time: UnixTime,
     #[nom(Ignore)]
     #[serde(skip)]
     #[influxdb(tag)]
@@ -185,7 +185,7 @@ pub struct ReadInput3 {
     // following are for influx capability only
     #[nom(Parse = "utils::current_time")]
     #[serde(skip)]
-    pub time: DateTime<Utc>,
+    pub time: UnixTime,
     #[nom(Ignore)]
     #[serde(skip)]
     #[influxdb(tag)]
