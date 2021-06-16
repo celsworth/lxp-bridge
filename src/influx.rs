@@ -2,6 +2,8 @@ use crate::prelude::*;
 
 use influxdb::Client;
 
+static INPUTS_MEASUREMENT: &str = "inputs";
+
 pub struct Influx {
     config: Rc<Config>,
     from_inverter: lxp::inverter::PacketSender,
@@ -53,15 +55,9 @@ impl Influx {
                 if let Packet::TranslatedData(td) = packet {
                     if td.device_function == DeviceFunction::ReadInput {
                         let query = match td.read_input()? {
-                            ReadInput::ReadInput1(r1) => {
-                                r1.into_query(&self.config.influx.measurement)
-                            }
-                            ReadInput::ReadInput2(r2) => {
-                                r2.into_query(&self.config.influx.measurement)
-                            }
-                            ReadInput::ReadInput3(r3) => {
-                                r3.into_query(&self.config.influx.measurement)
-                            }
+                            ReadInput::ReadInput1(r1) => r1.into_query(INPUTS_MEASUREMENT),
+                            ReadInput::ReadInput2(r2) => r2.into_query(INPUTS_MEASUREMENT),
+                            ReadInput::ReadInput3(r3) => r3.into_query(INPUTS_MEASUREMENT),
                         };
                         client.query(&query).await?;
                     }

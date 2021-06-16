@@ -55,7 +55,6 @@ pub struct Influx {
     pub password: Option<String>,
 
     pub database: String,
-    pub measurement: String,
 }
 
 impl Config {

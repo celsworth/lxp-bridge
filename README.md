@@ -49,7 +49,7 @@ Second thing is whenever the inverter receives a packet, it broadcasts the reply
 
 lxp-bridge can publish power data (the contents of the `input` registers) to InfluxDB as they are received.
 
-The database and measurement can be set in the configuration; there will be a single tag of the inverter's datalog, and then fields which correspond with the same as the JSON data sent via MQTT.
+The database can be set in the configuration; the measurement table used is `inputs`. There will be a single tag of the inverter's datalog, and then fields which correspond with the same as the JSON data sent via MQTT.
 
 Note that because the inverter sends the power data split across 3 packets, there will be 3 submissions to InfluxDB, each with slightly differing times (by about a second). This means all the data combined isn't an atomic snapshot of an instant in time, but in practise this shouldn't really matter.
 
