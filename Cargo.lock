@@ -472,7 +472,7 @@ dependencies = [
 [[package]]
 name = "influxdb"
 version = "0.4.0"
-source = "git+https://github.com/celsworth/influxdb-rust#bbabcb3cda33076d4ea3d9d70a67165d60d1b6a5"
+source = "git+https://github.com/celsworth/influxdb-rust#328c6206074ddd403dd900e71f3ca12501fc6b22"
 dependencies = [
  "chrono",
  "futures",
