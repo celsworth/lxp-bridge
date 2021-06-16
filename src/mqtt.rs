@@ -118,8 +118,6 @@ impl Mqtt {
 
         let (client, eventloop) = AsyncClient::new(options, 10);
 
-        info!("mqtt connected!");
-
         for inverter in self.config.inverters.iter() {
             client
                 .subscribe(
@@ -144,6 +142,8 @@ impl Mqtt {
                 Err(e) => {
                     // should automatically reconnect on next poll()..
                     error!("{}", e);
+                    info!("reconnecting in 5s");
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
                 _ => {} // keepalives etc
             }
