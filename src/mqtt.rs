@@ -118,7 +118,7 @@ impl Mqtt {
 
         let (client, eventloop) = AsyncClient::new(options, 10);
 
-        for inverter in self.config.inverters.iter() {
+        for inverter in &self.config.inverters {
             client
                 .subscribe(
                     format!("{}/cmd/{}/#", self.config.mqtt.namespace, inverter.datalog),
