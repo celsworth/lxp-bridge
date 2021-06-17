@@ -171,12 +171,12 @@ impl Mqtt {
         loop {
             let message = receiver.recv().await?;
 
-            // this is the only place that cares about the mqtt namespace; add it here
             let topic = format!("{}/{}", self.config.mqtt.namespace, message.topic);
             debug!("publishing: {} = {}", topic, message.payload);
-            client
-                .publish(topic, QoS::AtLeastOnce, false, message.payload)
-                .await?;
+            let _ = client
+                .publish(&topic, QoS::AtLeastOnce, false, message.payload)
+                .await
+                .map_err(|err| error!("publish {} failed: {:?} .. skipping", topic, err));
         }
     }
 }
