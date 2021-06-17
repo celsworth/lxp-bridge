@@ -73,8 +73,8 @@ impl Config {
         // search for inverter datalog in our config
         self.inverters
             .iter()
-            .cloned()
             .find(|i| i.datalog == r.datalog)
+            .cloned()
     }
 
     fn default_inverter_enabled() -> bool {
