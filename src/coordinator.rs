@@ -109,7 +109,7 @@ impl Coordinator {
             AcCharge(inverter, enable) => {
                 self.update_hold(
                     inverter,
-                    Register::Register21.into(),
+                    Register::Register21,
                     RegisterBit::AcChargeEnable,
                     enable,
                 )
@@ -118,44 +118,52 @@ impl Coordinator {
             ForcedDischarge(inverter, enable) => {
                 self.update_hold(
                     inverter,
-                    Register::Register21.into(),
+                    Register::Register21,
                     RegisterBit::ForcedDischargeEnable,
                     enable,
                 )
                 .await
             }
             ChargeRate(inverter, pct) => {
-                self.set_hold(inverter, Register::ChargePowerPercentCmd.into(), pct)
+                self.set_hold(inverter, Register::ChargePowerPercentCmd, pct)
                     .await
             }
             DischargeRate(inverter, pct) => {
-                self.set_hold(inverter, Register::DischgPowerPercentCmd.into(), pct)
+                self.set_hold(inverter, Register::DischgPowerPercentCmd, pct)
                     .await
             }
 
             AcChargeRate(inverter, pct) => {
-                self.set_hold(inverter, Register::AcChargePowerCmd.into(), pct)
+                self.set_hold(inverter, Register::AcChargePowerCmd, pct)
                     .await
             }
 
             AcChargeSocLimit(inverter, pct) => {
-                self.set_hold(inverter, Register::AcChargeSocLimit.into(), pct)
+                self.set_hold(inverter, Register::AcChargeSocLimit, pct)
                     .await
             }
 
             DischargeCutoffSocLimit(inverter, pct) => {
-                self.set_hold(inverter, Register::DischgCutOffSocEod.into(), pct)
+                self.set_hold(inverter, Register::DischgCutOffSocEod, pct)
                     .await
             }
         }
     }
 
-    async fn read_hold(&self, inverter: config::Inverter, register: u16, count: u16) -> Result<()> {
+    async fn read_hold<U1>(
+        &self,
+        inverter: config::Inverter,
+        register: U1,
+        count: u16,
+    ) -> Result<()>
+    where
+        U1: Into<u16>,
+    {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: inverter.datalog,
             device_function: DeviceFunction::ReadHold,
             inverter: inverter.serial,
-            register,
+            register: register.into(),
             values: count.to_le_bytes().to_vec(),
         });
 
@@ -167,10 +175,13 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn read_param(&self, inverter: config::Inverter, register: u16) -> Result<()> {
+    async fn read_param<U1>(&self, inverter: config::Inverter, register: U1) -> Result<()>
+    where
+        U1: Into<u16>,
+    {
         let packet = Packet::ReadParam(ReadParam {
             datalog: inverter.datalog,
-            register,
+            register: register.into(),
             values: vec![], // unused
         });
 
@@ -182,8 +193,12 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn set_hold(&self, inverter: config::Inverter, register: u16, value: u16) -> Result<()> {
+    async fn set_hold<U1>(&self, inverter: config::Inverter, register: U1, value: u16) -> Result<()>
+    where
+        U1: Into<u16>,
+    {
         let mut receiver = self.from_inverter.subscribe();
+        let register = register.into();
 
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: inverter.datalog,
@@ -213,14 +228,18 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn update_hold(
+    async fn update_hold<U1>(
         &self,
         inverter: config::Inverter,
-        register: u16,
+        register: U1,
         bit: lxp::packet::RegisterBit,
         enable: bool,
-    ) -> Result<()> {
+    ) -> Result<()>
+    where
+        U1: Into<u16>,
+    {
         let mut receiver = self.from_inverter.subscribe();
+        let register = register.into();
 
         // get register from inverter
         let packet = Packet::TranslatedData(TranslatedData {
@@ -275,13 +294,17 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn wait_for_packet(
+    async fn wait_for_packet<U1>(
         datalog: Serial,
         receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
         function: DeviceFunction,
-        register: u16,
-    ) -> Result<Packet> {
+        register: U1,
+    ) -> Result<Packet>
+    where
+        U1: Into<u16>,
+    {
         let start = std::time::Instant::now();
+        let register = register.into();
 
         loop {
             match receiver.try_recv() {
