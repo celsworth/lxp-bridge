@@ -24,7 +24,9 @@ impl Message {
 
         let r = match parts {
             // TODO: read input
-            ["read", "hold", register] => ReadHold(inverter, register.parse()?),
+            ["read", "hold", register] => {
+                ReadHold(inverter, register.parse()?, self.payload_int_or_1()?)
+            }
             ["read", "param", register] => ReadParam(inverter, register.parse()?),
             ["set", "hold", register] => SetHold(inverter, register.parse()?, self.payload_int()?),
             ["set", "ac_charge"] => AcCharge(inverter, self.payload_bool()),
@@ -62,6 +64,10 @@ impl Message {
             datalog: Serial::from_str(&parts[1])?,
             parts: parts[2..].to_vec(),
         })
+    }
+
+    pub fn payload_int_or_1(&self) -> Result<u16> {
+        self.payload_int().or(Ok(1))
     }
 
     pub fn payload_int(&self) -> Result<u16> {

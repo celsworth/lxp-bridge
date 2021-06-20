@@ -58,6 +58,10 @@ Note that because the inverter sends the power data split across 3 packets, ther
 
 As we receive packets from the inverter, we translate the interesting ones (ie not heartbeats) into MQTT messages, as follows.
 
+Note that everything documented here is under `lxp`, but this namespace can be changed in the config file.
+
+`{datalog}` will be replaced with the datalog of the inverter that sent the message; this is because multiple inverters are supported, so you need to know which one a message came from.
+
 ### `lxp/{datalog}/hold/1`
 
 1 is actually any number from 1 to 179.
@@ -96,13 +100,15 @@ When you want lxp-bridge to do something, you send a message under `lxp/cmd/...`
 
 The following MQTT topics are recognised:
 
-#### topic = `lxp/cmd/{datalog}/read/hold/1`, payload = empty
+#### topic = `lxp/cmd/{datalog}/read/hold/1`, payload = optional int
 
 This is a pretty low-level command which you may not normally need.
 
-Publishing an empty message to this will read the value of inverter register 1.
+Publishing to this will read the value of inverter register 1. The payload is optionally the number of inverters to read, with a default of 1 if empty.
 
-The unprocessed reply will appear in `lxp/hold/1`. Depending on which register you're reading, this may need further post-processing to make sense.
+The unprocessed reply will appear in `lxp/{datalog}/hold/1`. Depending on which register you're reading, this may need further post-processing to make sense.
+
+If you read multiple registers they will appear in their own replies, `lxp/{datalog}/hold/12`, `lxp/{datalog}/hold/13` etc.
 
 
 #### topic = `lxp/cmd/{datalog}/set/hold/1`, payload = int
@@ -118,7 +124,7 @@ This is a pretty low-level command which you may not normally need.
 
 Publishing an empty message to this will read the value of datalog parameter 0.
 
-The unprocessed reply will appear in `lxp/param/0`. Depending on which parameter you're reading, this may need further post-processing to make sense.
+The unprocessed reply will appear in `lxp/{datalog}/param/0`. Depending on which parameter you're reading, this may need further post-processing to make sense.
 
 TODO: separate doc with known parameters? For now only 0 is known to work, which is the interval between inputs being published, in seconds.
 

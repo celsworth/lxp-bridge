@@ -103,13 +103,11 @@ impl Coordinator {
         use Command::*;
 
         match command {
-            ReadHold(inverter, register) => self.read_register(inverter, register).await,
+            ReadHold(inverter, register, count) => self.read_hold(inverter, register, count).await,
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
-            SetHold(inverter, register, value) => {
-                self.set_register(inverter, register, value).await
-            }
+            SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,
             AcCharge(inverter, enable) => {
-                self.update_register(
+                self.update_hold(
                     inverter,
                     Register::Register21.into(),
                     RegisterBit::AcChargeEnable,
@@ -118,7 +116,7 @@ impl Coordinator {
                 .await
             }
             ForcedDischarge(inverter, enable) => {
-                self.update_register(
+                self.update_hold(
                     inverter,
                     Register::Register21.into(),
                     RegisterBit::ForcedDischargeEnable,
@@ -127,38 +125,38 @@ impl Coordinator {
                 .await
             }
             ChargeRate(inverter, pct) => {
-                self.set_register(inverter, Register::ChargePowerPercentCmd.into(), pct)
+                self.set_hold(inverter, Register::ChargePowerPercentCmd.into(), pct)
                     .await
             }
             DischargeRate(inverter, pct) => {
-                self.set_register(inverter, Register::DischgPowerPercentCmd.into(), pct)
+                self.set_hold(inverter, Register::DischgPowerPercentCmd.into(), pct)
                     .await
             }
 
             AcChargeRate(inverter, pct) => {
-                self.set_register(inverter, Register::AcChargePowerCmd.into(), pct)
+                self.set_hold(inverter, Register::AcChargePowerCmd.into(), pct)
                     .await
             }
 
             AcChargeSocLimit(inverter, pct) => {
-                self.set_register(inverter, Register::AcChargeSocLimit.into(), pct)
+                self.set_hold(inverter, Register::AcChargeSocLimit.into(), pct)
                     .await
             }
 
             DischargeCutoffSocLimit(inverter, pct) => {
-                self.set_register(inverter, Register::DischgCutOffSocEod.into(), pct)
+                self.set_hold(inverter, Register::DischgCutOffSocEod.into(), pct)
                     .await
             }
         }
     }
 
-    async fn read_register(&self, inverter: config::Inverter, register: u16) -> Result<()> {
+    async fn read_hold(&self, inverter: config::Inverter, register: u16, count: u16) -> Result<()> {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: inverter.datalog,
             device_function: DeviceFunction::ReadHold,
             inverter: inverter.serial,
             register,
-            values: vec![1, 0],
+            values: count.to_le_bytes().to_vec(),
         });
 
         self.to_inverter.send((inverter.datalog, Some(packet)))?;
@@ -184,12 +182,7 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn set_register(
-        &self,
-        inverter: config::Inverter,
-        register: u16,
-        value: u16,
-    ) -> Result<()> {
+    async fn set_hold(&self, inverter: config::Inverter, register: u16, value: u16) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
         let packet = Packet::TranslatedData(TranslatedData {
@@ -220,7 +213,7 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn update_register(
+    async fn update_hold(
         &self,
         inverter: config::Inverter,
         register: u16,
@@ -396,7 +389,7 @@ impl Coordinator {
     }
 
     fn channel<T: Clone>() -> broadcast::Sender<T> {
-        let (tx, _) = broadcast::channel(128);
+        let (tx, _) = broadcast::channel(512);
         tx
     }
 }
