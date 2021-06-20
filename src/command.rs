@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 #[derive(Debug)]
 pub enum Command {
-    ReadHold(config::Inverter, u16),
+    ReadHold(config::Inverter, u16, u16),
     ReadParam(config::Inverter, u16),
     SetHold(config::Inverter, u16, u16),
     ChargeRate(config::Inverter, u16),
@@ -19,7 +19,9 @@ impl Command {
         use Command::*;
 
         let rest = match self {
-            ReadHold(inverter, register) => format!("{}/read/hold/{}", inverter.datalog, register),
+            ReadHold(inverter, register, _) => {
+                format!("{}/read/hold/{}", inverter.datalog, register)
+            }
             ReadParam(inverter, register) => {
                 format!("{}/read/param/{}", inverter.datalog, register)
             }

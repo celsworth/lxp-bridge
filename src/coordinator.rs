@@ -103,7 +103,9 @@ impl Coordinator {
         use Command::*;
 
         match command {
-            ReadHold(inverter, register) => self.read_register(inverter, register).await,
+            ReadHold(inverter, register, count) => {
+                self.read_register(inverter, register, count).await
+            }
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
             SetHold(inverter, register, value) => {
                 self.set_register(inverter, register, value).await
@@ -152,13 +154,18 @@ impl Coordinator {
         }
     }
 
-    async fn read_register(&self, inverter: config::Inverter, register: u16) -> Result<()> {
+    async fn read_register(
+        &self,
+        inverter: config::Inverter,
+        register: u16,
+        count: u16,
+    ) -> Result<()> {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: inverter.datalog,
             device_function: DeviceFunction::ReadHold,
             inverter: inverter.serial,
             register,
-            values: vec![1, 0],
+            values: count.to_le_bytes().to_vec(),
         });
 
         self.to_inverter.send((inverter.datalog, Some(packet)))?;
@@ -396,7 +403,7 @@ impl Coordinator {
     }
 
     fn channel<T: Clone>() -> broadcast::Sender<T> {
-        let (tx, _) = broadcast::channel(128);
+        let (tx, _) = broadcast::channel(512);
         tx
     }
 }
