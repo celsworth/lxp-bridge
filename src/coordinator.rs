@@ -150,14 +150,9 @@ impl Coordinator {
         }
     }
 
-    async fn read_hold<U1>(
-        &self,
-        inverter: config::Inverter,
-        register: U1,
-        count: u16,
-    ) -> Result<()>
+    async fn read_hold<U>(&self, inverter: config::Inverter, register: U, count: u16) -> Result<()>
     where
-        U1: Into<u16>,
+        U: Into<u16>,
     {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: inverter.datalog,
@@ -175,9 +170,9 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn read_param<U1>(&self, inverter: config::Inverter, register: U1) -> Result<()>
+    async fn read_param<U>(&self, inverter: config::Inverter, register: U) -> Result<()>
     where
-        U1: Into<u16>,
+        U: Into<u16>,
     {
         let packet = Packet::ReadParam(ReadParam {
             datalog: inverter.datalog,
@@ -193,9 +188,9 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn set_hold<U1>(&self, inverter: config::Inverter, register: U1, value: u16) -> Result<()>
+    async fn set_hold<U>(&self, inverter: config::Inverter, register: U, value: u16) -> Result<()>
     where
-        U1: Into<u16>,
+        U: Into<u16>,
     {
         let mut receiver = self.from_inverter.subscribe();
         let register = register.into();
@@ -228,15 +223,15 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn update_hold<U1>(
+    async fn update_hold<U>(
         &self,
         inverter: config::Inverter,
-        register: U1,
+        register: U,
         bit: lxp::packet::RegisterBit,
         enable: bool,
     ) -> Result<()>
     where
-        U1: Into<u16>,
+        U: Into<u16>,
     {
         let mut receiver = self.from_inverter.subscribe();
         let register = register.into();
@@ -294,14 +289,14 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn wait_for_packet<U1>(
+    async fn wait_for_packet<U>(
         datalog: Serial,
         receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
         function: DeviceFunction,
-        register: U1,
+        register: U,
     ) -> Result<Packet>
     where
-        U1: Into<u16>,
+        U: Into<u16>,
     {
         let start = std::time::Instant::now();
         let register = register.into();
