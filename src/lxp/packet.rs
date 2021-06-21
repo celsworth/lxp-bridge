@@ -95,14 +95,12 @@ pub struct ReadInput1 {
     #[nom(Parse = "utils::le_u16_div10")]
     pub v_bus_2: f64,
 
-    // following are for influx capability only
     #[nom(Parse = "utils::current_time")]
-    #[serde(skip)]
     pub time: UnixTime,
     #[nom(Ignore)]
     #[serde(skip)]
     #[influxdb(tag)]
-    pub datalog: Serial,
+    pub datalog: Serial, // serde skips this so its not in MQTT messages
 } // }}}
 
 // {{{ ReadInput2
@@ -143,14 +141,12 @@ pub struct ReadInput2 {
     pub runtime: u32,
     // bunch of auto_test stuff here I'm not doing yet
     //
-    // following are for influx capability only
     #[nom(Parse = "utils::current_time")]
-    #[serde(skip)]
     pub time: UnixTime,
     #[nom(Ignore)]
     #[serde(skip)]
     #[influxdb(tag)]
-    pub datalog: Serial,
+    pub datalog: Serial, // serde skips this so its not in MQTT messages
 } // }}}
 
 // {{{ ReadInput3
@@ -184,12 +180,11 @@ pub struct ReadInput3 {
 
     // following are for influx capability only
     #[nom(Parse = "utils::current_time")]
-    #[serde(skip)]
     pub time: UnixTime,
     #[nom(Ignore)]
     #[serde(skip)]
     #[influxdb(tag)]
-    pub datalog: Serial,
+    pub datalog: Serial, // serde skips this so its not in MQTT messages
 } // }}}
 
 // {{{ TcpFunction

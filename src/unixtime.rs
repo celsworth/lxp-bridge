@@ -2,24 +2,20 @@
 // with a preset precision - to the second is more than good enough and should let
 // Influx store it more efficiently.
 
-use std::time::SystemTime;
+use chrono::{DateTime, Utc};
+use serde::Serialize;
 
-#[derive(Debug)]
-pub struct UnixTime(pub u64);
+#[derive(Debug, Serialize)]
+pub struct UnixTime(DateTime<Utc>);
 
 impl UnixTime {
     pub fn now() -> Self {
-        Self(
-            SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .unwrap()
-                .as_secs(),
-        )
+        Self(Utc::now())
     }
 }
 
 impl From<UnixTime> for influxdb::Timestamp {
     fn from(u: UnixTime) -> Self {
-        influxdb::Timestamp::Seconds(u.0 as u128)
+        influxdb::Timestamp::Seconds(DateTime::timestamp(&u.0) as u128)
     }
 }
