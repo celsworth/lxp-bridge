@@ -124,7 +124,12 @@ impl Mqtt {
 
         let (client, eventloop) = AsyncClient::new(options, 10);
 
-        for inverter in &self.config.inverters {
+        for inverter in self
+            .config
+            .inverters
+            .iter()
+            .filter(|inverter| inverter.enabled)
+        {
             client
                 .subscribe(
                     format!("{}/cmd/{}/#", self.config.mqtt.namespace, inverter.datalog),
