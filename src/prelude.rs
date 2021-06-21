@@ -13,11 +13,11 @@ pub use tokio::sync::broadcast;
 
 pub use crate::{
     command::Command,
-    config,
-    config::Config,
+    config::{self, Config},
     coordinator::Coordinator,
-    influx, lxp,
+    influx,
     lxp::{
+        self,
         inverter::{Inverter, Serial},
         packet::{Packet, PacketCommon, TcpFrameable},
     },
