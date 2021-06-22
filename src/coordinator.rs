@@ -194,7 +194,7 @@ impl Coordinator {
             values: vec![], // unused
         });
 
-        let mut receiver = self.from_inverter.subscribe();
+        // let mut receiver = self.from_inverter.subscribe();
 
         self.to_inverter.send((inverter.datalog, Some(packet)))?;
 

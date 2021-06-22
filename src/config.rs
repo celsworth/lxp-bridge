@@ -65,12 +65,8 @@ impl Config {
         Ok(config)
     }
 
-    pub fn enabled_inverters(&self) -> Vec<Inverter> {
-        self.inverters
-            .iter()
-            .filter(|inverter| inverter.enabled)
-            .cloned()
-            .collect()
+    pub fn enabled_inverters(&self) -> impl Iterator<Item = &Inverter> {
+        self.inverters.iter().filter(|inverter| inverter.enabled)
     }
 
     // find the inverter(s) in our config for the given message.
@@ -78,11 +74,10 @@ impl Config {
         use mqtt::SerialOrAll::*;
 
         let r = match message.split_cmd_topic()? {
-            All => self.enabled_inverters(),
+            All => self.enabled_inverters().cloned().collect(),
             Serial(datalog) => {
                 let r = self
                     .enabled_inverters()
-                    .iter()
                     .find(|i| i.datalog == datalog)
                     .cloned()
                     .unwrap();
