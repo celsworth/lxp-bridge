@@ -73,16 +73,14 @@ impl Config {
     pub fn inverters_for_message(&self, message: &mqtt::Message) -> Result<Vec<Inverter>> {
         use mqtt::SerialOrAll::*;
 
+        let inverters = self.enabled_inverters();
+
         let r = match message.split_cmd_topic()? {
-            All => self.enabled_inverters().cloned().collect(),
-            Serial(datalog) => {
-                let r = self
-                    .enabled_inverters()
-                    .find(|i| i.datalog == datalog)
-                    .cloned()
-                    .unwrap();
-                vec![r]
-            }
+            All => inverters.cloned().collect(),
+            Serial(datalog) => inverters
+                .filter(|i| i.datalog == datalog)
+                .cloned()
+                .collect(),
         };
 
         Ok(r)
