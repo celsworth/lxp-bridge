@@ -69,15 +69,17 @@ impl Coordinator {
         loop {
             let message = receiver.recv().await?;
 
-            // TODO: inverters = self.inverters_for_message, then cope with "all" ?
-            let inverter = self.config.inverter_for_message(&message).unwrap();
-            // TODO: message.to_commands and return a Vec to iterate over
+            let _ = self.process_message(message).await;
+        }
+    }
+
+    async fn process_message(&self, message: mqtt::Message) -> Result<()> {
+        for inverter in self.config.inverters_for_message(&message)? {
             match message.to_command(inverter) {
                 Ok(command) => {
                     debug!("parsed command {:?}", command);
 
                     let topic_reply = command.to_result_topic();
-                    //let topic_reply = self.command_to_result_topic(&command);
                     let result = self.process_command(command).await;
 
                     let reply = mqtt::Message {
@@ -95,6 +97,8 @@ impl Coordinator {
                 }
             }
         }
+
+        Ok(())
     }
 
     async fn process_command(&self, command: Command) -> Result<()> {
@@ -154,18 +158,27 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
+        let register = register.into();
+
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: inverter.datalog,
             device_function: DeviceFunction::ReadHold,
             inverter: inverter.serial,
-            register: register.into(),
+            register,
             values: count.to_le_bytes().to_vec(),
         });
 
+        let mut receiver = self.from_inverter.subscribe();
+
         self.to_inverter.send((inverter.datalog, Some(packet)))?;
 
-        // note that we don't have to wait for a reply and send over MQTT here.
-        // inverter_receiver will do it for us!
+        let _ = Self::wait_for_packet(
+            inverter.datalog,
+            &mut receiver,
+            DeviceFunction::ReadHold,
+            register,
+        )
+        .await?;
 
         Ok(())
     }
@@ -174,16 +187,18 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
+        let register = register.into();
         let packet = Packet::ReadParam(ReadParam {
             datalog: inverter.datalog,
-            register: register.into(),
+            register,
             values: vec![], // unused
         });
 
+        let mut receiver = self.from_inverter.subscribe();
+
         self.to_inverter.send((inverter.datalog, Some(packet)))?;
 
-        // note that we don't have to wait for a reply and send over MQTT here.
-        // inverter_receiver will do it for us!
+        // TODO wait for packet?
 
         Ok(())
     }

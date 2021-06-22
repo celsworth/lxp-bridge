@@ -14,6 +14,11 @@ pub struct MessageTopicParts {
     pub parts: Vec<String>,
 }
 
+pub enum SerialOrAll {
+    Serial(Serial),
+    All,
+}
+
 impl Message {
     pub fn to_command(&self, inverter: config::Inverter) -> Result<Command> {
         use Command::*;
@@ -50,7 +55,7 @@ impl Message {
     // given a cmd Message, return the datalog it is intended for.
     //
     // eg cmd/AB12345678/ac_charge => AB12345678
-    pub fn split_cmd_topic(&self) -> Result<MessageTopicParts> {
+    pub fn split_cmd_topic(&self) -> Result<SerialOrAll> {
         // this starts at cmd/{datalog}/..
         let parts: Vec<String> = self.topic.split('/').map(|x| x.to_string()).collect();
 
@@ -60,10 +65,12 @@ impl Message {
             return Err(anyhow!("ignoring badly formed MQTT topic: {}", self.topic));
         }
 
-        Ok(MessageTopicParts {
-            datalog: Serial::from_str(&parts[1])?,
-            parts: parts[2..].to_vec(),
-        })
+        if parts[1] == "all" {
+            return Ok(SerialOrAll::All);
+        }
+
+        let serial = Serial::from_str(&parts[1])?;
+        Ok(SerialOrAll::Serial(serial))
     }
 
     pub fn payload_int_or_1(&self) -> Result<u16> {
@@ -120,16 +127,18 @@ impl Mqtt {
             options.set_credentials(u, p);
         }
 
-        info!("connecting to mqtt at {}:{}", &m.host, m.port);
+        info!("initializing mqtt at {}:{}", &m.host, m.port);
 
         let (client, eventloop) = AsyncClient::new(options, 10);
 
-        for inverter in self
-            .config
-            .inverters
-            .iter()
-            .filter(|inverter| inverter.enabled)
-        {
+        client
+            .subscribe(
+                format!("{}/cmd/all/#", self.config.mqtt.namespace),
+                QoS::AtMostOnce,
+            )
+            .await?;
+
+        for inverter in self.config.enabled_inverters() {
             client
                 .subscribe(
                     format!("{}/cmd/{}/#", self.config.mqtt.namespace, inverter.datalog),
