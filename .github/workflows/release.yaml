@@ -94,13 +94,14 @@ jobs:
       - name: Build archive
         shell: bash
         run: |
-          staging="lux-mq-gw-${{ env.RELEASE_VERSION }}-${{ matrix.target }}"
+          staging="lxp-bridge-${{ env.RELEASE_VERSION }}-${{ matrix.target }}"
           mkdir -p "$staging"
+          cp "config.yaml.example" "$staging/"
           if [ "${{ matrix.os }}" = "windows-2019" ]; then
-            cp "target/${{ matrix.target }}/release/lux-mq-gw.exe" "$staging/"
+            cp "target/${{ matrix.target }}/release/lxp-bridge.exe" "$staging/"
           else
-            cp "target/${{ matrix.target }}/release/lux-mq-gw" "$staging/"
-            strip "$staging/lux-mq-gw"
+            cp "target/${{ matrix.target }}/release/lxp-bridge" "$staging/"
+            strip "$staging/lxp-bridge"
           fi
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
