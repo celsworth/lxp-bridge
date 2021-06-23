@@ -73,6 +73,7 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install packages
+        shell: bash
         run: |
           case "${{ matrix.target }}" in
           "x86_64-unknown-linux-musl")
