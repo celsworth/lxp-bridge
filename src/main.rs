@@ -9,6 +9,8 @@ pub mod prelude;
 pub mod unixtime;
 pub mod utils;
 
+const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
+
 use crate::prelude::*;
 
 fn main() {
@@ -37,6 +39,8 @@ async fn app() -> Result<()> {
         .init();
 
     let options = Options::new()?;
+
+    info!("lxp-bridge {} starting", CARGO_PKG_VERSION);
 
     let config = Config::new(options.config_file)?;
 
