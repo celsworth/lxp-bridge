@@ -77,15 +77,9 @@ impl Inverter {
     }
 
     pub async fn start(&self) -> Result<()> {
-        let futures = self
-            .config
-            .inverters
-            .iter()
-            .filter(|inverter| inverter.enabled)
-            .cloned()
-            .map(|inverter| {
-                Self::run_for_inverter(inverter, &self.from_coordinator, &self.to_coordinator)
-            });
+        let futures = self.config.enabled_inverters().cloned().map(|inverter| {
+            Self::run_for_inverter(inverter, &self.from_coordinator, &self.to_coordinator)
+        });
 
         futures::future::join_all(futures).await;
 

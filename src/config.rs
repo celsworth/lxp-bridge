@@ -66,16 +66,25 @@ impl Config {
         Ok(config)
     }
 
-    // find the inverter in our config for the given message.
-    pub fn inverter_for_message(&self, message: &mqtt::Message) -> Option<Inverter> {
-        // TODO is this ok()? sufficient? might be throwing away an error
-        let r = message.split_cmd_topic().ok()?;
+    pub fn enabled_inverters(&self) -> impl Iterator<Item = &Inverter> {
+        self.inverters.iter().filter(|inverter| inverter.enabled)
+    }
 
-        // search for inverter datalog in our config
-        self.inverters
-            .iter()
-            .find(|i| i.datalog == r.datalog)
-            .cloned()
+    // find the inverter(s) in our config for the given message.
+    pub fn inverters_for_message(&self, message: &mqtt::Message) -> Result<Vec<Inverter>> {
+        use mqtt::SerialOrAll::*;
+
+        let inverters = self.enabled_inverters();
+
+        let r = match message.split_cmd_topic()? {
+            All => inverters.cloned().collect(),
+            Serial(datalog) => inverters
+                .filter(|i| i.datalog == datalog)
+                .cloned()
+                .collect(),
+        };
+
+        Ok(r)
     }
 
     fn default_inverter_enabled() -> bool {
