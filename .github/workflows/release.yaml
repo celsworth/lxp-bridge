@@ -103,7 +103,7 @@ jobs:
             cp "target/${{ matrix.target }}/release/lxp-bridge.exe" "$staging/"
           else
             cp "target/${{ matrix.target }}/release/lxp-bridge" "$staging/"
-            strip "$staging/lxp-bridge"
+            strip "$staging/lxp-bridge" || true
           fi
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
