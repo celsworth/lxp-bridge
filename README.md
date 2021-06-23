@@ -28,10 +28,18 @@ A range of binaries are provided on the Releases page, otherwise you can compile
   1. `cargo build`
   1. Look in `target/` for the binary, or `cargo run` it.
 
+Alternatively you can try running it in Docker:
+
+  1. You'll need Docker
+  1. Create a `config.yaml` by copying the example from this repo and editing.
+  1. `docker run --init --rm --mount type=bind,source=${PWD}/config.yaml,target=/etc/config.yaml celsworth/lxp-bridge`
+
+The final step should leave you with a running lxp-bridge that maps the config in the current directory into the Docker image.
+
 
 ## Configuration
 
-All configuration is done in a YAML config file; see example config.yaml.
+All configuration is done in a YAML config file; see config.yaml.example.
 
 Multiple inverters are supported via an array under the `inverters` key. Each one can be separately disabled if you want to temporarily stop connecting to one. Similarly, MQTT and InfluxDB can have `enabled = false` set to disable either output method.
 
