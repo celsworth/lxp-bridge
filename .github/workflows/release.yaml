@@ -72,26 +72,6 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install packages
-        shell: bash
-        run: |
-          case "${{ matrix.target }}" in
-          "x86_64-unknown-linux-musl")
-            packages="pkg-config openssl libssl-dev"
-            ;;
-          "arm-unknown-linux-gnueabihf")
-            packages="pkg-config openssl libssl-dev"
-            ;;
-          "aarch64-unknown-linux-musl")
-            packages="pkg-config openssl libssl-dev"
-            ;;
-          *)
-            exit 0
-            ;;
-          esac
-          sudo apt-get update
-          sudo apt-get install -y $packages
-
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
