@@ -9,6 +9,8 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
+
       - name: Login to DockerHub Registry
         run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u celsworth --password-stdin
 
@@ -69,6 +71,22 @@ jobs:
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install packages
+        run: |
+          case "${{ matrix.target }}" in
+          "x86_64-unknown-linux-musl")
+            packages="libssl-dev"
+            ;;
+          "arm-unknown-linux-gnueabihf")
+            packages="libssl-dev"
+            ;;
+          "aarch64-unknown-linux-musl")
+            packages="libssl-dev"
+            ;;
+          esac
+          sudo apt-get update
+          sudo apt-get install -y $packages
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
