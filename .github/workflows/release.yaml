@@ -77,13 +77,13 @@ jobs:
         run: |
           case "${{ matrix.target }}" in
           "x86_64-unknown-linux-musl")
-            packages="pkg-config libssl-dev"
+            packages="pkg-config openssl libssl-dev"
             ;;
           "arm-unknown-linux-gnueabihf")
-            packages="pkg-config libssl-dev"
+            packages="pkg-config openssl libssl-dev"
             ;;
           "aarch64-unknown-linux-musl")
-            packages="pkg-config libssl-dev"
+            packages="pkg-config openssl libssl-dev"
             ;;
           *)
             exit 0
