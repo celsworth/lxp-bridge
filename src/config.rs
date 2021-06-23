@@ -59,7 +59,8 @@ pub struct Influx {
 
 impl Config {
     pub fn new(file: String) -> Result<Self> {
-        let content = std::fs::read_to_string(file)?;
+        let content = std::fs::read_to_string(&file)
+            .map_err(|err| anyhow!("error reading {}: {}", file, err))?;
         let config = serde_yaml::from_str(&content)?;
 
         Ok(config)
