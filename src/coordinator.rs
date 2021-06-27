@@ -107,6 +107,9 @@ impl Coordinator {
         use Command::*;
 
         match command {
+            ReadInput(inverter, register, count) => {
+                self.read_input(inverter, register, count).await
+            }
             ReadHold(inverter, register, count) => self.read_hold(inverter, register, count).await,
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
             SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,
@@ -152,6 +155,35 @@ impl Coordinator {
                     .await
             }
         }
+    }
+
+    async fn read_input<U>(&self, inverter: config::Inverter, register: U, count: u16) -> Result<()>
+    where
+        U: Into<u16>,
+    {
+        let register = register.into();
+
+        let packet = Packet::TranslatedData(TranslatedData {
+            datalog: inverter.datalog,
+            device_function: DeviceFunction::ReadInput,
+            inverter: inverter.serial,
+            register,
+            values: count.to_le_bytes().to_vec(),
+        });
+
+        let mut receiver = self.from_inverter.subscribe();
+
+        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+
+        let _ = Self::wait_for_packet(
+            inverter.datalog,
+            &mut receiver,
+            DeviceFunction::ReadInput,
+            register,
+        )
+        .await?;
+
+        Ok(())
     }
 
     async fn read_hold<U>(&self, inverter: config::Inverter, register: U, count: u16) -> Result<()>

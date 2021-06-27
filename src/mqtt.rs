@@ -28,12 +28,15 @@ impl Message {
         let parts = &parts[2..];
 
         let r = match parts {
-            // TODO: read input
+            ["read", "input", register] => {
+                ReadInput(inverter, register.parse()?, self.payload_int_or_1()?)
+            }
             ["read", "hold", register] => {
                 ReadHold(inverter, register.parse()?, self.payload_int_or_1()?)
             }
             ["read", "param", register] => ReadParam(inverter, register.parse()?),
             ["set", "hold", register] => SetHold(inverter, register.parse()?, self.payload_int()?),
+            // TODO: set param
             ["set", "ac_charge"] => AcCharge(inverter, self.payload_bool()),
 
             ["set", "forced_discharge"] => ForcedDischarge(inverter, self.payload_bool()),
