@@ -54,13 +54,11 @@ impl Coordinator {
         }
     }
 
-    pub async fn start(&self) -> Result<()> {
+    pub async fn start(&self) -> Result<((), ())> {
         let f1 = self.inverter_receiver();
         let f2 = self.mqtt_receiver();
 
-        let _ = futures::try_join!(f1, f2); // ignore result
-
-        Ok(())
+        futures::try_join!(f1, f2)
     }
 
     async fn mqtt_receiver(&self) -> Result<()> {
@@ -107,6 +105,9 @@ impl Coordinator {
         use Command::*;
 
         match command {
+            ReadInputs(inverter, register, count) => {
+                self.read_inputs(inverter, register, count).await
+            }
             ReadHold(inverter, register, count) => self.read_hold(inverter, register, count).await,
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
             SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,
@@ -152,6 +153,40 @@ impl Coordinator {
                     .await
             }
         }
+    }
+
+    async fn read_inputs<U>(
+        &self,
+        inverter: config::Inverter,
+        register: U,
+        count: u16,
+    ) -> Result<()>
+    where
+        U: Into<u16>,
+    {
+        let register = register.into();
+
+        let packet = Packet::TranslatedData(TranslatedData {
+            datalog: inverter.datalog,
+            device_function: DeviceFunction::ReadInput,
+            inverter: inverter.serial,
+            register,
+            values: count.to_le_bytes().to_vec(),
+        });
+
+        let mut receiver = self.from_inverter.subscribe();
+
+        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+
+        let _ = Self::wait_for_packet(
+            inverter.datalog,
+            &mut receiver,
+            DeviceFunction::ReadInput,
+            register,
+        )
+        .await?;
+
+        Ok(())
     }
 
     async fn read_hold<U>(&self, inverter: config::Inverter, register: U, count: u16) -> Result<()>
@@ -367,8 +402,17 @@ impl Coordinator {
                 // returns a Vec of messages to send. could be none;
                 // not every packet produces an MQ message (eg, heartbeats),
                 // and some produce >1 (multi-register ReadHold)
-                for message in Self::packet_to_messages(packet)? {
-                    self.to_mqtt.send(message)?;
+                match Self::packet_to_messages(packet) {
+                    Ok(messages) => {
+                        for message in messages {
+                            self.to_mqtt.send(message)?;
+                        }
+                    }
+                    Err(e) => {
+                        // log error but avoid exiting loop as then we stop handling
+                        // incoming packets. need better error handling here maybe?
+                        error!("{}", e);
+                    }
                 }
             }
         }
