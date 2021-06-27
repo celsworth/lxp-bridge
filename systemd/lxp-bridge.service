@@ -1,0 +1,12 @@
+[Unit]
+Description=lxp-bridge
+After=network-online.target
+
+[Service]
+User=chris
+Restart=always
+RestartSec=5
+ExecStart=/usr/local/bin/lxp-bridge -c /usr/local/etc/lxp-bridge/config.yaml
+
+[Install]
+WantedBy=default.target
