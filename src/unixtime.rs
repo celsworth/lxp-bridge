@@ -19,6 +19,9 @@ impl UnixTime {
     where
         S: Serializer,
     {
+        // previously used to send ISO8601 string. left for reference.
+        // serializer.serialize_str(&u.0.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
+
         serializer.serialize_i64(u.0.timestamp())
     }
 }
