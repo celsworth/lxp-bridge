@@ -20,7 +20,15 @@ impl Command {
         use Command::*;
 
         let rest = match self {
-            ReadInputs(inverter, n, _) => {
+            ReadInputs(inverter, register, _) => {
+                // TODO: can we consolidate all this knowledge about
+                // registers 0/40/80 and inputs 1/2/3?
+                let n = match register {
+                    0 => 1,
+                    40 => 2,
+                    80 => 3,
+                    _ => panic!("unhandled ReadInputs register"),
+                };
                 format!("{}/read/inputs/{}", inverter.datalog, n)
             }
             ReadHold(inverter, register, _) => {
