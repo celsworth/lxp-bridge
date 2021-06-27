@@ -211,6 +211,10 @@ pub enum DeviceFunction {
     // UpdatePrepare = 33
     // UpdateSendData = 34
     // UpdateReset = 35
+    // ReadHoldError = 131
+    // ReadInputError = 132
+    // WriteSingleError = 134
+    // WriteMultiError = 144
 } // }}}
 
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -373,14 +377,13 @@ impl TranslatedData {
     }
 
     pub fn read_input(&self) -> Result<ReadInput> {
-        let r = match self.register {
-            0 => ReadInput::ReadInput1(self.read_input1()?),
-            40 => ReadInput::ReadInput2(self.read_input2()?),
-            80 => ReadInput::ReadInput3(self.read_input3()?),
-            _ => return Err(anyhow!("unhandled ReadInput register={}", self.register)),
-        };
-
-        Ok(r)
+        // note len() is of Vec<u8>, so not register count
+        match (self.register, self.values.len()) {
+            (0, 80) => Ok(ReadInput::ReadInput1(self.read_input1()?)),
+            (40, 80) => Ok(ReadInput::ReadInput2(self.read_input2()?)),
+            (80, 80) => Ok(ReadInput::ReadInput3(self.read_input3()?)),
+            (r1, r2) => Err(anyhow!("unhandled ReadInput register={} len={}", r1, r2)),
+        }
     }
 
     fn read_input1(&self) -> Result<ReadInput1> {

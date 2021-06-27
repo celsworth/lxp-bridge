@@ -54,13 +54,11 @@ impl Coordinator {
         }
     }
 
-    pub async fn start(&self) -> Result<()> {
+    pub async fn start(&self) -> Result<((), ())> {
         let f1 = self.inverter_receiver();
         let f2 = self.mqtt_receiver();
 
-        let _ = futures::try_join!(f1, f2); // ignore result
-
-        Ok(())
+        futures::try_join!(f1, f2)
     }
 
     async fn mqtt_receiver(&self) -> Result<()> {
@@ -399,8 +397,17 @@ impl Coordinator {
                 // returns a Vec of messages to send. could be none;
                 // not every packet produces an MQ message (eg, heartbeats),
                 // and some produce >1 (multi-register ReadHold)
-                for message in Self::packet_to_messages(packet)? {
-                    self.to_mqtt.send(message)?;
+                match Self::packet_to_messages(packet) {
+                    Ok(messages) => {
+                        for message in messages {
+                            self.to_mqtt.send(message)?;
+                        }
+                    }
+                    Err(e) => {
+                        // log error but avoid exiting loop as then we stop handling
+                        // incoming packets. need better error handling here maybe?
+                        error!("{}", e);
+                    }
                 }
             }
         }
