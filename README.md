@@ -47,8 +47,8 @@ Multiple inverters are supported via an array under the `inverters` key. Each on
 
 First thing to note is there are three types of registers:
 
-  * holdings - read/write, storing settings
-  * inputs - read-only, storing transient power data, temperatures, counters etc
+  * holdings - read/write, storing settings. MQTT topics use `hold` for these.
+  * inputs - read-only, storing transient power data, temperatures, counters etc.
   * params - read/write, these are actually on the datalog (the WiFi bit that plugs in) and currently all I think it does is set the interval at which inputs are broadcast.
 
 Second thing is whenever the inverter receives a packet, it broadcasts the reply out to *all* connected clients. So you may see unprompted messages for holding 12/13/14 for instance; this is LuxPower in China occasionally requesting the time from your inverter (presumably so they can correct it if needs be).
@@ -80,13 +80,10 @@ You will see a whole bunch of these if you press "Read" under the Maintain tab i
 
 ### `lxp/{datalog}/inputs/1` (and 2, and 3)
 
-These are JSON hashes of transient data. There are 3 of them just because that's how the inverter sends the data. They are sent at 5 minute intervals.
+These are JSON hashes of transient data. There are 3 of them just because that's how the inverter sends the data. They are sent at 5 minute intervals. You can also read them on demand, see `lxp/cmd/{datalog}/read/inputs/1` below.
 
-Not sure what determines the interval, and I'm pretty sure it used to be 2 minutes so this interval might be stored in a register somewhere?
+Also see [inputs.md](doc/inputs.md) for details of the JSON data hashes.
 
-See [inputs.md](doc/inputs.md) for details of the JSON hashes.
-
-TODO: think you can request these to be sent immediately, once I make `lxp/cmd/{datalog}/read_inputs` work..
 
 ### `lxp/{datalog}/params/0`
 
@@ -97,7 +94,11 @@ This area is a bit unknown - TODO for myself: try changing params/0 and see if t
 
 ### Commands
 
-When you want lxp-bridge to do something, you send a message under `lxp/cmd/...`; responses to commands will be sent under `lxp/result/...` where ... is the same as the command you sent. So sending `lxp/cmd/{datalog}/set/ac_charge` will return a response under `lxp/result/{datalog}/ac_charge`. This will be `OK` or `FAIL` depending on the result.
+When you want lxp-bridge to do something, you send a message under `lxp/cmd/...`. There's two types of response depending what you're doing.
+
+There's a result topic which is `OK` or `FAIL`; for example sending `lxp/cmd/{datalog}/set/ac_charge` will return `lxp/result/{datalog}/ac_charge`.
+
+If you're reading a register then you get the result and additionally the value(s) will be sent in the same topic as above, so for example sending `lxp/cmd/{datalog}/read/inputs/1` will get you a `lxp/result/{datalog}/read/inputs/1` *and* a `lxp/{datalog}/inputs/1` with all the usual data.
 
 *boolean* values recognised as `true` in payloads are `1`, `t`, `true`, `on`, `y`, and `yes`. They're all equivalent. Anything else will be interpreted as `false`.
 
@@ -106,11 +107,20 @@ When you want lxp-bridge to do something, you send a message under `lxp/cmd/...`
 
 The following MQTT topics are recognised:
 
+#### topic = `lxp/cmd/{datalog}/read/inputs/1`, payload = empty
+
+This prompts the inverter to immediately publish a set of input registers. These get published every few minutes anyway but with this you can read them on-demand.
+
+`1` can be 1 - 3.
+
+See [inputs.md](doc/inputs.md) for details of the JSON data hashes.
+
+
 #### topic = `lxp/cmd/{datalog}/read/hold/1`, payload = optional int
 
 This is a pretty low-level command which you may not normally need.
 
-Publishing to this will read the value of inverter register 1. The payload is optionally the number of inverters to read, with a default of 1 if empty.
+Publishing to this will read the value of inverter holding register 1. The payload is optionally the number of inverters to read, with a default of 1 if empty.
 
 The unprocessed reply will appear in `lxp/{datalog}/hold/1`. Depending on which register you're reading, this may need further post-processing to make sense.
 
