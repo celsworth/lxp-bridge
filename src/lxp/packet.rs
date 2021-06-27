@@ -96,7 +96,7 @@ pub struct ReadInput1 {
     pub v_bus_2: f64,
 
     #[nom(Parse = "utils::current_time")]
-    #[serde(skip)]
+    #[serde(serialize_with = "UnixTime::serialize")]
     pub time: UnixTime,
     #[nom(Ignore)]
     #[serde(skip)]
@@ -143,7 +143,7 @@ pub struct ReadInput2 {
     // bunch of auto_test stuff here I'm not doing yet
     //
     #[nom(Parse = "utils::current_time")]
-    #[serde(skip)]
+    #[serde(serialize_with = "UnixTime::serialize")]
     pub time: UnixTime,
     #[nom(Ignore)]
     #[serde(skip)]
@@ -182,7 +182,7 @@ pub struct ReadInput3 {
 
     // following are for influx capability only
     #[nom(Parse = "utils::current_time")]
-    #[serde(skip)]
+    #[serde(serialize_with = "UnixTime::serialize")]
     pub time: UnixTime,
     #[nom(Ignore)]
     #[serde(skip)]
