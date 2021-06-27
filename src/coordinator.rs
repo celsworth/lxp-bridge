@@ -105,9 +105,7 @@ impl Coordinator {
         use Command::*;
 
         match command {
-            ReadInput(inverter, register, count) => {
-                self.read_input(inverter, register, count).await
-            }
+            ReadInputs(inverter, n, count) => self.read_inputs(inverter, n, count).await,
             ReadHold(inverter, register, count) => self.read_hold(inverter, register, count).await,
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
             SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,
@@ -155,7 +153,12 @@ impl Coordinator {
         }
     }
 
-    async fn read_input<U>(&self, inverter: config::Inverter, register: U, count: u16) -> Result<()>
+    async fn read_inputs<U>(
+        &self,
+        inverter: config::Inverter,
+        register: U,
+        count: u16,
+    ) -> Result<()>
     where
         U: Into<u16>,
     {

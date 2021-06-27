@@ -28,9 +28,9 @@ impl Message {
         let parts = &parts[2..];
 
         let r = match parts {
-            ["read", "input", register] => {
-                ReadInput(inverter, register.parse()?, self.payload_int_or_1()?)
-            }
+            ["read", "inputs", "1"] => ReadInputs(inverter, 0, 40),
+            ["read", "inputs", "2"] => ReadInputs(inverter, 40, 40),
+            ["read", "inputs", "3"] => ReadInputs(inverter, 80, 40),
             ["read", "hold", register] => {
                 ReadHold(inverter, register.parse()?, self.payload_int_or_1()?)
             }
