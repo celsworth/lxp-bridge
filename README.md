@@ -12,8 +12,8 @@ This builds on my earlier project [Octolux](https://github.com/celsworth/octolux
 
 Currently, lxp-bridge bridges to:
 
-* mqtt (push data for monitoring, listen to control commands)
-* InfluxDB (push power data up for graphing etc)
+* mqtt (publish data for monitoring, subscribe to control commands)
+* InfluxDB (push power data for graphing etc)
 
 In future, it might possibly run a HTTP server with endpoints to fetch power data or control the inverter via REST.
 

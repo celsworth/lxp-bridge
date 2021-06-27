@@ -49,11 +49,11 @@ Example structures are shown below with inline comments.
   # Power from discharging the batteries, in W
   "p_discharge": 0,
 
-  # Voltage of mains AC feed (R). For 1-phase, this is the only relevant one
+  # Voltage of mains AC feed (phase R). For 1-phase, this is the only relevant one
   "v_ac_r": 245.7,
-  # Voltage of mains AC feed (S). Only relevant for 3-phase, otherwise it tends to float
+  # Voltage of mains AC feed (phase S). Only relevant for 3-phase, otherwise it tends to float
   "v_ac_s": 15.7,
-  # Voltage of mains AC feed (T). Only relevant for 3-phase, otherwise it tends to float
+  # Voltage of mains AC feed (phase T). Only relevant for 3-phase, otherwise it tends to float
   "v_ac_t": 0.0,
 
   # Frequency of mains AC feed, in Hz
@@ -65,11 +65,11 @@ Example structures are shown below with inline comments.
   # Power factor of mains AC feed?
   "pf": 1.0,
 
-  # Voltage of EPS (R). This is the only one used for 1-phase setups
+  # Voltage of EPS (phase R). This is the only one used for 1-phase setups
   "v_eps_r": 245.7,
-  # Voltage of EPS (S). Only relevant for 3-phase, otherwise it tends to float
+  # Voltage of EPS (phase S). Only relevant for 3-phase, otherwise it tends to float
   "v_eps_s": 307.2,
-  # Voltage of EPS (T). Only relevant for 3-phase, otherwise it tends to float
+  # Voltage of EPS (phase T). Only relevant for 3-phase, otherwise it tends to float
   "v_eps_t": 2875.2,
 
   # Frequency of EPS, in Hz
@@ -81,32 +81,32 @@ Example structures are shown below with inline comments.
   # Power being imported from grid, in W
   "p_to_user": 0,
 
-  # PV generation, today, in Ah. This is just the sum of 1 to 3 below it
+  # PV generation, today, in kWh. This is just the sum of 1 to 3 below it
   "e_pv_day": 0.4,
-  # PV generation, today, in Ah, of string 1
+  # PV generation, today, in kWh, of string 1
   "e_pv_day_1": 0.4,
-  # PV generation, today, in Ah, of string 2
+  # PV generation, today, in kWh, of string 2
   "e_pv_day_2": 0.0,
-  # PV generation, today, in Ah, of string 3
+  # PV generation, today, in kWh, of string 3
   "e_pv_day_3": 0.0,
 
   # Not 100% sure but closely correspond to chg/dischg, so related?
   "e_inv_day": 0.0,
   "e_rec_day": 0.2,
 
-  # Energy put into the batteries, today, in Ah
+  # Energy put into the batteries, today, in kWh
   "e_chg_day": 0.2,
 
-  # Energy taken out of the batteries, today, in Ah
+  # Energy taken out of the batteries, today, in kWh
   "e_dischg_day": 0.0,
 
-  # Energy consumed by the EPS function, today, in Ah
+  # Energy consumed by the EPS function, today, in kWh
   "e_eps_day": 0.0,
 
-  # Energy exported to the grid, today, in Ah
+  # Energy exported to the grid, today, in kWh
   "e_to_grid_day": 0.0,
 
-  # Energy imported from the grid, today, in Ah
+  # Energy imported from the grid, today, in kWh
   "e_to_user_day": 1.9,
 
   # Internal bus voltages
@@ -122,32 +122,32 @@ Example structures are shown below with inline comments.
 
 ```
 {
-  # PV generation, alltime, in Ah. This is just the sum of 1 to 3 below it
+  # PV generation, alltime, in kWh. This is just the sum of 1 to 3 below it
   "e_pv_all": 3899.8,
-  # PV generation, alltime, in Ah, of string 1
+  # PV generation, alltime, in kWh, of string 1
   "e_pv_all_1": 3899.8,
-  # PV generation, alltime, in Ah, of string 2
+  # PV generation, alltime, in kWh, of string 2
   "e_pv_all_2": 0.0,
-  # PV generation, alltime, in Ah, of string 3
+  # PV generation, alltime, in kWh, of string 3
   "e_pv_all_3": 0.0,
 
   # Not 100% sure but closely correspond to chg/dischg, so related?
   "e_inv_all": 1476.8,
   "e_rec_all": 1771.4,
 
-  # Energy put into the batteries, alltime, in Ah
+  # Energy put into the batteries, alltime, in kWh
   "e_chg_all": 2138.5,
 
-  # Energy taken out of the batteries, alltime, in Ah
+  # Energy taken out of the batteries, alltime, in kWh
   "e_dischg_all": 1829.9,
 
-  # Energy consumed by the EPS function, alltime, in Ah
+  # Energy consumed by the EPS function, alltime, in kWh
   "e_eps_all": 0.0,
 
-  # Energy exported to the grid, alltime, in Ah
+  # Energy exported to the grid, alltime, in kWh
   "e_to_grid_all": 936.6,
 
-  # Energy imported from the grid, alltime, in Ah
+  # Energy imported from the grid, alltime, in kWh
   "e_to_user_all": 2573.7,
 
   # Temperature inside the inverter, degrees C
