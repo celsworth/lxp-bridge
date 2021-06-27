@@ -19,13 +19,15 @@ impl UnixTime {
     where
         S: Serializer,
     {
-        let s = u.0.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
-        serializer.serialize_str(&s)
+        // previously used to send ISO8601 string. left for reference.
+        // serializer.serialize_str(&u.0.to_rfc3339_opts(chrono::SecondsFormat::Secs, true));
+
+        serializer.serialize_i64(u.0.timestamp())
     }
 }
 
 impl From<UnixTime> for influxdb::Timestamp {
     fn from(u: UnixTime) -> Self {
-        influxdb::Timestamp::Seconds(DateTime::timestamp(&u.0) as u128)
+        influxdb::Timestamp::Seconds(u.0.timestamp() as u128)
     }
 }

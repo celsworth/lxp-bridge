@@ -113,8 +113,8 @@ Example structures are shown below with inline comments.
   "v_bus_1": 376.3,
   "v_bus_2": 304.1,
 
-  # UTC ISO8601 timestamp of when this data was received from the inverter
-  "time": "2021-06-22T07:05:08Z"
+  # unix timestamp of when this data was received from the inverter
+  "time": 1624793103
 }
 ```
 
@@ -162,8 +162,8 @@ Example structures are shown below with inline comments.
   # Number of seconds the inverter has been running; this does not reset on reboot
   "runtime": 38690201,
 
-  # UTC ISO8601 timestamp of when this data was received from the inverter
-  "time": "2021-06-22T06:55:09Z"
+  # unix timestamp of when this data was received from the inverter
+  "time": 1624793103
 }
 ```
 
@@ -205,7 +205,7 @@ Example structures are shown below with inline comments.
   # Ah capacity of the battery stack
   "bat_capacity": 0,
 
-  # UTC ISO8601 timestamp of when this data was received from the inverter
-  "time": "2021-06-22T06:59:10Z"
+  # unix timestamp of when this data was received from the inverter
+  "time": 1624793103
 }
 ```
