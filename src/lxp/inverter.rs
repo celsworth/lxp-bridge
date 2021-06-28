@@ -1,6 +1,7 @@
 use crate::prelude::*;
 
 use bytes::BytesMut;
+use net2::TcpStreamExt; // for set_keepalive
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec::Decoder;
 
@@ -115,9 +116,11 @@ impl Inverter {
         );
 
         let inverter_hp = (config.host.to_string(), config.port);
-        let (reader, writer) = tokio::net::TcpStream::connect(inverter_hp)
-            .await?
-            .into_split();
+
+        let stream = tokio::net::TcpStream::connect(inverter_hp).await?;
+        let std_stream = stream.into_std()?;
+        std_stream.set_keepalive(Some(std::time::Duration::new(60, 0)))?;
+        let (reader, writer) = tokio::net::TcpStream::from_std(std_stream)?.into_split();
 
         info!("inverter {}: connected!", config.datalog);
 
