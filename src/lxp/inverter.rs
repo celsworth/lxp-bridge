@@ -5,7 +5,11 @@ use net2::TcpStreamExt; // for set_keepalive
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec::Decoder;
 
-pub type ChannelContent = (Serial, Option<Packet>);
+#[derive(Debug, Clone)]
+pub enum ChannelContent {
+    Disconnect(Serial),
+    Packet(Packet),
+}
 pub type PacketSender = broadcast::Sender<ChannelContent>;
 
 // Serial {{{
@@ -98,7 +102,7 @@ impl Inverter {
                 Err(e) => {
                     error!("inverter {}: {}", config.datalog, e);
                     info!("inverter {}: reconnecting in 5s", config.datalog);
-                    to_coordinator.send((config.datalog, None))?; // kill any waiting readers
+                    to_coordinator.send(ChannelContent::Disconnect(config.datalog))?; // kill any waiting readers
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
             }
@@ -151,14 +155,14 @@ impl Inverter {
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
                     debug!("inverter {}: RX {:?}", datalog, packet);
-                    to_coordinator.send((datalog, Some(packet)))?;
+                    to_coordinator.send(ChannelContent::Packet(packet))?;
                 }
                 break;
             }
 
             while let Some(packet) = decoder.decode(&mut buf)? {
                 debug!("inverter {}: RX {:?}", datalog, packet);
-                to_coordinator.send((datalog, Some(packet)))?;
+                to_coordinator.send(ChannelContent::Packet(packet))?;
             }
         }
 
@@ -173,8 +177,8 @@ impl Inverter {
     ) -> Result<()> {
         let mut receiver = from_coordinator.subscribe();
 
-        while let (packet_datalog, Some(packet)) = receiver.recv().await? {
-            if packet_datalog == datalog {
+        while let ChannelContent::Packet(packet) = receiver.recv().await? {
+            if packet.datalog() == datalog {
                 // debug!("inverter {}: TX {:?}", datalog, packet);
                 let bytes = lxp::packet::TcpFrameFactory::build(packet);
                 socket.write_all(&bytes).await?

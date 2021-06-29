@@ -18,7 +18,7 @@ pub use crate::{
     influx,
     lxp::{
         self,
-        inverter::{Inverter, Serial},
+        inverter::{ChannelContent, Inverter, Serial},
         packet::{Packet, PacketCommon},
     },
     mqtt,

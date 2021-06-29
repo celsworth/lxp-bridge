@@ -176,7 +176,7 @@ impl Coordinator {
 
         let mut receiver = self.from_inverter.subscribe();
 
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter.send(ChannelContent::Packet(packet))?;
 
         let _ = Self::wait_for_packet(
             inverter.datalog,
@@ -205,7 +205,7 @@ impl Coordinator {
 
         let mut receiver = self.from_inverter.subscribe();
 
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter.send(ChannelContent::Packet(packet))?;
 
         let _ = Self::wait_for_packet(
             inverter.datalog,
@@ -231,7 +231,7 @@ impl Coordinator {
 
         // let mut receiver = self.from_inverter.subscribe();
 
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter.send(ChannelContent::Packet(packet))?;
 
         // TODO wait for packet?
 
@@ -252,7 +252,7 @@ impl Coordinator {
             register,
             values: value.to_le_bytes().to_vec(),
         });
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter.send(ChannelContent::Packet(packet))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -294,7 +294,7 @@ impl Coordinator {
             register,
             values: vec![1, 0],
         });
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter.send(ChannelContent::Packet(packet))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -318,7 +318,7 @@ impl Coordinator {
             register,
             values,
         });
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter.send(ChannelContent::Packet(packet))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -339,6 +339,42 @@ impl Coordinator {
         Ok(())
     }
 
+    async fn wait_for_reply(
+        packet: &TranslatedData,
+        receiver: &mut broadcast::Receiver<ChannelContent>,
+    ) -> Result<Packet> {
+        let start = std::time::Instant::now();
+
+        loop {
+            match receiver.try_recv() {
+                Ok(ChannelContent::Packet(Packet::TranslatedData(td))) => {
+                    if td.datalog == packet.datalog
+                        && td.register == packet.register
+                        && td.device_function == packet.device_function
+                    {
+                        return Ok(Packet::TranslatedData(td));
+                    }
+                }
+                Ok(ChannelContent::Packet(_)) => {} // TODO ReadParam and WriteParam
+
+                Ok(ChannelContent::Disconnect(inverter_datalog)) => {
+                    if inverter_datalog == packet.datalog() {
+                        return Err(anyhow!("inverter disconnect?"));
+                    }
+                }
+
+                Err(broadcast::error::TryRecvError::Empty) => {} // ignore and loop
+                Err(err) => return Err(anyhow!("try_recv error: {:?}", err)),
+            }
+
+            if start.elapsed().as_secs() > 5 {
+                return Err(anyhow!("wait_for_reply {:?} - timeout", packet));
+            }
+
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    }
+
     async fn wait_for_packet<U>(
         datalog: Serial,
         receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
@@ -353,17 +389,17 @@ impl Coordinator {
 
         loop {
             match receiver.try_recv() {
-                Ok((inverter_datalog, Some(Packet::TranslatedData(td)))) => {
-                    if inverter_datalog == datalog
+                Ok(ChannelContent::Packet(Packet::TranslatedData(td))) => {
+                    if td.datalog == datalog
                         && td.register == register
                         && td.device_function == function
                     {
                         return Ok(Packet::TranslatedData(td));
                     }
                 }
-                Ok((_inverter_datalog, Some(_))) => {} // TODO ReadParam and WriteParam
+                Ok(ChannelContent::Packet(_)) => {} // TODO ReadParam and WriteParam
 
-                Ok((inverter_datalog, None)) => {
+                Ok(ChannelContent::Disconnect(inverter_datalog)) => {
                     if inverter_datalog == datalog {
                         return Err(anyhow!("inverter disconnect?"));
                     }
@@ -386,7 +422,7 @@ impl Coordinator {
 
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
-            if let (_datalog, Some(packet)) = receiver.recv().await? {
+            if let ChannelContent::Packet(packet) = receiver.recv().await? {
                 debug!("RX: {:?}", packet);
 
                 if let Packet::TranslatedData(td) = &packet {
