@@ -51,7 +51,9 @@ impl Influx {
         let mut receiver = self.from_inverter.subscribe();
 
         loop {
-            if let ChannelContent::Packet(Packet::TranslatedData(td)) = receiver.recv().await? {
+            if let lxp::inverter::ChannelContent::Packet(Packet::TranslatedData(td)) =
+                receiver.recv().await?
+            {
                 if td.device_function == DeviceFunction::ReadInput {
                     let query = match td.read_input()? {
                         ReadInput::ReadInput1(r1) => r1.into_query(INPUTS_MEASUREMENT),
@@ -59,14 +61,9 @@ impl Influx {
                         ReadInput::ReadInput3(r3) => r3.into_query(INPUTS_MEASUREMENT),
                     };
 
-                    loop {
-                        match client.query(&query).await {
-                            Ok(_) => break,
-                            Err(err) => {
-                                error!("push failed: {:?} - retrying in 10s", err);
-                                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-                            }
-                        }
+                    while let Err(err) = client.query(&query).await {
+                        error!("push failed: {:?} - retrying in 10s", err);
+                        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                     }
                 }
             }

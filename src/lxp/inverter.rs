@@ -7,8 +7,8 @@ use tokio_util::codec::Decoder;
 
 #[derive(Debug, Clone)]
 pub enum ChannelContent {
-    Disconnect(Serial),
-    Packet(Packet),
+    Disconnect(Serial), // strictly speaking, only ever goes inverter->coordinator, but eh.
+    Packet(Packet),     // this one goes both ways through the channel.
 }
 pub type PacketSender = broadcast::Sender<ChannelContent>;
 

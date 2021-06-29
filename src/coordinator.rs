@@ -176,7 +176,8 @@ impl Coordinator {
 
         let mut receiver = self.from_inverter.subscribe();
 
-        self.to_inverter.send(ChannelContent::Packet(packet))?;
+        self.to_inverter
+            .send(lxp::inverter::ChannelContent::Packet(packet))?;
 
         let _ = Self::wait_for_packet(
             inverter.datalog,
@@ -205,7 +206,8 @@ impl Coordinator {
 
         let mut receiver = self.from_inverter.subscribe();
 
-        self.to_inverter.send(ChannelContent::Packet(packet))?;
+        self.to_inverter
+            .send(lxp::inverter::ChannelContent::Packet(packet))?;
 
         let _ = Self::wait_for_packet(
             inverter.datalog,
@@ -231,7 +233,8 @@ impl Coordinator {
 
         // let mut receiver = self.from_inverter.subscribe();
 
-        self.to_inverter.send(ChannelContent::Packet(packet))?;
+        self.to_inverter
+            .send(lxp::inverter::ChannelContent::Packet(packet))?;
 
         // TODO wait for packet?
 
@@ -252,7 +255,8 @@ impl Coordinator {
             register,
             values: value.to_le_bytes().to_vec(),
         });
-        self.to_inverter.send(ChannelContent::Packet(packet))?;
+        self.to_inverter
+            .send(lxp::inverter::ChannelContent::Packet(packet))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -294,7 +298,8 @@ impl Coordinator {
             register,
             values: vec![1, 0],
         });
-        self.to_inverter.send(ChannelContent::Packet(packet))?;
+        self.to_inverter
+            .send(lxp::inverter::ChannelContent::Packet(packet))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -318,7 +323,8 @@ impl Coordinator {
             register,
             values,
         });
-        self.to_inverter.send(ChannelContent::Packet(packet))?;
+        self.to_inverter
+            .send(lxp::inverter::ChannelContent::Packet(packet))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -341,8 +347,10 @@ impl Coordinator {
 
     async fn wait_for_reply(
         packet: &TranslatedData,
-        receiver: &mut broadcast::Receiver<ChannelContent>,
+        receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
     ) -> Result<Packet> {
+        use lxp::inverter::ChannelContent;
+
         let start = std::time::Instant::now();
 
         loop {
@@ -384,6 +392,8 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
+        use lxp::inverter::ChannelContent;
+
         let start = std::time::Instant::now();
         let register = register.into();
 
@@ -422,7 +432,7 @@ impl Coordinator {
 
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
-            if let ChannelContent::Packet(packet) = receiver.recv().await? {
+            if let lxp::inverter::ChannelContent::Packet(packet) = receiver.recv().await? {
                 debug!("RX: {:?}", packet);
 
                 if let Packet::TranslatedData(td) = &packet {
