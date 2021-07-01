@@ -8,9 +8,27 @@ use tokio_util::codec::Decoder;
 #[derive(Debug, Clone)]
 pub enum ChannelContent {
     Disconnect(Serial), // strictly speaking, only ever goes inverter->coordinator, but eh.
-    Packet(Packet),     // this one goes both ways through the channel.
+    Packet(Arc<Packet>), // this one goes both ways through the channel.
 }
 pub type PacketSender = broadcast::Sender<ChannelContent>;
+
+impl ChannelContent {
+    pub fn maybe_packet(&self) -> Option<lxp::packet::Packet> {
+        if let Self::Packet(packet) = *self {
+            return Some(*packet);
+        }
+        None
+    }
+
+    pub fn maybe_translated_data(&self) -> Option<lxp::packet::TranslatedData> {
+        if let Self::Packet(packet) = *self {
+            if let Packet::TranslatedData(td) = &*packet {
+                return Some(*td);
+            }
+        }
+        None
+    }
+}
 
 // Serial {{{
 #[derive(Clone, Copy, PartialEq)]
@@ -154,6 +172,7 @@ impl Inverter {
 
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
+                    let packet = Arc::new(packet);
                     debug!("inverter {}: RX {:?}", datalog, packet);
                     to_coordinator.send(ChannelContent::Packet(packet))?;
                 }
@@ -161,6 +180,7 @@ impl Inverter {
             }
 
             while let Some(packet) = decoder.decode(&mut buf)? {
+                let packet = Arc::new(packet);
                 debug!("inverter {}: RX {:?}", datalog, packet);
                 to_coordinator.send(ChannelContent::Packet(packet))?;
             }
@@ -177,7 +197,7 @@ impl Inverter {
     ) -> Result<()> {
         let mut receiver = from_coordinator.subscribe();
 
-        while let ChannelContent::Packet(packet) = receiver.recv().await? {
+        while let Some(packet) = receiver.recv().await?.maybe_packet() {
             if packet.datalog() == datalog {
                 // debug!("inverter {}: TX {:?}", datalog, packet);
                 let bytes = lxp::packet::TcpFrameFactory::build(packet);

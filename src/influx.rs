@@ -51,9 +51,7 @@ impl Influx {
         let mut receiver = self.from_inverter.subscribe();
 
         loop {
-            if let lxp::inverter::ChannelContent::Packet(Packet::TranslatedData(td)) =
-                receiver.recv().await?
-            {
+            if let Some(td) = receiver.recv().await?.maybe_translated_data() {
                 if td.device_function == DeviceFunction::ReadInput {
                     let query = match td.read_input()? {
                         ReadInput::ReadInput1(r1) => r1.into_query(INPUTS_MEASUREMENT),
