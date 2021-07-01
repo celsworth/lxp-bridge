@@ -238,6 +238,13 @@ pub enum RegisterBit {
 
 #[enum_dispatch]
 pub trait PacketCommon {
+    fn datalog(&self) -> Serial;
+    fn protocol(&self) -> u16;
+    fn tcp_function(&self) -> TcpFunction;
+    fn bytes(&self) -> Vec<u8> {
+        Vec::new()
+    }
+
     fn register(&self) -> u16 {
         unimplemented!("register() not implemented");
     }
@@ -246,24 +253,9 @@ pub trait PacketCommon {
     }
 }
 
-// this contains method that TcpFrameFactory needs to make a TCP frame
-// from a class.
-#[enum_dispatch]
-pub trait TcpFrameable {
-    fn datalog(&self) -> Serial;
-    fn protocol(&self) -> u16;
-    fn tcp_function(&self) -> TcpFunction;
-    fn bytes(&self) -> Vec<u8> {
-        Vec::new()
-    }
-}
-
 pub struct TcpFrameFactory;
 impl TcpFrameFactory {
-    pub fn build<T>(data: T) -> Vec<u8>
-    where
-        T: TcpFrameable,
-    {
+    pub fn build(data: Packet) -> Vec<u8> {
         let data_bytes = data.bytes();
         let data_length = data_bytes.len() as u8;
         let frame_length = (18 + data_length) as u16;
@@ -289,7 +281,7 @@ impl TcpFrameFactory {
     }
 }
 
-#[enum_dispatch(PacketCommon, TcpFrameable)]
+#[enum_dispatch(PacketCommon)]
 #[derive(Debug, Clone)]
 pub enum Packet {
     Heartbeat(Heartbeat),
@@ -334,7 +326,7 @@ impl Heartbeat {
     }
 }
 
-impl TcpFrameable for Heartbeat {
+impl PacketCommon for Heartbeat {
     fn protocol(&self) -> u16 {
         2
     }
@@ -347,7 +339,6 @@ impl TcpFrameable for Heartbeat {
         TcpFunction::Heartbeat
     }
 }
-impl PacketCommon for Heartbeat {}
 
 /////////////
 //
@@ -493,7 +484,7 @@ impl TranslatedData {
     }
 }
 
-impl TcpFrameable for TranslatedData {
+impl PacketCommon for TranslatedData {
     fn protocol(&self) -> u16 {
         1
     }
@@ -539,9 +530,7 @@ impl TcpFrameable for TranslatedData {
 
         r
     }
-}
 
-impl PacketCommon for TranslatedData {
     fn register(&self) -> u16 {
         self.register
     }
@@ -614,7 +603,7 @@ impl ReadParam {
     }
 }
 
-impl TcpFrameable for ReadParam {
+impl PacketCommon for ReadParam {
     fn protocol(&self) -> u16 {
         2
     }
@@ -634,9 +623,7 @@ impl TcpFrameable for ReadParam {
 
         r
     }
-}
 
-impl PacketCommon for ReadParam {
     fn register(&self) -> u16 {
         self.register
     }
