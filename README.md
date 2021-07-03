@@ -120,7 +120,7 @@ See [inputs.md](doc/inputs.md) for details of the JSON data hashes.
 
 This is a pretty low-level command which you may not normally need.
 
-Publishing to this will read the value of inverter holding register 1. The payload is optionally the number of inverters to read, with a default of 1 if empty.
+Publishing to this will read the value of inverter holding register 1. The payload is optionally the number of registers to read, with a default of 1 if empty.
 
 The unprocessed reply will appear in `lxp/{datalog}/hold/1`. Depending on which register you're reading, this may need further post-processing to make sense.
 
@@ -133,6 +133,9 @@ This is a pretty low-level command which you may not normally need.
 
 Publishing to this will set the given register to the payload, which should be a 16-bit integer.
 
+The unprocessed reply will appear in `lxp/{datalog}/hold/1`. Depending on which register you're reading, this may need further post-processing to make sense.
+
+TODO: doc known registers
 
 #### topic = `lxp/cmd/{datalog}/read/param/0`, payload = empty
 
