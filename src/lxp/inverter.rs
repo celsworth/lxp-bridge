@@ -187,9 +187,7 @@ impl Inverter {
             }
         }
 
-        // this doesn't actually happen yet; None is never sent to this channel
-        Err(anyhow!(
-            "sender exiting due to receiving None from coordinator"
-        ))
+        // this doesn't actually happen yet; Disconnect is never sent to this channel
+        Err(anyhow!("sender exiting due to ChannelContent::Disconnect"))
     }
 }
