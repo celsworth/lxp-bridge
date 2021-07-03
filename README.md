@@ -43,6 +43,8 @@ All configuration is done in a YAML config file; see config.yaml.example.
 
 Multiple inverters are supported via an array under the `inverters` key. Each one can be separately disabled if you want to temporarily stop connecting to one. Similarly, MQTT and InfluxDB can have `enabled = false` set to disable either output method.
 
+See [inverter_setup.md](doc/inverter_setup.md) for first-time setup of the inverter; it needs to listen on a port so lxp-bridge can connect to it.
+
 ## Basics
 
 First thing to note is there are three types of registers:
