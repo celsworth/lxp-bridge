@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use lxp::inverter::ChannelContent;
 use lxp::packet::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
 
 // the coordinator takes messages from both MQ and the inverter and decides
@@ -177,7 +178,7 @@ impl Coordinator {
         let mut receiver = self.from_inverter.subscribe();
 
         self.to_inverter
-            .send(lxp::inverter::ChannelContent::Packet(packet.clone()))?;
+            .send(ChannelContent::Packet(packet.clone()))?;
 
         let _ = Self::wait_for_packet(
             inverter.datalog,
@@ -207,7 +208,7 @@ impl Coordinator {
         let mut receiver = self.from_inverter.subscribe();
 
         self.to_inverter
-            .send(lxp::inverter::ChannelContent::Packet(packet.clone()))?;
+            .send(ChannelContent::Packet(packet.clone()))?;
 
         let _ = Self::wait_for_packet(
             inverter.datalog,
@@ -234,7 +235,7 @@ impl Coordinator {
         // let mut receiver = self.from_inverter.subscribe();
 
         self.to_inverter
-            .send(lxp::inverter::ChannelContent::Packet(packet.clone()))?;
+            .send(ChannelContent::Packet(packet.clone()))?;
 
         // TODO wait for packet?
 
@@ -257,7 +258,7 @@ impl Coordinator {
         });
 
         self.to_inverter
-            .send(lxp::inverter::ChannelContent::Packet(packet.clone()))?;
+            .send(ChannelContent::Packet(packet.clone()))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -301,7 +302,7 @@ impl Coordinator {
         });
 
         self.to_inverter
-            .send(lxp::inverter::ChannelContent::Packet(packet.clone()))?;
+            .send(ChannelContent::Packet(packet.clone()))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -326,7 +327,7 @@ impl Coordinator {
             values,
         });
         self.to_inverter
-            .send(lxp::inverter::ChannelContent::Packet(packet.clone()))?;
+            .send(ChannelContent::Packet(packet.clone()))?;
 
         let packet = Self::wait_for_packet(
             inverter.datalog,
@@ -349,10 +350,8 @@ impl Coordinator {
 
     async fn wait_for_reply(
         packet: TranslatedData,
-        receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
+        receiver: &mut broadcast::Receiver<ChannelContent>,
     ) -> Result<Packet> {
-        use lxp::inverter::ChannelContent;
-
         let start = std::time::Instant::now();
 
         loop {
@@ -385,15 +384,13 @@ impl Coordinator {
 
     async fn wait_for_packet<U>(
         datalog: Serial,
-        receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
+        receiver: &mut broadcast::Receiver<ChannelContent>,
         function: DeviceFunction,
         register: U,
     ) -> Result<Packet>
     where
         U: Into<u16>,
     {
-        use lxp::inverter::ChannelContent;
-
         let start = std::time::Instant::now();
         let register = register.into();
 
