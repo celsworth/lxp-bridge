@@ -12,7 +12,7 @@ Tap on Network Setting in the menu. You should see two forms, the top one is pop
 
 ![](lux_network_setting.png)
 
-After the datalogger reboots (this takes only a couple of seconds and does not affect the main inverter operation, it will continue as normal), port 8000 on your inverter IP is accessible to our Ruby script. You should be sure that this port is only accessible via your LAN, and not exposed to the Internet, or anyone can control your inverter.
+After the datalogger reboots (this takes only a couple of seconds and does not affect the main inverter operation, it will continue as normal), port 8000 on your inverter IP is accessible to lxp-bridge. You should be sure that this port is only accessible via your LAN, and not exposed to the Internet, or anyone can control your inverter.
 
 ## Enabling AC Charge
 
