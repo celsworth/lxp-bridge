@@ -173,7 +173,6 @@ impl Coordinator {
             register,
             values: count.to_le_bytes().to_vec(),
         });
-        let packet = Arc::new(packet);
 
         let mut receiver = self.from_inverter.subscribe();
 
@@ -204,7 +203,6 @@ impl Coordinator {
             register,
             values: count.to_le_bytes().to_vec(),
         });
-        let packet = Arc::new(packet);
 
         let mut receiver = self.from_inverter.subscribe();
 
@@ -232,7 +230,6 @@ impl Coordinator {
             register,
             values: vec![], // unused
         });
-        let packet = Arc::new(packet);
 
         // let mut receiver = self.from_inverter.subscribe();
 
@@ -258,7 +255,6 @@ impl Coordinator {
             register,
             values: value.to_le_bytes().to_vec(),
         });
-        let packet = Arc::new(packet);
 
         self.to_inverter
             .send(lxp::inverter::ChannelContent::Packet(packet.clone()))?;
@@ -303,7 +299,6 @@ impl Coordinator {
             register,
             values: vec![1, 0],
         });
-        let packet = Arc::new(packet);
 
         self.to_inverter
             .send(lxp::inverter::ChannelContent::Packet(packet.clone()))?;
@@ -330,7 +325,6 @@ impl Coordinator {
             register,
             values,
         });
-        let packet = Arc::new(packet);
         self.to_inverter
             .send(lxp::inverter::ChannelContent::Packet(packet.clone()))?;
 
@@ -354,33 +348,27 @@ impl Coordinator {
     }
 
     async fn wait_for_reply(
-        packet: Arc<TranslatedData>,
+        packet: TranslatedData,
         receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
     ) -> Result<Packet> {
+        use lxp::inverter::ChannelContent;
+
         let start = std::time::Instant::now();
 
         loop {
             match receiver.try_recv() {
-                Ok(cc) => {
-                    match cc.maybe_packet() {
-                        Some(Packet::TranslatedData(td)) => {
-                            if td.datalog == packet.datalog
-                                && td.register == packet.register
-                                && td.device_function == packet.device_function
-                            {
-                                return Ok(Packet::TranslatedData(td));
-                            }
-                        }
-                        Some(_) => {} // TODO ReadParam and WriteParam
-
-                        None => panic!("implement ChannelContent::Disconnect handling"),
-                        /*
-                        (ChannelContent::Disconnect(inverter_datalog)) => {
-                            if inverter_datalog == packet.datalog() {
-                                return Err(anyhow!("inverter disconnect?"));
-                            }
-                        }
-                        */
+                Ok(ChannelContent::Packet(Packet::TranslatedData(td))) => {
+                    if td.datalog == packet.datalog
+                        && td.register == packet.register
+                        && td.device_function == packet.device_function
+                    {
+                        return Ok(Packet::TranslatedData(td));
+                    }
+                }
+                Ok(ChannelContent::Packet(_)) => {} // TODO ReadParam and WriteParam
+                Ok(ChannelContent::Disconnect(inverter_datalog)) => {
+                    if inverter_datalog == packet.datalog() {
+                        return Err(anyhow!("inverter disconnect?"));
                     }
                 }
                 Err(broadcast::error::TryRecvError::Empty) => {} // ignore and loop
@@ -447,7 +435,7 @@ impl Coordinator {
             if let lxp::inverter::ChannelContent::Packet(packet) = receiver.recv().await? {
                 debug!("RX: {:?}", packet);
 
-                if let Packet::TranslatedData(td) = &*packet {
+                if let Packet::TranslatedData(td) = &packet {
                     // temporary special greppable logging for Param packets as I try to
                     // work out what they do :)
                     if td.tcp_function() == TcpFunction::ReadParam
@@ -477,12 +465,12 @@ impl Coordinator {
     }
 
     // TODO: packet.to_messages() ?
-    fn packet_to_messages(packet: Arc<Packet>) -> Result<Vec<mqtt::Message>> {
+    fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
         use lxp::packet::ReadInput;
 
         let mut r = Vec::new();
 
-        match *packet {
+        match packet {
             Packet::Heartbeat(_) => {}
             Packet::TranslatedData(t) => match t.device_function {
                 DeviceFunction::ReadHold => {
