@@ -4,7 +4,9 @@ This document details the hash structure of "inputs" messages sent out by lxp-br
 
 Currently these are available over MQTT, at `lxp/{datalog}/inputs/{d}` where d is 1, 2, or 3.
 
-They are also sent to InfluxDB. Note that because the inverter sends the power data split across 3 packets, there will be 3 submissions to InfluxDB, each with slightly differing times (by about a second). This means all the data combined isn't an atomic snapshot of an instant in time, but in practise this shouldn't really matter.
+They are also sent to InfluxDB, if enabled.
+
+Note that because the inverter sends the power data split across 3 packets, there will be 3 submissions to InfluxDB, each with slightly differing times (by about a second). This means all the data combined isn't an atomic snapshot of an instant in time, but in practise this shouldn't really matter.
 
 
 Example structures are shown below with inline comments.
