@@ -255,7 +255,7 @@ pub trait PacketCommon {
 
 pub struct TcpFrameFactory;
 impl TcpFrameFactory {
-    pub fn build(data: Packet) -> Vec<u8> {
+    pub fn build(data: &Packet) -> Vec<u8> {
         let data_bytes = data.bytes();
         let data_length = data_bytes.len() as u8;
         let frame_length = (18 + data_length) as u16;
