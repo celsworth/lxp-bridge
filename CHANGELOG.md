@@ -1,3 +1,6 @@
+# 0.3.0
+
+
 # 0.2.0 - 3rd July 2021
 
 * Add `lxp/cmd/{datalog}/read/inputs/{n}` functionality - read input registers on demand (#16)
