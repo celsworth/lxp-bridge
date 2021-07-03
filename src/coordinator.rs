@@ -360,7 +360,7 @@ impl Coordinator {
 
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
-            if let lxp::inverter::ChannelContent::Packet(packet) = receiver.recv().await? {
+            if let ChannelContent::Packet(packet) = receiver.recv().await? {
                 debug!("RX: {:?}", packet);
 
                 if let Packet::TranslatedData(td) = &packet {
