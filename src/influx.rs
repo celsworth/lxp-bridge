@@ -6,11 +6,11 @@ static INPUTS_MEASUREMENT: &str = "inputs";
 
 pub struct Influx {
     config: Rc<Config>,
-    from_inverter: lxp::inverter::PacketSender,
+    from_inverter: lxp::inverter::PacketChannelSender,
 }
 
 impl Influx {
-    pub fn new(config: Rc<Config>, from_inverter: lxp::inverter::PacketSender) -> Self {
+    pub fn new(config: Rc<Config>, from_inverter: lxp::inverter::PacketChannelSender) -> Self {
         Self {
             config,
             from_inverter,
@@ -51,7 +51,7 @@ impl Influx {
         let mut receiver = self.from_inverter.subscribe();
 
         loop {
-            if let lxp::inverter::ChannelContent::Packet(Packet::TranslatedData(td)) =
+            if let lxp::inverter::PacketChannelData::Packet(Packet::TranslatedData(td)) =
                 receiver.recv().await?
             {
                 if td.device_function == DeviceFunction::ReadInput {

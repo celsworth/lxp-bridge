@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use lxp::inverter::ChannelContent;
+use lxp::inverter::PacketChannelData;
 use lxp::packet::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
 
 // the coordinator takes messages from both MQ and the inverter and decides
@@ -15,8 +15,8 @@ pub struct Coordinator {
     pub inverter: Inverter,
     pub mqtt: mqtt::Mqtt,
     pub influx: influx::Influx,
-    from_inverter: lxp::inverter::PacketSender,
-    to_inverter: lxp::inverter::PacketSender,
+    from_inverter: lxp::inverter::PacketChannelSender,
+    to_inverter: lxp::inverter::PacketChannelSender,
     from_mqtt: mqtt::MessageSender,
     to_mqtt: mqtt::MessageSender,
 }
@@ -178,7 +178,7 @@ impl Coordinator {
         let mut receiver = self.from_inverter.subscribe();
 
         self.to_inverter
-            .send(ChannelContent::Packet(packet.clone()))?;
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
         let _ = Self::wait_for_reply(packet, &mut receiver).await?;
 
@@ -202,7 +202,7 @@ impl Coordinator {
         let mut receiver = self.from_inverter.subscribe();
 
         self.to_inverter
-            .send(ChannelContent::Packet(packet.clone()))?;
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
         let _ = Self::wait_for_reply(packet, &mut receiver).await?;
 
@@ -223,7 +223,7 @@ impl Coordinator {
         let mut receiver = self.from_inverter.subscribe();
 
         self.to_inverter
-            .send(ChannelContent::Packet(packet.clone()))?;
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
         let _ = Self::wait_for_reply(packet, &mut receiver).await?;
 
@@ -246,7 +246,7 @@ impl Coordinator {
         });
 
         self.to_inverter
-            .send(ChannelContent::Packet(packet.clone()))?;
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
         let _ = Self::wait_for_reply(packet.clone(), &mut receiver).await?;
         if packet.value() != value {
@@ -284,7 +284,7 @@ impl Coordinator {
         });
 
         self.to_inverter
-            .send(ChannelContent::Packet(packet.clone()))?;
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
         let _ = Self::wait_for_reply(packet.clone(), &mut receiver).await?;
         let value = if enable {
@@ -303,7 +303,7 @@ impl Coordinator {
             values,
         });
         self.to_inverter
-            .send(ChannelContent::Packet(packet.clone()))?;
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
         let _ = Self::wait_for_reply(packet.clone(), &mut receiver).await?;
         if packet.value() != value {
@@ -320,7 +320,7 @@ impl Coordinator {
 
     async fn wait_for_reply(
         packet: Packet,
-        receiver: &mut broadcast::Receiver<ChannelContent>,
+        receiver: &mut broadcast::Receiver<PacketChannelData>,
     ) -> Result<Packet> {
         let start = std::time::Instant::now();
 
@@ -328,7 +328,7 @@ impl Coordinator {
             match (&packet, receiver.try_recv()) {
                 (
                     Packet::TranslatedData(td),
-                    Ok(ChannelContent::Packet(Packet::TranslatedData(reply))),
+                    Ok(PacketChannelData::Packet(Packet::TranslatedData(reply))),
                 ) => {
                     if td.datalog == reply.datalog
                         && td.register == reply.register
@@ -337,8 +337,8 @@ impl Coordinator {
                         return Ok(Packet::TranslatedData(reply));
                     }
                 }
-                (_, Ok(ChannelContent::Packet(_))) => {} // TODO ReadParam and WriteParam
-                (_, Ok(ChannelContent::Disconnect(inverter_datalog))) => {
+                (_, Ok(PacketChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
+                (_, Ok(PacketChannelData::Disconnect(inverter_datalog))) => {
                     if inverter_datalog == packet.datalog() {
                         return Err(anyhow!("inverter disconnect?"));
                     }
@@ -360,7 +360,7 @@ impl Coordinator {
 
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
-            if let ChannelContent::Packet(packet) = receiver.recv().await? {
+            if let PacketChannelData::Packet(packet) = receiver.recv().await? {
                 debug!("RX: {:?}", packet);
 
                 if let Packet::TranslatedData(td) = &packet {
