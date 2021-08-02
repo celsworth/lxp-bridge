@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use lxp::inverter::PacketChannelData;
+use lxp::inverter::{PacketChannelData, WaitForReply};
 use lxp::packet::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
 
 // the coordinator takes messages from both MQ and the inverter and decides
@@ -180,7 +180,7 @@ impl Coordinator {
         self.to_inverter
             .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let _ = Self::wait_for_reply(packet, &mut receiver).await?;
+        let _ = receiver.wait_for_reply(&packet).await?;
 
         Ok(())
     }
@@ -204,7 +204,7 @@ impl Coordinator {
         self.to_inverter
             .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let _ = Self::wait_for_reply(packet, &mut receiver).await?;
+        let _ = receiver.wait_for_reply(&packet).await?;
 
         Ok(())
     }
@@ -225,7 +225,7 @@ impl Coordinator {
         self.to_inverter
             .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let _ = Self::wait_for_reply(packet, &mut receiver).await?;
+        let _ = receiver.wait_for_reply(&packet).await?;
 
         Ok(())
     }
@@ -248,7 +248,7 @@ impl Coordinator {
         self.to_inverter
             .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let _ = Self::wait_for_reply(packet.clone(), &mut receiver).await?;
+        let _ = receiver.wait_for_reply(&packet).await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to set register {}, got back value {} (wanted {})",
@@ -286,7 +286,7 @@ impl Coordinator {
         self.to_inverter
             .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let _ = Self::wait_for_reply(packet.clone(), &mut receiver).await?;
+        let _ = receiver.wait_for_reply(&packet).await?;
         let value = if enable {
             packet.value() | u16::from(bit)
         } else {
@@ -305,7 +305,7 @@ impl Coordinator {
         self.to_inverter
             .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let _ = Self::wait_for_reply(packet.clone(), &mut receiver).await?;
+        let _ = receiver.wait_for_reply(&packet).await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to update register {:?}, got back value {} (wanted {})",
@@ -316,43 +316,6 @@ impl Coordinator {
         }
 
         Ok(())
-    }
-
-    async fn wait_for_reply(
-        packet: Packet,
-        receiver: &mut broadcast::Receiver<PacketChannelData>,
-    ) -> Result<Packet> {
-        let start = std::time::Instant::now();
-
-        loop {
-            match (&packet, receiver.try_recv()) {
-                (
-                    Packet::TranslatedData(td),
-                    Ok(PacketChannelData::Packet(Packet::TranslatedData(reply))),
-                ) => {
-                    if td.datalog == reply.datalog
-                        && td.register == reply.register
-                        && td.device_function == reply.device_function
-                    {
-                        return Ok(Packet::TranslatedData(reply));
-                    }
-                }
-                (_, Ok(PacketChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
-                (_, Ok(PacketChannelData::Disconnect(inverter_datalog))) => {
-                    if inverter_datalog == packet.datalog() {
-                        return Err(anyhow!("inverter disconnect?"));
-                    }
-                }
-                (_, Err(broadcast::error::TryRecvError::Empty)) => {} // ignore and loop
-                (_, Err(err)) => return Err(anyhow!("try_recv error: {:?}", err)),
-            }
-
-            if start.elapsed().as_secs() > 5 {
-                return Err(anyhow!("wait_for_reply {:?} - timeout", packet));
-            }
-
-            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-        }
     }
 
     async fn inverter_receiver(&self) -> Result<()> {

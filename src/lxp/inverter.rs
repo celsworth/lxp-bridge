@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use async_trait::async_trait;
 use bytes::BytesMut;
 use net2::TcpStreamExt; // for set_keepalive
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -11,6 +12,47 @@ pub enum PacketChannelData {
     Packet(Packet),     // this one goes both ways through the channel.
 }
 pub type PacketChannelSender = broadcast::Sender<PacketChannelData>;
+pub type PacketChannelReceiver = broadcast::Receiver<PacketChannelData>;
+
+#[async_trait]
+pub trait WaitForReply {
+    async fn wait_for_reply(&mut self, packet: &Packet) -> Result<Packet>;
+}
+#[async_trait]
+impl WaitForReply for PacketChannelReceiver {
+    async fn wait_for_reply(&mut self, packet: &Packet) -> Result<Packet> {
+        let start = std::time::Instant::now();
+
+        loop {
+            match (packet, self.try_recv()) {
+                (
+                    Packet::TranslatedData(td),
+                    Ok(PacketChannelData::Packet(Packet::TranslatedData(reply))),
+                ) => {
+                    if td.datalog == reply.datalog
+                        && td.register == reply.register
+                        && td.device_function == reply.device_function
+                    {
+                        return Ok(Packet::TranslatedData(reply));
+                    }
+                }
+                (_, Ok(PacketChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
+                (_, Ok(PacketChannelData::Disconnect(inverter_datalog))) => {
+                    if inverter_datalog == packet.datalog() {
+                        return Err(anyhow!("inverter disconnect?"));
+                    }
+                }
+                (_, Err(broadcast::error::TryRecvError::Empty)) => {} // ignore and loop
+                (_, Err(err)) => return Err(anyhow!("try_recv error: {:?}", err)),
+            }
+            if start.elapsed().as_secs() > 5 {
+                return Err(anyhow!("wait_for_reply {:?} - timeout", packet));
+            }
+
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    }
+}
 
 impl PacketChannelData {}
 
