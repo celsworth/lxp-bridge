@@ -1,5 +1,6 @@
 use crate::prelude::*;
 
+use lxp::inverter::{PacketChannelData, WaitForReply};
 use lxp::packet::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
 
 // the coordinator takes messages from both MQ and the inverter and decides
@@ -14,8 +15,8 @@ pub struct Coordinator {
     pub inverter: Inverter,
     pub mqtt: mqtt::Mqtt,
     pub influx: influx::Influx,
-    from_inverter: lxp::inverter::PacketSender,
-    to_inverter: lxp::inverter::PacketSender,
+    from_inverter: lxp::inverter::PacketChannelSender,
+    to_inverter: lxp::inverter::PacketChannelSender,
     from_mqtt: mqtt::MessageSender,
     to_mqtt: mqtt::MessageSender,
 }
@@ -176,15 +177,10 @@ impl Coordinator {
 
         let mut receiver = self.from_inverter.subscribe();
 
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let _ = Self::wait_for_packet(
-            inverter.datalog,
-            &mut receiver,
-            DeviceFunction::ReadInput,
-            register,
-        )
-        .await?;
+        let _ = receiver.wait_for_reply(&packet).await?;
 
         Ok(())
     }
@@ -205,15 +201,10 @@ impl Coordinator {
 
         let mut receiver = self.from_inverter.subscribe();
 
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let _ = Self::wait_for_packet(
-            inverter.datalog,
-            &mut receiver,
-            DeviceFunction::ReadHold,
-            register,
-        )
-        .await?;
+        let _ = receiver.wait_for_reply(&packet).await?;
 
         Ok(())
     }
@@ -229,11 +220,12 @@ impl Coordinator {
             values: vec![], // unused
         });
 
-        // let mut receiver = self.from_inverter.subscribe();
+        let mut receiver = self.from_inverter.subscribe();
 
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
-        // TODO wait for packet?
+        let _ = receiver.wait_for_reply(&packet).await?;
 
         Ok(())
     }
@@ -252,15 +244,11 @@ impl Coordinator {
             register,
             values: value.to_le_bytes().to_vec(),
         });
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
 
-        let packet = Self::wait_for_packet(
-            inverter.datalog,
-            &mut receiver,
-            DeviceFunction::WriteSingle,
-            register,
-        )
-        .await?;
+        self.to_inverter
+            .send(PacketChannelData::Packet(packet.clone()))?;
+
+        let _ = receiver.wait_for_reply(&packet).await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to set register {}, got back value {} (wanted {})",
@@ -294,15 +282,11 @@ impl Coordinator {
             register,
             values: vec![1, 0],
         });
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
 
-        let packet = Self::wait_for_packet(
-            inverter.datalog,
-            &mut receiver,
-            DeviceFunction::ReadHold,
-            register,
-        )
-        .await?;
+        self.to_inverter
+            .send(PacketChannelData::Packet(packet.clone()))?;
+
+        let _ = receiver.wait_for_reply(&packet).await?;
         let value = if enable {
             packet.value() | u16::from(bit)
         } else {
@@ -318,15 +302,10 @@ impl Coordinator {
             register,
             values,
         });
-        self.to_inverter.send((inverter.datalog, Some(packet)))?;
+        self.to_inverter
+            .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let packet = Self::wait_for_packet(
-            inverter.datalog,
-            &mut receiver,
-            DeviceFunction::WriteSingle,
-            register,
-        )
-        .await?;
+        let _ = receiver.wait_for_reply(&packet).await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to update register {:?}, got back value {} (wanted {})",
@@ -339,54 +318,12 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn wait_for_packet<U>(
-        datalog: Serial,
-        receiver: &mut broadcast::Receiver<lxp::inverter::ChannelContent>,
-        function: DeviceFunction,
-        register: U,
-    ) -> Result<Packet>
-    where
-        U: Into<u16>,
-    {
-        let start = std::time::Instant::now();
-        let register = register.into();
-
-        loop {
-            match receiver.try_recv() {
-                Ok((inverter_datalog, Some(Packet::TranslatedData(td)))) => {
-                    if inverter_datalog == datalog
-                        && td.register == register
-                        && td.device_function == function
-                    {
-                        return Ok(Packet::TranslatedData(td));
-                    }
-                }
-                Ok((_inverter_datalog, Some(_))) => {} // TODO ReadParam and WriteParam
-
-                Ok((inverter_datalog, None)) => {
-                    if inverter_datalog == datalog {
-                        return Err(anyhow!("inverter disconnect?"));
-                    }
-                }
-
-                Err(broadcast::error::TryRecvError::Empty) => {} // ignore and loop
-                Err(err) => return Err(anyhow!("try_recv error: {:?}", err)),
-            }
-
-            if start.elapsed().as_secs() > 5 {
-                return Err(anyhow!("wait_for_packet register={:?} - timeout", register));
-            }
-
-            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
-        }
-    }
-
     async fn inverter_receiver(&self) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
-            if let (_datalog, Some(packet)) = receiver.recv().await? {
+            if let PacketChannelData::Packet(packet) = receiver.recv().await? {
                 debug!("RX: {:?}", packet);
 
                 if let Packet::TranslatedData(td) = &packet {

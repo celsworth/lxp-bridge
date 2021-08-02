@@ -1,12 +1,60 @@
 use crate::prelude::*;
 
+use async_trait::async_trait;
 use bytes::BytesMut;
 use net2::TcpStreamExt; // for set_keepalive
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec::Decoder;
 
-pub type ChannelContent = (Serial, Option<Packet>);
-pub type PacketSender = broadcast::Sender<ChannelContent>;
+#[derive(Debug, Clone)]
+pub enum PacketChannelData {
+    Disconnect(Serial), // strictly speaking, only ever goes inverter->coordinator, but eh.
+    Packet(Packet),     // this one goes both ways through the channel.
+}
+pub type PacketChannelSender = broadcast::Sender<PacketChannelData>;
+pub type PacketChannelReceiver = broadcast::Receiver<PacketChannelData>;
+
+#[async_trait]
+pub trait WaitForReply {
+    async fn wait_for_reply(&mut self, packet: &Packet) -> Result<Packet>;
+}
+#[async_trait]
+impl WaitForReply for PacketChannelReceiver {
+    async fn wait_for_reply(&mut self, packet: &Packet) -> Result<Packet> {
+        let start = std::time::Instant::now();
+
+        loop {
+            match (packet, self.try_recv()) {
+                (
+                    Packet::TranslatedData(td),
+                    Ok(PacketChannelData::Packet(Packet::TranslatedData(reply))),
+                ) => {
+                    if td.datalog == reply.datalog
+                        && td.register == reply.register
+                        && td.device_function == reply.device_function
+                    {
+                        return Ok(Packet::TranslatedData(reply));
+                    }
+                }
+                (_, Ok(PacketChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
+                (_, Ok(PacketChannelData::Disconnect(inverter_datalog))) => {
+                    if inverter_datalog == packet.datalog() {
+                        return Err(anyhow!("inverter disconnect?"));
+                    }
+                }
+                (_, Err(broadcast::error::TryRecvError::Empty)) => {} // ignore and loop
+                (_, Err(err)) => return Err(anyhow!("try_recv error: {:?}", err)),
+            }
+            if start.elapsed().as_secs() > 5 {
+                return Err(anyhow!("wait_for_reply {:?} - timeout", packet));
+            }
+
+            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+        }
+    }
+}
+
+impl PacketChannelData {}
 
 // Serial {{{
 #[derive(Clone, Copy, PartialEq)]
@@ -60,15 +108,15 @@ impl std::fmt::Debug for Serial {
 
 pub struct Inverter {
     config: Rc<Config>,
-    from_coordinator: PacketSender,
-    to_coordinator: PacketSender,
+    from_coordinator: PacketChannelSender,
+    to_coordinator: PacketChannelSender,
 }
 
 impl Inverter {
     pub fn new(
         config: Rc<Config>,
-        from_coordinator: PacketSender,
-        to_coordinator: PacketSender,
+        from_coordinator: PacketChannelSender,
+        to_coordinator: PacketChannelSender,
     ) -> Self {
         Self {
             config,
@@ -89,8 +137,8 @@ impl Inverter {
 
     async fn run_for_inverter(
         config: config::Inverter,
-        from_coordinator: &PacketSender,
-        to_coordinator: &PacketSender,
+        from_coordinator: &PacketChannelSender,
+        to_coordinator: &PacketChannelSender,
     ) -> Result<()> {
         loop {
             match Self::connect(&config, from_coordinator, to_coordinator).await {
@@ -98,7 +146,7 @@ impl Inverter {
                 Err(e) => {
                     error!("inverter {}: {}", config.datalog, e);
                     info!("inverter {}: reconnecting in 5s", config.datalog);
-                    to_coordinator.send((config.datalog, None))?; // kill any waiting readers
+                    to_coordinator.send(PacketChannelData::Disconnect(config.datalog))?; // kill any waiting readers
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
             }
@@ -107,8 +155,8 @@ impl Inverter {
 
     async fn connect(
         config: &config::Inverter,
-        from_coordinator: &PacketSender,
-        to_coordinator: &PacketSender,
+        from_coordinator: &PacketChannelSender,
+        to_coordinator: &PacketChannelSender,
     ) -> Result<()> {
         info!(
             "connecting to inverter {} at {}:{}",
@@ -134,7 +182,7 @@ impl Inverter {
 
     // inverter -> coordinator
     async fn receiver(
-        to_coordinator: &PacketSender,
+        to_coordinator: &PacketChannelSender,
         mut socket: tokio::net::tcp::OwnedReadHalf,
         datalog: Serial,
     ) -> Result<()> {
@@ -151,14 +199,14 @@ impl Inverter {
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
                     debug!("inverter {}: RX {:?}", datalog, packet);
-                    to_coordinator.send((datalog, Some(packet)))?;
+                    to_coordinator.send(PacketChannelData::Packet(packet))?;
                 }
                 break;
             }
 
             while let Some(packet) = decoder.decode(&mut buf)? {
                 debug!("inverter {}: RX {:?}", datalog, packet);
-                to_coordinator.send((datalog, Some(packet)))?;
+                to_coordinator.send(PacketChannelData::Packet(packet))?;
             }
         }
 
@@ -167,23 +215,23 @@ impl Inverter {
 
     // coordinator -> inverter
     async fn sender(
-        from_coordinator: &PacketSender,
+        from_coordinator: &PacketChannelSender,
         mut socket: tokio::net::tcp::OwnedWriteHalf,
         datalog: Serial,
     ) -> Result<()> {
         let mut receiver = from_coordinator.subscribe();
 
-        while let (packet_datalog, Some(packet)) = receiver.recv().await? {
-            if packet_datalog == datalog {
+        while let PacketChannelData::Packet(packet) = receiver.recv().await? {
+            if packet.datalog() == datalog {
                 // debug!("inverter {}: TX {:?}", datalog, packet);
-                let bytes = lxp::packet::TcpFrameFactory::build(packet);
+                let bytes = lxp::packet::TcpFrameFactory::build(&packet);
                 socket.write_all(&bytes).await?
             }
         }
 
-        // this doesn't actually happen yet; None is never sent to this channel
+        // this doesn't actually happen yet; Disconnect is never sent to this channel
         Err(anyhow!(
-            "sender exiting due to receiving None from coordinator"
+            "sender exiting due to PacketChannelData::Disconnect"
         ))
     }
 }
