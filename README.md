@@ -59,7 +59,9 @@ Second thing is whenever the inverter receives a packet, it broadcasts the reply
 
 lxp-bridge can publish power data (the contents of the `input` registers) to InfluxDB as they are received. Currently only InfluxDB v1 is supported.
 
-The database can be set in the configuration; the measurement table used is `inputs`. There will be a single tag of the inverter's datalog, and then fields which correspond with the same as the JSON data sent via MQTT - see [inputs.md](doc/inputs.md) for details.
+The database can be set in the configuration; the measurement table used is `inputs`. Note you need to create the database yourself, lxp-bridge does not currently do it. The table will be automatically created though.
+
+There will be a single tag of the inverter's datalog, and then fields which correspond with the same as the JSON data sent via MQTT - see [inputs.md](doc/inputs.md) for details.
 
 
 ## MQTT
