@@ -59,7 +59,17 @@ impl Coordinator {
         let f1 = self.inverter_receiver();
         let f2 = self.mqtt_receiver();
 
+        self.send_ha_discoveries()?;
+
         futures::try_join!(f1, f2)
+    }
+
+    fn send_ha_discoveries(&self) -> Result<()> {
+        let inverter = &self.config.inverters[0];
+        let msg = home_assistant::Config::p_pv(inverter)?;
+        self.to_mqtt.send(msg)?;
+
+        Ok(())
     }
 
     async fn mqtt_receiver(&self) -> Result<()> {

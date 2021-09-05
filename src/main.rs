@@ -1,6 +1,7 @@
 pub mod command;
 pub mod config;
 pub mod coordinator;
+pub mod home_assistant;
 pub mod influx;
 pub mod lxp;
 pub mod mqtt;
