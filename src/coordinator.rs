@@ -59,8 +59,6 @@ impl Coordinator {
         let f1 = self.inverter_receiver();
         let f2 = self.mqtt_receiver();
 
-        self.send_ha_discoveries()?;
-
         futures::try_join!(f1, f2)
     }
 

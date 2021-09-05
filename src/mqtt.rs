@@ -150,7 +150,20 @@ impl Mqtt {
                 .await?;
         }
 
+        self.send_ha_discoveries(&client).await?;
+
         futures::try_join!(self.receiver(eventloop), self.sender(client))?;
+
+        Ok(())
+    }
+
+    async fn send_ha_discoveries(&self, client: &AsyncClient) -> Result<()> {
+        let inverter = &self.config.inverters[0];
+        let msg = home_assistant::Config::p_pv(inverter)?;
+
+        let _ = client
+            .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
+            .await;
 
         Ok(())
     }
