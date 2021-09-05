@@ -48,20 +48,20 @@ impl Config {
         })
     }
 
-    pub fn e_to_user(inverter: &config::Inverter) -> Result<mqtt::Message> {
-        let e_to_user = Self {
+    pub fn e_to_user_all(inverter: &config::Inverter) -> Result<mqtt::Message> {
+        let e_to_user_all = Self {
             device_class: "energy".to_owned(),
-            name: format!("{} e_to_user", inverter.datalog),
-            state_topic: format!("lxp/{}/inputs/1", inverter.datalog),
+            name: format!("{} e_to_user_all", inverter.datalog),
+            state_topic: format!("lxp/{}/inputs/2", inverter.datalog),
             state_class: "total_increasing".to_owned(),
-            value_template: "{{ value_json.e_to_user }}".to_owned(),
+            value_template: "{{ value_json.e_to_user_all }}".to_owned(),
             unit_of_measurement: "kWh".to_owned(),
-            unique_id: format!("{}_e_to_user", inverter.datalog),
+            unique_id: format!("{}_e_to_user_all", inverter.datalog),
         };
 
         Ok(mqtt::Message {
-            topic: Self::topic(inverter, "e_to_user"),
-            payload: Self::payload(&e_to_user)?,
+            topic: Self::topic(inverter, "e_to_user_all"),
+            payload: Self::payload(&e_to_user_all)?,
         })
     }
 
