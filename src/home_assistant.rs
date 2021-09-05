@@ -48,6 +48,23 @@ impl Config {
         })
     }
 
+    pub fn e_to_user(inverter: &config::Inverter) -> Result<mqtt::Message> {
+        let e_to_user = Self {
+            device_class: "energy".to_owned(),
+            name: format!("{} e_to_user", inverter.datalog),
+            state_topic: format!("lxp/{}/inputs/1", inverter.datalog),
+            state_class: "total_increasing".to_owned(),
+            value_template: "{{ value_json.e_to_user }}".to_owned(),
+            unit_of_measurement: "kWh".to_owned(),
+            unique_id: format!("{}_e_to_user", inverter.datalog),
+        };
+
+        Ok(mqtt::Message {
+            topic: Self::topic(inverter, "e_to_user"),
+            payload: Self::payload(&e_to_user)?,
+        })
+    }
+
     fn topic(inverter: &config::Inverter, key: &str) -> String {
         format!("homeassistant/sensor/{}_{}/config", inverter.datalog, key)
     }

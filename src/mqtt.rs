@@ -171,6 +171,12 @@ impl Mqtt {
             .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
             .await;
 
+        let msg = home_assistant::Config::e_to_user(inverter)?;
+
+        let _ = client
+            .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
+            .await;
+
         Ok(())
     }
 
