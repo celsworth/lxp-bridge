@@ -62,14 +62,6 @@ impl Coordinator {
         futures::try_join!(f1, f2)
     }
 
-    fn send_ha_discoveries(&self) -> Result<()> {
-        let inverter = &self.config.inverters[0];
-        let msg = home_assistant::Config::p_pv(inverter)?;
-        self.to_mqtt.send(msg)?;
-
-        Ok(())
-    }
-
     async fn mqtt_receiver(&self) -> Result<()> {
         let mut receiver = self.from_mqtt.subscribe();
 

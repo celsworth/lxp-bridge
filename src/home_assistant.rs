@@ -19,7 +19,7 @@ impl Config {
             name: "p_pv".to_owned(),
             state_topic: format!("lxp/{}/inputs/1", inverter.datalog),
             state_class: "measurement".to_owned(),
-            value_template: "value_json.p_pv".to_owned(),
+            value_template: "{{ value_json.p_pv }}".to_owned(),
             unit_of_measurement: "W".to_owned(),
         };
 
