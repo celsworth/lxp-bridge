@@ -31,6 +31,15 @@ where
 }
 
 #[derive(Debug, Deserialize)]
+pub struct HomeAssistant {
+    #[serde(default = "Config::default_mqtt_homeassistant_enabled")]
+    pub enabled: bool,
+
+    #[serde(default = "Config::default_mqtt_homeassistant_prefix")]
+    pub prefix: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Mqtt {
     #[serde(default = "Config::default_mqtt_enabled")]
     pub enabled: bool,
@@ -43,6 +52,8 @@ pub struct Mqtt {
 
     #[serde(default = "Config::default_mqtt_namespace")]
     pub namespace: String,
+
+    pub homeassistant: HomeAssistant,
 }
 
 #[derive(Debug, Deserialize)]
@@ -99,6 +110,13 @@ impl Config {
     }
     fn default_mqtt_namespace() -> String {
         "lxp".to_string()
+    }
+
+    fn default_mqtt_homeassistant_enabled() -> bool {
+        true
+    }
+    fn default_mqtt_homeassistant_prefix() -> String {
+        "homeassistant".to_string()
     }
 
     fn default_influx_enabled() -> bool {

@@ -17,6 +17,9 @@ mqtt:
   username:
   password:
   namespace: lxp
+  homeassistant:
+    enabled: true
+    prefix: homeassistant
 
 influx:
   enabled: false

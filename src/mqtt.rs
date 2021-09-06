@@ -158,21 +158,14 @@ impl Mqtt {
                     QoS::AtMostOnce,
                 )
                 .await?;
-        }
 
-        self.send_ha_discoveries(&client).await?;
-
-        Ok(())
-    }
-
-    async fn send_ha_discoveries(&self, client: &AsyncClient) -> Result<()> {
-        for inverter in self.config.enabled_inverters() {
-            let msgs = home_assistant::Config::all(inverter, &self.config.mqtt.namespace)?;
-
-            for msg in msgs.into_iter() {
-                let _ = client
-                    .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
-                    .await;
+            if self.config.mqtt.homeassistant.enabled {
+                let msgs = home_assistant::Config::all(inverter, &self.config.mqtt)?;
+                for msg in msgs.into_iter() {
+                    let _ = client
+                        .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
+                        .await;
+                }
             }
         }
 
