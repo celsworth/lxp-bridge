@@ -14,32 +14,43 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn all(inverter: &config::Inverter) -> Result<Vec<mqtt::Message>> {
+    pub fn all(inverter: &config::Inverter, mqtt_namespace: &str) -> Result<Vec<mqtt::Message>> {
         let r = vec![
-            Self::power(inverter, "p_pv", 1)?,
-            Self::power(inverter, "p_chg", 1)?,
-            Self::power(inverter, "p_dischg", 1)?,
-            Self::power(inverter, "p_to_user", 1)?,
-            Self::power(inverter, "p_to_grid", 1)?,
-            Self::energy(inverter, "e_pv_all", 2)?,
-            Self::energy(inverter, "e_chg_all", 2)?,
-            Self::energy(inverter, "e_dischg_all", 2)?,
-            Self::energy(inverter, "e_to_user_all", 2)?,
-            Self::energy(inverter, "e_to_grid_all", 2)?,
+            Self::power(inverter, mqtt_namespace, "p_pv", 1)?,
+            Self::power(inverter, mqtt_namespace, "p_pv_1", 1)?,
+            Self::power(inverter, mqtt_namespace, "p_pv_2", 1)?,
+            Self::power(inverter, mqtt_namespace, "p_pv_3", 1)?,
+            Self::power(inverter, mqtt_namespace, "p_charge", 1)?,
+            Self::power(inverter, mqtt_namespace, "p_discharge", 1)?,
+            Self::power(inverter, mqtt_namespace, "p_to_user", 1)?,
+            Self::power(inverter, mqtt_namespace, "p_to_grid", 1)?,
+            Self::energy(inverter, mqtt_namespace, "e_pv_all", 2)?,
+            Self::energy(inverter, mqtt_namespace, "e_pv_all_1", 2)?,
+            Self::energy(inverter, mqtt_namespace, "e_pv_all_2", 2)?,
+            Self::energy(inverter, mqtt_namespace, "e_pv_all_3", 2)?,
+            Self::energy(inverter, mqtt_namespace, "e_chg_all", 2)?,
+            Self::energy(inverter, mqtt_namespace, "e_dischg_all", 2)?,
+            Self::energy(inverter, mqtt_namespace, "e_to_user_all", 2)?,
+            Self::energy(inverter, mqtt_namespace, "e_to_grid_all", 2)?,
         ];
 
         Ok(r)
     }
 
-    fn power(inverter: &config::Inverter, name: &str, input: u16) -> Result<mqtt::Message> {
+    fn power(
+        inverter: &config::Inverter,
+        mqtt_namespace: &str,
+        name: &str,
+        input: u16,
+    ) -> Result<mqtt::Message> {
         let config = Self {
             device_class: "power".to_owned(),
             state_class: "measurement".to_owned(),
             unit_of_measurement: "W".to_owned(),
             value_template: format!("{{{{ value_json.{} }}}}", name),
-            state_topic: format!("lxp/{}/inputs/{}", inverter.datalog, input),
-            unique_id: format!("{}_{}", inverter.datalog, name),
-            name: name.to_owned(),
+            state_topic: format!("{}/{}/inputs/{}", mqtt_namespace, inverter.datalog, input),
+            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            name: format!("{} {}", inverter.datalog, name),
         };
 
         Ok(mqtt::Message {
@@ -48,15 +59,20 @@ impl Config {
         })
     }
 
-    fn energy(inverter: &config::Inverter, name: &str, input: u16) -> Result<mqtt::Message> {
+    fn energy(
+        inverter: &config::Inverter,
+        mqtt_namespace: &str,
+        name: &str,
+        input: u16,
+    ) -> Result<mqtt::Message> {
         let config = Self {
             device_class: "energy".to_owned(),
             state_class: "total_increasing".to_owned(),
             unit_of_measurement: "kWh".to_owned(),
             value_template: format!("{{{{ value_json.{} }}}}", name),
-            state_topic: format!("lxp/{}/inputs/{}", inverter.datalog, input),
-            unique_id: format!("{}_{}", inverter.datalog, name),
-            name: name.to_owned(),
+            state_topic: format!("{}/{}/inputs/{}", mqtt_namespace, inverter.datalog, input),
+            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            name: format!("{} {}", inverter.datalog, name),
         };
 
         Ok(mqtt::Message {

@@ -132,8 +132,18 @@ impl Mqtt {
 
         info!("initializing mqtt at {}:{}", &m.host, m.port);
 
-        let (client, eventloop) = AsyncClient::new(options, 50);
+        let (client, eventloop) = AsyncClient::new(options, 10);
 
+        futures::try_join!(
+            self.setup(client.clone()),
+            self.receiver(eventloop),
+            self.sender(client)
+        )?;
+
+        Ok(())
+    }
+
+    async fn setup(&self, client: AsyncClient) -> Result<()> {
         client
             .subscribe(
                 format!("{}/cmd/all/#", self.config.mqtt.namespace),
@@ -152,19 +162,18 @@ impl Mqtt {
 
         self.send_ha_discoveries(&client).await?;
 
-        futures::try_join!(self.receiver(eventloop), self.sender(client))?;
-
         Ok(())
     }
 
     async fn send_ha_discoveries(&self, client: &AsyncClient) -> Result<()> {
-        let inverter = &self.config.inverters[0];
-        let msgs = home_assistant::Config::all(inverter)?;
+        for inverter in self.config.enabled_inverters() {
+            let msgs = home_assistant::Config::all(inverter, &self.config.mqtt.namespace)?;
 
-        for msg in msgs.into_iter() {
-            let _ = client
-                .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
-                .await;
+            for msg in msgs.into_iter() {
+                let _ = client
+                    .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
+                    .await;
+            }
         }
 
         Ok(())
