@@ -16,6 +16,11 @@ pub struct Config {
 impl Config {
     pub fn all(inverter: &config::Inverter, mqtt_namespace: &str) -> Result<Vec<mqtt::Message>> {
         let r = vec![
+            Self::battery(inverter, mqtt_namespace, "soc", 1)?,
+            Self::voltage(inverter, mqtt_namespace, "v_pv_1", 1)?,
+            Self::voltage(inverter, mqtt_namespace, "v_pv_2", 1)?,
+            Self::voltage(inverter, mqtt_namespace, "v_pv_3", 1)?,
+            Self::voltage(inverter, mqtt_namespace, "v_bat", 1)?,
             Self::power(inverter, mqtt_namespace, "p_pv", 1)?,
             Self::power(inverter, mqtt_namespace, "p_pv_1", 1)?,
             Self::power(inverter, mqtt_namespace, "p_pv_2", 1)?,
@@ -32,9 +37,34 @@ impl Config {
             Self::energy(inverter, mqtt_namespace, "e_dischg_all", 2)?,
             Self::energy(inverter, mqtt_namespace, "e_to_user_all", 2)?,
             Self::energy(inverter, mqtt_namespace, "e_to_grid_all", 2)?,
+            Self::temperature(inverter, mqtt_namespace, "t_inner", 2)?,
+            Self::temperature(inverter, mqtt_namespace, "t_rad_1", 2)?,
+            Self::temperature(inverter, mqtt_namespace, "t_rad_2", 2)?,
         ];
 
         Ok(r)
+    }
+
+    fn battery(
+        inverter: &config::Inverter,
+        mqtt_namespace: &str,
+        name: &str,
+        input: u16,
+    ) -> Result<mqtt::Message> {
+        let config = Self {
+            device_class: "battery".to_owned(),
+            state_class: "measurement".to_owned(),
+            unit_of_measurement: "%".to_owned(),
+            value_template: format!("{{{{ value_json.{} }}}}", name),
+            state_topic: format!("{}/{}/inputs/{}", mqtt_namespace, inverter.datalog, input),
+            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            name: format!("{} {}", inverter.datalog, name),
+        };
+
+        Ok(mqtt::Message {
+            topic: Self::topic(inverter, name),
+            payload: Self::payload(&config)?,
+        })
     }
 
     fn power(
@@ -69,6 +99,50 @@ impl Config {
             device_class: "energy".to_owned(),
             state_class: "total_increasing".to_owned(),
             unit_of_measurement: "kWh".to_owned(),
+            value_template: format!("{{{{ value_json.{} }}}}", name),
+            state_topic: format!("{}/{}/inputs/{}", mqtt_namespace, inverter.datalog, input),
+            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            name: format!("{} {}", inverter.datalog, name),
+        };
+
+        Ok(mqtt::Message {
+            topic: Self::topic(inverter, name),
+            payload: Self::payload(&config)?,
+        })
+    }
+
+    fn voltage(
+        inverter: &config::Inverter,
+        mqtt_namespace: &str,
+        name: &str,
+        input: u16,
+    ) -> Result<mqtt::Message> {
+        let config = Self {
+            device_class: "voltage".to_owned(),
+            state_class: "measurement".to_owned(),
+            unit_of_measurement: "V".to_owned(),
+            value_template: format!("{{{{ value_json.{} }}}}", name),
+            state_topic: format!("{}/{}/inputs/{}", mqtt_namespace, inverter.datalog, input),
+            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            name: format!("{} {}", inverter.datalog, name),
+        };
+
+        Ok(mqtt::Message {
+            topic: Self::topic(inverter, name),
+            payload: Self::payload(&config)?,
+        })
+    }
+
+    fn temperature(
+        inverter: &config::Inverter,
+        mqtt_namespace: &str,
+        name: &str,
+        input: u16,
+    ) -> Result<mqtt::Message> {
+        let config = Self {
+            device_class: "temperature".to_owned(),
+            state_class: "measurement".to_owned(),
+            unit_of_measurement: "°C".to_owned(),
             value_template: format!("{{{{ value_json.{} }}}}", name),
             state_topic: format!("{}/{}/inputs/{}", mqtt_namespace, inverter.datalog, input),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
