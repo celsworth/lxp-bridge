@@ -53,6 +53,7 @@ pub struct Mqtt {
     #[serde(default = "Config::default_mqtt_namespace")]
     pub namespace: String,
 
+    #[serde(default = "Config::default_mqtt_homeassistant")]
     pub homeassistant: HomeAssistant,
 }
 
@@ -110,6 +111,13 @@ impl Config {
     }
     fn default_mqtt_namespace() -> String {
         "lxp".to_string()
+    }
+
+    fn default_mqtt_homeassistant() -> HomeAssistant {
+        HomeAssistant {
+            enabled: Self::default_mqtt_homeassistant_enabled(),
+            prefix: Self::default_mqtt_homeassistant_prefix(),
+        }
     }
 
     fn default_mqtt_homeassistant_enabled() -> bool {
