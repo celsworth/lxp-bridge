@@ -41,7 +41,7 @@ The final step should leave you with a running lxp-bridge that maps the config i
 
 ## Configuration
 
-All configuration is done in a YAML config file; see config.yaml.example.
+All configuration is done in a YAML config file; see [config.yaml.example](config.yaml.example).
 
 Multiple inverters are supported via an array under the `inverters` key. Each one can be separately disabled if you want to temporarily stop connecting to one. Similarly, MQTT and InfluxDB can have `enabled = false` set to disable either output method.
 
