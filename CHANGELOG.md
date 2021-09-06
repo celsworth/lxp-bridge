@@ -1,5 +1,7 @@
 # 0.3.0
 
+* Add support for Home Assistant MQTT discovery - power flow sensors only for now (#26)
+
 
 # 0.2.0 - 3rd July 2021
 

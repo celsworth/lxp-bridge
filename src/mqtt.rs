@@ -134,6 +134,16 @@ impl Mqtt {
 
         let (client, eventloop) = AsyncClient::new(options, 10);
 
+        futures::try_join!(
+            self.setup(client.clone()),
+            self.receiver(eventloop),
+            self.sender(client)
+        )?;
+
+        Ok(())
+    }
+
+    async fn setup(&self, client: AsyncClient) -> Result<()> {
         client
             .subscribe(
                 format!("{}/cmd/all/#", self.config.mqtt.namespace),
@@ -148,9 +158,16 @@ impl Mqtt {
                     QoS::AtMostOnce,
                 )
                 .await?;
-        }
 
-        futures::try_join!(self.receiver(eventloop), self.sender(client))?;
+            if self.config.mqtt.homeassistant.enabled {
+                let msgs = home_assistant::Config::all(inverter, &self.config.mqtt)?;
+                for msg in msgs.into_iter() {
+                    let _ = client
+                        .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
+                        .await;
+                }
+            }
+        }
 
         Ok(())
     }
