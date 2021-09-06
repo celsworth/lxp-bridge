@@ -132,7 +132,7 @@ impl Mqtt {
 
         info!("initializing mqtt at {}:{}", &m.host, m.port);
 
-        let (client, eventloop) = AsyncClient::new(options, 10);
+        let (client, eventloop) = AsyncClient::new(options, 50);
 
         client
             .subscribe(

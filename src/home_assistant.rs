@@ -17,8 +17,8 @@ impl Config {
     pub fn all(inverter: &config::Inverter) -> Result<Vec<mqtt::Message>> {
         let r = vec![
             Self::power(inverter, "p_pv", 1)?,
-            Self::power(inverter, "p_charge", 1)?,
-            Self::power(inverter, "p_discharge", 1)?,
+            Self::power(inverter, "p_chg", 1)?,
+            Self::power(inverter, "p_dischg", 1)?,
             Self::power(inverter, "p_to_user", 1)?,
             Self::power(inverter, "p_to_grid", 1)?,
             Self::energy(inverter, "e_pv_all", 2)?,
