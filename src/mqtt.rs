@@ -159,23 +159,13 @@ impl Mqtt {
 
     async fn send_ha_discoveries(&self, client: &AsyncClient) -> Result<()> {
         let inverter = &self.config.inverters[0];
-        let msg = home_assistant::Config::p_pv(inverter)?;
+        let msgs = home_assistant::Config::all(inverter)?;
 
-        let _ = client
-            .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
-            .await;
-
-        let msg = home_assistant::Config::p_to_user(inverter)?;
-
-        let _ = client
-            .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
-            .await;
-
-        let msg = home_assistant::Config::e_to_user_all(inverter)?;
-
-        let _ = client
-            .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
-            .await;
+        for msg in msgs.into_iter() {
+            let _ = client
+                .publish(&msg.topic, QoS::AtLeastOnce, false, msg.payload)
+                .await;
+        }
 
         Ok(())
     }

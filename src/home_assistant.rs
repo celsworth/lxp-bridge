@@ -14,54 +14,52 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn p_pv(inverter: &config::Inverter) -> Result<mqtt::Message> {
-        let p_pv = Self {
+    pub fn all(inverter: &config::Inverter) -> Result<Vec<mqtt::Message>> {
+        let r = vec![
+            Self::power(inverter, "p_pv", 1)?,
+            Self::power(inverter, "p_to_user", 1)?,
+            Self::power(inverter, "p_to_grid", 1)?,
+            Self::energy(inverter, "e_pv_all", 2)?,
+            Self::energy(inverter, "e_chg_all", 2)?,
+            Self::energy(inverter, "e_dischg_all", 2)?,
+            Self::energy(inverter, "e_to_user_all", 2)?,
+            Self::energy(inverter, "e_to_grid_all", 2)?,
+        ];
+
+        Ok(r)
+    }
+
+    fn power(inverter: &config::Inverter, name: &str, input: u16) -> Result<mqtt::Message> {
+        let config = Self {
             device_class: "power".to_owned(),
-            name: format!("{} p_pv", inverter.datalog),
-            state_topic: format!("lxp/{}/inputs/1", inverter.datalog),
             state_class: "measurement".to_owned(),
-            value_template: "{{ value_json.p_pv }}".to_owned(),
             unit_of_measurement: "W".to_owned(),
-            unique_id: format!("{}_p_pv", inverter.datalog),
+            value_template: format!("{{ value_json.{} }}", name),
+            state_topic: format!("lxp/{}/inputs/{}", inverter.datalog, input),
+            unique_id: format!("{}_{}", inverter.datalog, name),
+            name: name.to_owned(),
         };
 
         Ok(mqtt::Message {
             topic: Self::topic(inverter, "p_pv"),
-            payload: Self::payload(&p_pv)?,
+            payload: Self::payload(&config)?,
         })
     }
 
-    pub fn p_to_user(inverter: &config::Inverter) -> Result<mqtt::Message> {
-        let p_to_user = Self {
-            device_class: "power".to_owned(),
-            name: format!("{} p_to_user", inverter.datalog),
-            state_topic: format!("lxp/{}/inputs/1", inverter.datalog),
-            state_class: "measurement".to_owned(),
-            value_template: "{{ value_json.p_to_user }}".to_owned(),
-            unit_of_measurement: "W".to_owned(),
-            unique_id: format!("{}_p_to_user", inverter.datalog),
-        };
-
-        Ok(mqtt::Message {
-            topic: Self::topic(inverter, "p_to_user"),
-            payload: Self::payload(&p_to_user)?,
-        })
-    }
-
-    pub fn e_to_user_all(inverter: &config::Inverter) -> Result<mqtt::Message> {
-        let e_to_user_all = Self {
+    fn energy(inverter: &config::Inverter, name: &str, input: u16) -> Result<mqtt::Message> {
+        let config = Self {
             device_class: "energy".to_owned(),
-            name: format!("{} e_to_user_all", inverter.datalog),
-            state_topic: format!("lxp/{}/inputs/2", inverter.datalog),
             state_class: "total_increasing".to_owned(),
-            value_template: "{{ value_json.e_to_user_all }}".to_owned(),
             unit_of_measurement: "kWh".to_owned(),
-            unique_id: format!("{}_e_to_user_all", inverter.datalog),
+            value_template: format!("{{ value_json.{} }}", name),
+            state_topic: format!("lxp/{}/inputs/{}", inverter.datalog, input),
+            unique_id: format!("{}_{}", inverter.datalog, name),
+            name: name.to_owned(),
         };
 
         Ok(mqtt::Message {
-            topic: Self::topic(inverter, "e_to_user_all"),
-            payload: Self::payload(&e_to_user_all)?,
+            topic: Self::topic(inverter, "p_pv"),
+            payload: Self::payload(&config)?,
         })
     }
 
