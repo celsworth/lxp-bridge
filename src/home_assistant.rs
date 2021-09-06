@@ -36,7 +36,7 @@ impl Config {
             device_class: "power".to_owned(),
             state_class: "measurement".to_owned(),
             unit_of_measurement: "W".to_owned(),
-            value_template: format!("{{ value_json.{} }}", name),
+            value_template: format!("{{{{ value_json.{} }}}}", name),
             state_topic: format!("lxp/{}/inputs/{}", inverter.datalog, input),
             unique_id: format!("{}_{}", inverter.datalog, name),
             name: name.to_owned(),
