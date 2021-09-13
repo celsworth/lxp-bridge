@@ -13,8 +13,8 @@ env_logger = { version = "~0.8", default-features = false, features = [] }
 futures = "~0.3"
 log = "~0.4"
 net2 = "~0.2"
-nom = "~6"
-nom-derive = "~0.9"
+nom = "~7"
+nom-derive = "~0.10"
 num_enum = "~0.5"
 rumqttc = "~0.8"
 serde = { version = "~1 ", features = ["derive"] }
