@@ -1,3 +1,8 @@
+# 0.4.0 - 12th October 2021
+
+* Fix enabling/disabling AC Charge ignoring previous register value (#27)
+
+
 # 0.3.0 - 6th September 2021
 
 * Add support for Home Assistant MQTT discovery - power flow sensors only for now (#26)
