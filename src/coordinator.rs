@@ -305,7 +305,7 @@ impl Coordinator {
         self.to_inverter
             .send(PacketChannelData::Packet(packet.clone()))?;
 
-        let _ = receiver.wait_for_reply(&packet).await?;
+        let packet = receiver.wait_for_reply(&packet).await?;
         if packet.value() != value {
             return Err(anyhow!(
                 "failed to update register {:?}, got back value {} (wanted {})",
