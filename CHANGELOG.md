@@ -1,4 +1,4 @@
-# Unreleased
+# 0.5.0 - 1st November 2021
 
 * Fix "Channel closed" crash when MQTT is disabled (#31)
 * Fix: Send missing MQTT lxp/hold/XX message with new register value on receipt of a WriteSingle packet (#32)
