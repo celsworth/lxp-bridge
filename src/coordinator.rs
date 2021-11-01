@@ -56,6 +56,13 @@ impl Coordinator {
     }
 
     pub async fn start(&self) -> Result<((), ())> {
+        if !self.config.mqtt.enabled {
+            // influx bypasses coordinator for now, so if mqtt is disabled,
+            // the coordinator has nothing to do.
+            info!("mqtt disabled, skipping");
+            return Ok(((), ()));
+        }
+
         let f1 = self.inverter_receiver();
         let f2 = self.mqtt_receiver();
 
