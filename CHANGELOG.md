@@ -1,3 +1,8 @@
+# Unreleased
+
+* Fix "Channel closed" crash when MQTT is disabled (#30)
+
+
 # 0.4.0 - 12th October 2021
 
 * Fix enabling/disabling AC Charge ignoring previous register value (#27)
