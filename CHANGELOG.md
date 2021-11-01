@@ -1,6 +1,6 @@
 # Unreleased
 
-* Fix "Channel closed" crash when MQTT is disabled (#30)
+* Fix "Channel closed" crash when MQTT is disabled (#31)
 
 
 # 0.4.0 - 12th October 2021
