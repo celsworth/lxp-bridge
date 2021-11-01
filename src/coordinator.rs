@@ -393,7 +393,14 @@ impl Coordinator {
                         payload: serde_json::to_string(&r3)?,
                     }),
                 },
-                DeviceFunction::WriteSingle => {}
+                DeviceFunction::WriteSingle => {
+                    for (register, value) in t.pairs() {
+                        r.push(mqtt::Message {
+                            topic: format!("{}/hold/{}", t.datalog, register),
+                            payload: serde_json::to_string(&value)?,
+                        });
+                    }
+                }
                 DeviceFunction::WriteMulti => {}
             },
             Packet::ReadParam(rp) => {
