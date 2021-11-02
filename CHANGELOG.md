@@ -1,3 +1,8 @@
+# 0.5.1 - 2nd November 2021
+
+* No functional changes; fix Windows build by bumping rumqttc crate to 0.10.0
+
+
 # 0.5.0 - 1st November 2021
 
 * Fix "Channel closed" crash when MQTT is disabled (#31)
