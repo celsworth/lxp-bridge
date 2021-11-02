@@ -125,7 +125,7 @@ impl Mqtt {
 
         let mut options = MqttOptions::new("lxp-bridge", &m.host, m.port);
 
-        options.set_keep_alive(60);
+        options.set_keep_alive(std::time::Duration::from_secs(60));
         if let (Some(u), Some(p)) = (&m.username, &m.password) {
             options.set_credentials(u, p);
         }
