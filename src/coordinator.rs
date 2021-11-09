@@ -362,58 +362,17 @@ impl Coordinator {
         }
     }
 
-    // TODO: packet.to_messages() ?
     fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
-        use lxp::packet::ReadInput;
-
-        let mut r = Vec::new();
-
         match packet {
-            Packet::Heartbeat(_) => {}
+            Packet::Heartbeat(_) => Ok(Vec::new()), // always no message
             Packet::TranslatedData(t) => match t.device_function {
-                DeviceFunction::ReadHold => {
-                    for (register, value) in t.pairs() {
-                        r.push(mqtt::Message {
-                            topic: format!("{}/hold/{}", t.datalog, register),
-                            payload: serde_json::to_string(&value)?,
-                        });
-                    }
-                }
-                DeviceFunction::ReadInput => match t.read_input()? {
-                    ReadInput::ReadInput1(r1) => r.push(mqtt::Message {
-                        topic: format!("{}/inputs/1", t.datalog),
-                        payload: serde_json::to_string(&r1)?,
-                    }),
-                    ReadInput::ReadInput2(r2) => r.push(mqtt::Message {
-                        topic: format!("{}/inputs/2", t.datalog),
-                        payload: serde_json::to_string(&r2)?,
-                    }),
-                    ReadInput::ReadInput3(r3) => r.push(mqtt::Message {
-                        topic: format!("{}/inputs/3", t.datalog),
-                        payload: serde_json::to_string(&r3)?,
-                    }),
-                },
-                DeviceFunction::WriteSingle => {
-                    for (register, value) in t.pairs() {
-                        r.push(mqtt::Message {
-                            topic: format!("{}/hold/{}", t.datalog, register),
-                            payload: serde_json::to_string(&value)?,
-                        });
-                    }
-                }
-                DeviceFunction::WriteMulti => {}
+                DeviceFunction::ReadHold => mqtt::Message::for_hold(t),
+                DeviceFunction::ReadInput => mqtt::Message::for_input(t),
+                DeviceFunction::WriteSingle => mqtt::Message::for_hold(t),
+                DeviceFunction::WriteMulti => Ok(Vec::new()), // TODO
             },
-            Packet::ReadParam(rp) => {
-                for (register, value) in rp.pairs() {
-                    r.push(mqtt::Message {
-                        topic: format!("{}/param/{}", rp.datalog, register),
-                        payload: serde_json::to_string(&value)?,
-                    });
-                }
-            }
-        };
-
-        Ok(r)
+            Packet::ReadParam(rp) => mqtt::Message::for_param(rp),
+        }
     }
 
     fn channel<T: Clone>() -> broadcast::Sender<T> {

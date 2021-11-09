@@ -20,6 +20,55 @@ pub enum SerialOrAll {
 }
 
 impl Message {
+    pub fn for_param(rp: lxp::packet::ReadParam) -> Result<Vec<Message>> {
+        let mut r = Vec::new();
+
+        for (register, value) in rp.pairs() {
+            r.push(mqtt::Message {
+                topic: format!("{}/param/{}", rp.datalog, register),
+                payload: serde_json::to_string(&value)?,
+            });
+        }
+
+        Ok(r)
+    }
+
+    pub fn for_hold(td: lxp::packet::TranslatedData) -> Result<Vec<Message>> {
+        let mut r = Vec::new();
+
+        for (register, value) in td.pairs() {
+            r.push(mqtt::Message {
+                topic: format!("{}/hold/{}", td.datalog, register),
+                payload: serde_json::to_string(&value)?,
+            });
+        }
+
+        Ok(r)
+    }
+
+    pub fn for_input(td: lxp::packet::TranslatedData) -> Result<Vec<Message>> {
+        use lxp::packet::ReadInput;
+
+        let mut r = Vec::new();
+
+        match td.read_input()? {
+            ReadInput::ReadInput1(r1) => r.push(mqtt::Message {
+                topic: format!("{}/inputs/1", td.datalog),
+                payload: serde_json::to_string(&r1)?,
+            }),
+            ReadInput::ReadInput2(r2) => r.push(mqtt::Message {
+                topic: format!("{}/inputs/2", td.datalog),
+                payload: serde_json::to_string(&r2)?,
+            }),
+            ReadInput::ReadInput3(r3) => r.push(mqtt::Message {
+                topic: format!("{}/inputs/3", td.datalog),
+                payload: serde_json::to_string(&r3)?,
+            }),
+        }
+
+        Ok(r)
+    }
+
     pub fn to_command(&self, inverter: config::Inverter) -> Result<Command> {
         use Command::*;
 
