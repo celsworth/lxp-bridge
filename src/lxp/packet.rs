@@ -190,6 +190,26 @@ pub struct ReadInput3 {
     pub datalog: Serial, // serde skips this so its not in MQTT messages
 } // }}}
 
+#[derive(Debug, Serialize)]
+pub struct ReadInputs {
+    #[serde(flatten)]
+    pub read_input_1: Option<ReadInput1>,
+    #[serde(flatten)]
+    pub read_input_2: Option<ReadInput2>,
+    #[serde(flatten)]
+    pub read_input_3: Option<ReadInput3>,
+}
+
+impl ReadInputs {
+    pub fn default() -> Self {
+        Self {
+            read_input_1: None,
+            read_input_2: None,
+            read_input_3: None,
+        }
+    }
+}
+
 // {{{ TcpFunction
 #[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]

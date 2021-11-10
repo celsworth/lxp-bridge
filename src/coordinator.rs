@@ -3,6 +3,8 @@ use crate::prelude::*;
 use lxp::inverter::{PacketChannelData, WaitForReply};
 use lxp::packet::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
 
+pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
+
 // the coordinator takes messages from both MQ and the inverter and decides
 // what to do with them.
 //
@@ -328,38 +330,73 @@ impl Coordinator {
     async fn inverter_receiver(&self) -> Result<()> {
         let mut receiver = self.from_inverter.subscribe();
 
+        let mut inputs_store = InputsStore::new();
+
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
             if let PacketChannelData::Packet(packet) = receiver.recv().await? {
-                debug!("RX: {:?}", packet);
+                self.process_inverter_packet(packet, &mut inputs_store)
+                    .await?;
+            }
+        }
+    }
 
-                if let Packet::TranslatedData(td) = &packet {
-                    // temporary special greppable logging for Param packets as I try to
-                    // work out what they do :)
-                    if td.tcp_function() == TcpFunction::ReadParam
-                        || td.tcp_function() == TcpFunction::WriteParam
-                    {
-                        warn!("got a Param packet! {:?}", td);
-                    }
-                }
+    async fn process_inverter_packet(
+        &self,
+        packet: lxp::packet::Packet,
+        inputs_store: &mut InputsStore,
+    ) -> Result<()> {
+        debug!("RX: {:?}", packet);
 
-                // returns a Vec of messages to send. could be none;
-                // not every packet produces an MQ message (eg, heartbeats),
-                // and some produce >1 (multi-register ReadHold)
-                match Self::packet_to_messages(packet) {
-                    Ok(messages) => {
-                        for message in messages {
-                            self.to_mqtt.send(message)?;
-                        }
+        if let Packet::TranslatedData(td) = &packet {
+            // temporary special greppable logging for Param packets as I try to
+            // work out what they do :)
+            if td.tcp_function() == TcpFunction::ReadParam
+                || td.tcp_function() == TcpFunction::WriteParam
+            {
+                warn!("got a Param packet! {:?}", td);
+            }
+
+            // WIP: update inputs_store
+            if td.device_function == DeviceFunction::ReadInput {
+                use lxp::packet::ReadInput;
+
+                let mut previous = inputs_store
+                    .entry(td.datalog)
+                    .or_insert_with(lxp::packet::ReadInputs::default);
+
+                match td.read_input()? {
+                    ReadInput::ReadInput1(r1) => {
+                        previous.read_input_1 = Some(r1);
                     }
-                    Err(e) => {
-                        // log error but avoid exiting loop as then we stop handling
-                        // incoming packets. need better error handling here maybe?
-                        error!("{}", e);
+                    ReadInput::ReadInput2(r2) => {
+                        previous.read_input_2 = Some(r2);
+                    }
+                    ReadInput::ReadInput3(r3) => {
+                        previous.read_input_3 = Some(r3);
+                        info!("{:?}", mqtt::Message::for_inputs(previous));
                     }
                 }
             }
         }
+
+        // returns a Vec of messages to send. could be none;
+        // not every packet produces an MQ message (eg, heartbeats),
+        // and some produce >1 (multi-register ReadHold)
+        match Self::packet_to_messages(packet) {
+            Ok(messages) => {
+                for message in messages {
+                    self.to_mqtt.send(message)?;
+                }
+            }
+            Err(e) => {
+                // log error but avoid exiting loop as then we stop handling
+                // incoming packets. need better error handling here maybe?
+                error!("{}", e);
+            }
+        }
+
+        Ok(())
     }
 
     fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
@@ -376,7 +413,6 @@ impl Coordinator {
     }
 
     fn channel<T: Clone>() -> broadcast::Sender<T> {
-        let (tx, _) = broadcast::channel(512);
-        tx
+        broadcast::channel(512).0 // we only need tx half
     }
 }

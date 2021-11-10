@@ -57,7 +57,7 @@ impl WaitForReply for PacketChannelReceiver {
 impl PacketChannelData {}
 
 // Serial {{{
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Serial([u8; 10]);
 
 impl Serial {
