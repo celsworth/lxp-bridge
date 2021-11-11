@@ -46,11 +46,14 @@ impl Message {
         Ok(r)
     }
 
-    pub fn for_inputs(inputs: &lxp::packet::ReadInputs) -> Vec<Message> {
+    pub fn for_inputs(
+        inputs: &lxp::packet::ReadInputs,
+        datalog: lxp::inverter::Serial,
+    ) -> Vec<Message> {
         let payload = serde_json::to_string(&inputs).unwrap();
 
         vec![mqtt::Message {
-            topic: format!("{}/inputs/all", "foo".to_owned()),
+            topic: format!("{}/inputs/all", datalog),
             payload,
         }]
     }

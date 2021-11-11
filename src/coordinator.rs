@@ -21,6 +21,7 @@ pub struct Coordinator {
     to_inverter: lxp::inverter::PacketChannelSender,
     from_mqtt: mqtt::MessageSender,
     to_mqtt: mqtt::MessageSender,
+    to_influx: influx::ValueSender,
 }
 
 impl Coordinator {
@@ -29,6 +30,7 @@ impl Coordinator {
         let to_inverter = Self::channel();
         let from_mqtt = Self::channel();
         let to_mqtt = Self::channel();
+        let to_influx = Self::channel();
 
         let config = Rc::new(config);
 
@@ -43,7 +45,7 @@ impl Coordinator {
         let mqtt = mqtt::Mqtt::new(Rc::clone(&config), to_mqtt.clone(), from_mqtt.clone());
 
         // push messages to Influx
-        let influx = influx::Influx::new(Rc::clone(&config), from_inverter.clone());
+        let influx = influx::Influx::new(Rc::clone(&config), to_influx.clone());
 
         Self {
             config,
@@ -54,6 +56,7 @@ impl Coordinator {
             to_inverter,
             from_mqtt,
             to_mqtt,
+            to_influx,
         }
     }
 
@@ -357,24 +360,31 @@ impl Coordinator {
                 warn!("got a Param packet! {:?}", td);
             }
 
-            // WIP: update inputs_store
+            // inputs_store handling. If we've received any ReadInput, update inputs_store
+            // with the contents. If we got the third (of three) packets, send out the combined
+            // MQTT message with all the data.
             if td.device_function == DeviceFunction::ReadInput {
                 use lxp::packet::ReadInput;
 
-                let mut previous = inputs_store
+                let entry = inputs_store
                     .entry(td.datalog)
                     .or_insert_with(lxp::packet::ReadInputs::default);
 
                 match td.read_input()? {
-                    ReadInput::ReadInput1(r1) => {
-                        previous.read_input_1 = Some(r1);
-                    }
-                    ReadInput::ReadInput2(r2) => {
-                        previous.read_input_2 = Some(r2);
-                    }
+                    ReadInput::ReadInput1(r1) => entry.set_read_input_1(r1),
+                    ReadInput::ReadInput2(r2) => entry.set_read_input_2(r2),
                     ReadInput::ReadInput3(r3) => {
-                        previous.read_input_3 = Some(r3);
-                        info!("{:?}", mqtt::Message::for_inputs(previous));
+                        let datalog = r3.datalog;
+
+                        entry.set_read_input_3(r3);
+
+                        // make a serde_json::value to send to influx
+                        let influx_data = serde_json::to_value(&entry)?;
+                        self.to_influx.send(influx_data)?;
+
+                        for message in mqtt::Message::for_inputs(entry, datalog) {
+                            self.to_mqtt.send(message)?;
+                        }
                     }
                 }
             }
@@ -402,11 +412,11 @@ impl Coordinator {
     fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
         match packet {
             Packet::Heartbeat(_) => Ok(Vec::new()), // always no message
-            Packet::TranslatedData(t) => match t.device_function {
-                DeviceFunction::ReadHold => mqtt::Message::for_hold(t),
-                DeviceFunction::ReadInput => mqtt::Message::for_input(t),
-                DeviceFunction::WriteSingle => mqtt::Message::for_hold(t),
-                DeviceFunction::WriteMulti => Ok(Vec::new()), // TODO
+            Packet::TranslatedData(td) => match td.device_function {
+                DeviceFunction::ReadHold => mqtt::Message::for_hold(td),
+                DeviceFunction::ReadInput => mqtt::Message::for_input(td),
+                DeviceFunction::WriteSingle => mqtt::Message::for_hold(td),
+                DeviceFunction::WriteMulti => Ok(Vec::new()), // TODO, for_hold might just work
             },
             Packet::ReadParam(rp) => mqtt::Message::for_param(rp),
         }

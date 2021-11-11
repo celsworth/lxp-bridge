@@ -7,8 +7,6 @@ pub use std::str::FromStr;
 pub use anyhow::{anyhow, bail, Error, Result};
 pub use log::{debug, error, info, trace, warn};
 
-pub use influxdb::InfluxDbWriteable;
-
 pub use tokio::sync::broadcast;
 
 pub use crate::{
