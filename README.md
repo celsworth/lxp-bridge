@@ -22,7 +22,7 @@ In future, it might possibly run a HTTP server with endpoints to fetch power dat
 
 ## Installation
 
-A range of binaries are provided on the Releases page, otherwise you can compile it yourself. It's written in Rust.
+A range of binaries are provided on the [Releases](https://github.com/celsworth/lxp-bridge/releases) page (if you're unsure which you need, start with `uname -m`), otherwise you can compile it yourself. It's written in Rust.
 
   1. [Install Rust](https://www.rust-lang.org/tools/install)
   1. `git clone https://github.com/celsworth/lxp-bridge.git`

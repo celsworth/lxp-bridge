@@ -18,15 +18,11 @@ jobs:
         - build: linux-x86_64
           os: ubuntu-latest
           toolchain: stable
-          target: x86_64-unknown-linux-musl
-        - build: linux-arm
-          os: ubuntu-latest
-          toolchain: stable
-          target: arm-unknown-linux-gnueabihf
+          target: x86_64-unknown-linux-gnu
         - build: linux-aarch64
           os: ubuntu-latest
           toolchain: stable
-          target: aarch64-unknown-linux-musl
+          target: aarch64-unknown-linux-gnu
         - build: macos-x86_64
           os: macos-11
           toolchain: stable
@@ -67,3 +63,6 @@ jobs:
           use-cross: true
           command: build
           args: --release --target ${{ matrix.target }}
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v2
