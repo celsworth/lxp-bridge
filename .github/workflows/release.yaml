@@ -38,22 +38,22 @@ jobs:
     strategy:
       matrix:
         include:
-        - build: linux
+        - build: linux-x86_64
           os: ubuntu-latest
           toolchain: stable
-          target: x86_64-unknown-linux-musl
-        - build: linux-arm
-          os: ubuntu-latest
-          toolchain: stable
-          target: arm-unknown-linux-gnueabihf
+          target: x86_64-unknown-linux-gnu
         - build: linux-aarch64
           os: ubuntu-latest
           toolchain: stable
-          target: aarch64-unknown-linux-musl
-        - build: macos
-          os: macos-latest
+          target: aarch64-unknown-linux-gnu
+        - build: macos-x86_64
+          os: macos-11
           toolchain: stable
           target: x86_64-apple-darwin
+        - build: macos-aarch64
+          os: macos-11
+          toolchain: stable
+          target: aarch64-apple-darwin
         - build: win-msvc
           os: windows-2019
           toolchain: stable
@@ -65,12 +65,10 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            /usr/share/rust~/.cargo/registry
-            /usr/share/rust~/.cargo/git
-            ~/.cargo/registry
-            ~/.cargo/git
+            /usr/share/rust~/.cargo
+            ~/.cargo
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -92,7 +90,6 @@ jobs:
         run: |
           echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
           echo "release version: $RELEASE_VERSION"
-
       - name: Build archive
         shell: bash
         run: |
@@ -107,7 +104,6 @@ jobs:
           fi
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
-
       - name: Attach archive to release
         shell: bash
         env:
