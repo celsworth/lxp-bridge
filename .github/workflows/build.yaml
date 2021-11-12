@@ -1,0 +1,68 @@
+on:
+  pull_request:
+
+name: Build
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+
+    strategy:
+      matrix:
+        include:
+        - build: linux-x86_64
+          os: ubuntu-latest
+          toolchain: stable
+          target: x86_64-unknown-linux-gnu
+        - build: linux-aarch64
+          os: ubuntu-latest
+          toolchain: stable
+          target: aarch64-unknown-linux-gnu
+        - build: macos-x86_64
+          os: macos-11
+          toolchain: stable
+          target: x86_64-apple-darwin
+        - build: macos-aarch64
+          os: macos-11
+          toolchain: stable
+          target: aarch64-apple-darwin
+        - build: win-msvc
+          os: windows-2019
+          toolchain: stable
+          target: x86_64-pc-windows-msvc
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            /usr/share/rust~/.cargo/registry
+            /usr/share/rust~/.cargo/git
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          profile: minimal
+          override: true
+          target: ${{ matrix.target }}
+
+      - name: Build release binary
+        uses: actions-rs/cargo@v1
+        with:
+          use-cross: true
+          command: build
+          args: --release --target ${{ matrix.target }}
+
+      - name: Archive production artifacts
+        uses: actions/upload-artifact@v2
+        with:
+          name: ${{ matrix.target }}
+          path: .
