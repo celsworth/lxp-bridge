@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         include:
-        - build: linux
+        - build: linux-x86_64
           os: ubuntu-latest
           toolchain: stable
           target: x86_64-unknown-linux-musl
@@ -27,10 +27,14 @@ jobs:
           os: ubuntu-latest
           toolchain: stable
           target: aarch64-unknown-linux-musl
-        - build: macos
+        - build: macos-x86_64
           os: macos-11
           toolchain: stable
           target: x86_64-apple-darwin
+        - build: macos-aarch64
+          os: macos-11
+          toolchain: stable
+          target: aarch64-apple-darwin
         - build: win-msvc
           os: windows-2019
           toolchain: stable
