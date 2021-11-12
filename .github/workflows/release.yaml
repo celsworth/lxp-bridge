@@ -65,12 +65,10 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            /usr/share/rust~/.cargo/registry
-            /usr/share/rust~/.cargo/git
-            ~/.cargo/registry
-            ~/.cargo/git
+            /usr/share/rust~/.cargo
+            ~/.cargo
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
