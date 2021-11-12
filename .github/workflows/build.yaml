@@ -63,4 +63,7 @@ jobs:
         uses: actions/upload-artifact@v2
         with:
           name: ${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/lxp-bridge
+          if-no-files-found: ignore
+          path: |
+            target/${{ matrix.target }}/release/lxp-bridge
+            target/${{ matrix.target }}/release/lxp-bridge.exe
