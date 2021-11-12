@@ -84,9 +84,13 @@ In some cases, they require further processing to make much sense. For example, 
 
 You will see a whole bunch of these if you press "Read" under the Maintain tab in the LXP Web Monitor; this is the website reading all the values from your inverter so it can fill in the form with current values.
 
-### `lxp/{datalog}/inputs/1` (and 2, and 3)
+### `lxp/{datalog}/inputs/all` (and 1, and 2, and 3)
 
-These are JSON hashes of transient data. There are 3 of them just because that's how the inverter sends the data. They are sent at 5 minute intervals. You can also read them on demand, see `lxp/cmd/{datalog}/read/inputs/1` below.
+These are hashes of transient data. The inverter sends these across 3 packets, which are directly mapped into JSON and published in `lxp/{datalog}/inputs/1`, `../2` and `../3`. From lxp-bridge v0.6.0, there is also an `../all` message which combines all three into a single hash of data.
+
+Eventually (not before lxp-bridge v1.0) the individual messages may be removed in favour of the new `all` message. Please prefer use of the `all` message in favour of the 1/2/3 messages in new projects.
+
+These are sent at 5 minute intervals. You can also read them on demand, see `lxp/cmd/{datalog}/read/inputs/1` below.
 
 Also see [inputs.md](doc/inputs.md) for details of the JSON data hashes.
 
@@ -117,7 +121,7 @@ The following MQTT topics are recognised:
 
 This prompts the inverter to immediately publish a set of input registers. These get published every few minutes anyway but with this you can read them on-demand.
 
-`1` can be 1 - 3.
+`1` can be 1 - 3. It is not yet possible to read all the registers at once, as seen in `lxp/{datalog}/inputs/all`.
 
 See [inputs.md](doc/inputs.md) for details of the JSON data hashes.
 
