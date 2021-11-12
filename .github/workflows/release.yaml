@@ -1,4 +1,5 @@
 on:
+  push:
   release:
     types:
       - published
@@ -6,30 +7,6 @@ on:
 name: Release
 
 jobs:
-  docker:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Login to DockerHub Registry
-        run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u celsworth --password-stdin
-
-      - name: Get the version
-        id: vars
-        run: echo ::set-output name=tag::$(echo ${GITHUB_REF:10})
-
-      - name: Build the tagged Docker image
-        run: docker build . --file Dockerfile --tag celsworth/lxp-bridge:${{steps.vars.outputs.tag}}
-
-      - name: Push the tagged Docker image
-        run: docker push celsworth/lxp-bridge:${{steps.vars.outputs.tag}}
-
-      - name: Tag the latest Docker image
-        run: docker tag celsworth/lxp-bridge:${{steps.vars.outputs.tag}} celsworth/lxp-bridge:latest
-
-      - name: Push the latest Docker image
-        run: docker push celsworth/lxp-bridge:latest
-
   build:
     name: Build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
@@ -51,7 +28,7 @@ jobs:
           toolchain: stable
           target: aarch64-unknown-linux-musl
         - build: macos
-          os: macos-latest
+          os: macos-11
           toolchain: stable
           target: x86_64-apple-darwin
         - build: win-msvc
@@ -86,31 +63,3 @@ jobs:
           use-cross: true
           command: build
           args: --release --target ${{ matrix.target }}
-
-      - name: Set release version
-        shell: bash
-        run: |
-          echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-          echo "release version: $RELEASE_VERSION"
-
-      - name: Build archive
-        shell: bash
-        run: |
-          staging="lxp-bridge-${{ env.RELEASE_VERSION }}-${{ matrix.target }}"
-          mkdir -p "$staging"
-          cp "config.yaml.example" "$staging/"
-          if [ "${{ matrix.os }}" = "windows-2019" ]; then
-            cp "target/${{ matrix.target }}/release/lxp-bridge.exe" "$staging/"
-          else
-            cp "target/${{ matrix.target }}/release/lxp-bridge" "$staging/"
-            strip "$staging/lxp-bridge" || true
-          fi
-          7z a "$staging.zip" "$staging"
-          echo "ASSET=$staging.zip" >> $GITHUB_ENV
-
-      - name: Attach archive to release
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          hub release edit -m "" -a ${{ env.ASSET }} ${{ github.event.release.tag_name }}
