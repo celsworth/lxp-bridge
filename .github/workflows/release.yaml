@@ -42,6 +42,10 @@ jobs:
           os: ubuntu-latest
           toolchain: stable
           target: x86_64-unknown-linux-gnu
+        - build: linux-aarch64
+          os: ubuntu-latest
+          toolchain: stable
+          target: aarch64-unknown-linux-gnu
         - build: macos-x86_64
           os: macos-11
           toolchain: stable
@@ -65,6 +69,27 @@ jobs:
             ~/.cargo
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install compiler
+        if: matrix.build == 'linux-aarch64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+          echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc >>$GITHUB_ENV
+          echo CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc >>$GITHUB_ENV
+
+      - name: Build OpenSSL
+        if: matrix.build == 'linux-aarch64'
+        run: |
+            cd ~
+            wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
+            tar xzf openssl-1.1.1l.tar.gz
+            export MACHINE=aarch64
+            export ARCH=aarch64
+            export CC=aarch64-linux-gnu-gcc
+            cd openssl-1.1.1l && ./config shared && make
+            echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
+            echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
