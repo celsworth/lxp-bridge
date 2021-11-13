@@ -44,6 +44,20 @@ jobs:
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Install OpenSSL
+        if: matrix.os == 'ubuntu-latest' && matrix.build == 'linux-aarch64'
+        run: |
+            cd /tmp
+            wget https://www.openssl.org/source/openssl-1.0.1t.tar.gz
+            tar xzf openssl-1.0.1t.tar.gz
+            echo MACHINE=aarch64 >>$GITHUB_ENV
+            echo ARCH=aarch64 >>$GITHUB_ENV
+            echo CC=aarch64-linux-gnu-gcc >>$GITHUB_ENV
+            cd openssl-1.0.1t && ./config shared && make && cd -
+
+            echo OPENSSL_LIB_DIR=/tmp/openssl-1.0.1t/ >>$GITHUB_ENV
+            echo OPENSSL_INCLUDE_DIR=/tmp/openssl-1.0.1t/include >>$GITHUB_ENV
+
       - name: Install compiler
         if: matrix.os == 'ubuntu-latest'
         run: |
