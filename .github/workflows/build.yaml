@@ -44,6 +44,12 @@ jobs:
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
+      - name: Install System Dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+            sudo apt-get update && apt-get install -y --no-install-recommends \
+            libssl-dev \
+
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
