@@ -16,10 +16,6 @@ jobs:
           os: ubuntu-latest
           toolchain: stable
           target: x86_64-unknown-linux-gnu
-        - build: linux-aarch64
-          os: ubuntu-latest
-          toolchain: stable
-          target: aarch64-unknown-linux-gnu
         - build: macos-x86_64
           os: macos-11
           toolchain: stable
@@ -55,7 +51,6 @@ jobs:
       - name: Build release binary
         uses: actions-rs/cargo@v1
         with:
-          use-cross: true
           command: build
           args: --release --target ${{ matrix.target }}
 
