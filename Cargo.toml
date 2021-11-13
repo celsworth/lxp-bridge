@@ -1,6 +1,6 @@
 [package]
 name = "lxp-bridge"
-version = "0.5.1"
+version = "0.6.0-dev"
 authors = ["Chris Elsworth <chris@cae.me.uk>"]
 edition = "2018"
 repository = "https://github.com/celsworth/lxp-bridge"
@@ -26,8 +26,7 @@ structopt = { version = "~0.3", default-features = false }
 chrono = "~0.4"
 enum_dispatch = "~0.3"
 async-trait = "~0.1"
-# git repo fork specified for tokio 1.0 compatibility
-influxdb = { version = "~0.4", features = ["derive"], git = "https://github.com/celsworth/influxdb-rust" }
+reqwest = "~0.11"
+rinfluxdb = { version = "~0.1", git = "https://gitlab.com/celsworth/rinfluxdb.git", branch = "celsworth-master-patch-81884" }
 
 openssl = { version = "~0.10", features = ["vendored"] }
-

@@ -2,12 +2,11 @@
 
 This document details the hash structure of "inputs" messages sent out by lxp-bridge. These correspond with transient read-only input registers on the inverter.
 
-Currently these are available over MQTT, at `lxp/{datalog}/inputs/{d}` where d is 1, 2, or 3.
+The inverter sends these across 3 packets, which are directly mapped into JSON and published in `lxp/{datalog}/inputs/1`, `../2` and `../3`. From lxp-bridge v0.6.0, there is also an `../all` message which combines all three into a single hash of data.
 
-They are also sent to InfluxDB, if enabled.
+Eventually (not before lxp-bridge v1.0) the individual messages may be removed in favour of the new `all` message. Please prefer use of the `all` message in favour of the 1/2/3 messages in new projects.
 
-Note that because the inverter sends the power data split across 3 packets, there will be 3 submissions to InfluxDB, each with slightly differing times (by about a second). This means all the data combined isn't an atomic snapshot of an instant in time, but in practise this shouldn't really matter.
-
+If InfluxDB is enabled, these values are sent as a single unified hash which matches the `all` MQTT message.
 
 Example structures are shown below with inline comments.
 

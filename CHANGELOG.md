@@ -1,3 +1,8 @@
+# Unreleased
+
+* Merge input data packets into one hash when publishing to MQTT and InfluxDB (#36)
+
+
 # 0.5.1 - 2nd November 2021
 
 * No functional changes; fix Windows build by bumping rumqttc crate to 0.10.0

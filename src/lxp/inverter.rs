@@ -3,6 +3,7 @@ use crate::prelude::*;
 use async_trait::async_trait;
 use bytes::BytesMut;
 use net2::TcpStreamExt; // for set_keepalive
+use serde::{Serialize, Serializer};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec::Decoder;
 
@@ -57,7 +58,7 @@ impl WaitForReply for PacketChannelReceiver {
 impl PacketChannelData {}
 
 // Serial {{{
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Serial([u8; 10]);
 
 impl Serial {
@@ -74,9 +75,12 @@ impl Serial {
     }
 }
 
-impl From<Serial> for influxdb::Type {
-    fn from(b: Serial) -> Self {
-        influxdb::Type::Text(b.to_string())
+impl Serialize for Serial {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 
