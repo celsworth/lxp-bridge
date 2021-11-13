@@ -45,7 +45,7 @@ jobs:
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Install compiler
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.build == 'linux-aarch64'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
@@ -53,16 +53,15 @@ jobs:
           echo CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc >> $GITHUB_ENV
 
       - name: Install OpenSSL
-        if: matrix.os == 'ubuntu-latest' && matrix.build == 'linux-aarch64'
+        if: matrix.build == 'linux-aarch64'
         run: |
             cd /tmp
             wget https://www.openssl.org/source/openssl-1.0.1t.tar.gz
             tar xzf openssl-1.0.1t.tar.gz
-            echo MACHINE=aarch64 >>$GITHUB_ENV
-            echo ARCH=aarch64 >>$GITHUB_ENV
-            echo CC=aarch64-linux-gnu-gcc >>$GITHUB_ENV
-            cd openssl-1.0.1t && ./config shared && make && cd -
-
+            export MACHINE=aarch64
+            export ARCH=aarch64
+            export CC=aarch64-linux-gnu-gcc
+            cd openssl-1.0.1t && ./config shared && make
             echo OPENSSL_LIB_DIR=/tmp/openssl-1.0.1t/ >>$GITHUB_ENV
             echo OPENSSL_INCLUDE_DIR=/tmp/openssl-1.0.1t/include >>$GITHUB_ENV
 
