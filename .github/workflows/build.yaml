@@ -40,6 +40,7 @@ jobs:
         with:
           path: |
             /usr/share/rust~/.cargo
+            ~/openssl-1.1.1k
             ~/.cargo
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
@@ -55,15 +56,14 @@ jobs:
       - name: Install OpenSSL
         if: matrix.build == 'linux-aarch64'
         run: |
-            cd /tmp
-            wget https://www.openssl.org/source/openssl-1.0.1t.tar.gz
-            tar xzf openssl-1.0.1t.tar.gz
+            wget https://www.openssl.org/source/openssl-1.1.1k.tar.gz
+            tar xzf openssl-1.1.1k.tar.gz
             export MACHINE=aarch64
             export ARCH=aarch64
             export CC=aarch64-linux-gnu-gcc
-            cd openssl-1.0.1t && ./config shared && make
-            echo OPENSSL_LIB_DIR=/tmp/openssl-1.0.1t/ >>$GITHUB_ENV
-            echo OPENSSL_INCLUDE_DIR=/tmp/openssl-1.0.1t/include >>$GITHUB_ENV
+            cd openssl-1.1.kt && ./config shared && make
+            echo OPENSSL_LIB_DIR=~/openssl-1.1.1k/ >>$GITHUB_ENV
+            echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1k/include >>$GITHUB_ENV
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
