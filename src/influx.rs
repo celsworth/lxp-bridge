@@ -68,7 +68,7 @@ impl Influx {
 
             let lines = vec![line.build()];
 
-            while let Err(err) = client.send("lxp2", &lines).await {
+            while let Err(err) = client.send(&self.config.influx.database, &lines).await {
                 error!("push failed: {:?} - retrying in 10s", err);
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
             }
