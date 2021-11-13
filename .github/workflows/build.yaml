@@ -16,10 +16,6 @@ jobs:
           os: ubuntu-latest
           toolchain: stable
           target: x86_64-unknown-linux-gnu
-        - build: linux-aarch64
-          os: ubuntu-latest
-          toolchain: stable
-          target: aarch64-unknown-linux-gnu
         - build: macos-x86_64
           os: macos-11
           toolchain: stable
@@ -43,12 +39,6 @@ jobs:
             ~/.cargo
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install System Dependencies
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-            sudo apt-get update && sudo apt-get install -y --no-install-recommends \
-            pkg-config \
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
