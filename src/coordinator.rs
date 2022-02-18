@@ -61,13 +61,6 @@ impl Coordinator {
     }
 
     pub async fn start(&self) -> Result<((), ())> {
-        if !self.config.mqtt.enabled {
-            // influx bypasses coordinator for now, so if mqtt is disabled,
-            // the coordinator has nothing to do.
-            info!("mqtt disabled, skipping");
-            return Ok(((), ()));
-        }
-
         let f1 = self.inverter_receiver();
         let f2 = self.mqtt_receiver();
 
@@ -379,30 +372,36 @@ impl Coordinator {
                         entry.set_read_input_3(r3);
 
                         // make a serde_json::value to send to influx
-                        let influx_data = serde_json::to_value(&entry)?;
-                        self.to_influx.send(influx_data)?;
+                        if self.config.influx.enabled {
+                            let influx_data = serde_json::to_value(&entry)?;
+                            self.to_influx.send(influx_data)?;
+                        }
 
-                        for message in mqtt::Message::for_inputs(entry, datalog) {
-                            self.to_mqtt.send(message)?;
+                        if self.config.mqtt.enabled {
+                            for message in mqtt::Message::for_inputs(entry, datalog) {
+                                self.to_mqtt.send(message)?;
+                            }
                         }
                     }
                 }
             }
         }
 
-        // returns a Vec of messages to send. could be none;
-        // not every packet produces an MQ message (eg, heartbeats),
-        // and some produce >1 (multi-register ReadHold)
-        match Self::packet_to_messages(packet) {
-            Ok(messages) => {
-                for message in messages {
-                    self.to_mqtt.send(message)?;
+        if self.config.mqtt.enabled {
+            // returns a Vec of messages to send. could be none;
+            // not every packet produces an MQ message (eg, heartbeats),
+            // and some produce >1 (multi-register ReadHold)
+            match Self::packet_to_messages(packet) {
+                Ok(messages) => {
+                    for message in messages {
+                        self.to_mqtt.send(message)?;
+                    }
                 }
-            }
-            Err(e) => {
-                // log error but avoid exiting loop as then we stop handling
-                // incoming packets. need better error handling here maybe?
-                error!("{}", e);
+                Err(e) => {
+                    // log error but avoid exiting loop as then we stop handling
+                    // incoming packets. need better error handling here maybe?
+                    error!("{}", e);
+                }
             }
         }
 

@@ -1,6 +1,8 @@
 # Unreleased
 
 * Merge input data packets into one hash when publishing to MQTT and InfluxDB (#36)
+* Fix crash when InfluxDB was disabled (#42)
+* Fix InfluxDB being inadvertently disabled when only MQTT should have been (#42)
 
 
 # 0.5.1 - 2nd November 2021
