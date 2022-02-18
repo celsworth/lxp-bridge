@@ -387,21 +387,21 @@ impl Coordinator {
             }
         }
 
-        // returns a Vec of messages to send. could be none;
-        // not every packet produces an MQ message (eg, heartbeats),
-        // and some produce >1 (multi-register ReadHold)
-        match Self::packet_to_messages(packet) {
-            Ok(messages) => {
-                if self.config.mqtt.enabled {
+        if self.config.mqtt.enabled {
+            // returns a Vec of messages to send. could be none;
+            // not every packet produces an MQ message (eg, heartbeats),
+            // and some produce >1 (multi-register ReadHold)
+            match Self::packet_to_messages(packet) {
+                Ok(messages) => {
                     for message in messages {
                         self.to_mqtt.send(message)?;
                     }
                 }
-            }
-            Err(e) => {
-                // log error but avoid exiting loop as then we stop handling
-                // incoming packets. need better error handling here maybe?
-                error!("{}", e);
+                Err(e) => {
+                    // log error but avoid exiting loop as then we stop handling
+                    // incoming packets. need better error handling here maybe?
+                    error!("{}", e);
+                }
             }
         }
 
