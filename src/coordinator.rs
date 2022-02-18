@@ -392,8 +392,10 @@ impl Coordinator {
         // and some produce >1 (multi-register ReadHold)
         match Self::packet_to_messages(packet) {
             Ok(messages) => {
-                for message in messages {
-                    self.to_mqtt.send(message)?;
+                if self.config.mqtt.enabled {
+                    for message in messages {
+                        self.to_mqtt.send(message)?;
+                    }
                 }
             }
             Err(e) => {
