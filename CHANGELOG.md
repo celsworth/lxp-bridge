@@ -1,4 +1,4 @@
-# Unreleased
+# 0.6.0 - 26th February 2022
 
 * Merge input data packets into one hash when publishing to MQTT and InfluxDB (#36)
 * Fix crash when InfluxDB was disabled (#42)
