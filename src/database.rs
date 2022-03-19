@@ -51,14 +51,29 @@ impl Database {
                     e_inv_day, e_rec_day, e_chg_day, e_dischg_day,
                     e_eps_day, e_to_grid_day, e_to_user_day,
                     v_bus_1, v_bus_2,
+
+                    e_pv_all, e_pv_all_1, e_pv_all_2, e_pv_all_3,
+                    e_inv_all, e_rec_all, e_chg_all, e_dischg_all,
+                    e_eps_all, e_to_grid_all, e_to_user_all,
+                    t_inner, t_rad_1, t_rad_2, t_bat,
+                    runtime,
+
+                    max_chg_curr, max_dischg_curr, charge_volt_ref, dischg_cut_volt,
+                    bat_status_0, bat_status_1, bat_status_2, bat_status_3, bat_status_4,
+                    bat_status_5, bat_status_6, bat_status_7, bat_status_8, bat_status_9,
+                    bat_status_inv,
+                    bat_count, bat_capacity,
+
                     datalog, created_at
                   )
                 VALUES
                   ( $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
                     $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
-                    $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42
+                    $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
+                    $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56,
+                    $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
+                    $71, $72, $73, $74, $75
                   )
-                RETURNING id
                 "#,
             )
             .bind(ri1.status as i32)
@@ -101,8 +116,42 @@ impl Database {
             .bind(ri1.e_to_user_day)
             .bind(ri1.v_bus_1)
             .bind(ri1.v_bus_2)
+            .bind(ri2.e_pv_all)
+            .bind(ri2.e_pv_all_1)
+            .bind(ri2.e_pv_all_2)
+            .bind(ri2.e_pv_all_3)
+            .bind(ri2.e_inv_all)
+            .bind(ri2.e_rec_all)
+            .bind(ri2.e_chg_all)
+            .bind(ri2.e_dischg_all)
+            .bind(ri2.e_eps_all)
+            .bind(ri2.e_to_grid_all)
+            .bind(ri2.e_to_user_all)
+            .bind(ri2.t_inner as i32)
+            .bind(ri2.t_rad_1 as i32)
+            .bind(ri2.t_rad_2 as i32)
+            .bind(ri2.t_bat as i32)
+            .bind(ri2.runtime as i32)
+            .bind(ri3.max_chg_curr)
+            .bind(ri3.max_dischg_curr)
+            .bind(ri3.charge_volt_ref)
+            .bind(ri3.dischg_cut_volt)
+            .bind(ri3.bat_status_0 as i32)
+            .bind(ri3.bat_status_1 as i32)
+            .bind(ri3.bat_status_2 as i32)
+            .bind(ri3.bat_status_3 as i32)
+            .bind(ri3.bat_status_4 as i32)
+            .bind(ri3.bat_status_5 as i32)
+            .bind(ri3.bat_status_6 as i32)
+            .bind(ri3.bat_status_7 as i32)
+            .bind(ri3.bat_status_8 as i32)
+            .bind(ri3.bat_status_9 as i32)
+            .bind(ri3.bat_status_inv as i32)
+            .bind(ri3.bat_count as i32)
+            .bind(ri3.bat_capacity as i32)
             .bind(ri1.datalog.to_string())
             .bind(ri1.time.0)
+            .persistent(true)
             .fetch_one(&mut conn)
             .await?;
         }
