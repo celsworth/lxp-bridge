@@ -75,7 +75,11 @@ pub struct Database {
     #[serde(default = "Config::default_database_enabled")]
     pub enabled: bool,
 
-    pub url: String,
+    pub r#type: String,
+    pub username: Option<String>,
+    pub password: Option<String>,
+    pub host: String,
+    pub port: u16,
     pub database: String,
 }
 
