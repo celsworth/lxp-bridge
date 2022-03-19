@@ -22,6 +22,15 @@ impl Database {
     }
 
     pub async fn start(&self) -> Result<()> {
+        let config = &self.config.database;
+
+        if !config.enabled {
+            info!("database disabled, skipping");
+            return Ok(());
+        }
+
+        info!("initializing database");
+
         futures::try_join!(self.inserter())?;
         Ok(())
     }
@@ -75,6 +84,7 @@ impl Database {
 
     async fn inserter(&self) -> Result<()> {
         let mut conn = self.connect().await?;
+        info!("database connected");
         self.migrate(&mut conn).await?;
 
         let mut receiver = self.from_coordinator.subscribe();
