@@ -4,6 +4,8 @@ pub type ValueSender = broadcast::Sender<serde_json::Value>;
 
 enum DatabaseConnection {
     Sqlite(sqlx::SqliteConnection),
+    MySQL(sqlx::MySqlConnection),
+    Postgres(sqlx::PgConnection),
 }
 
 pub struct Database {
@@ -59,6 +61,8 @@ impl Database {
 
             match conn {
                 DatabaseConnection::Sqlite(ref mut c) => query.fetch_one(c).await?,
+                DatabaseConnection::MySQL(ref mut c) => query.fetch_one(c).await?,
+                DatabaseConnection::Postgres(ref mut c) => query.fetch_one(c).await?,
             };
         }
     }
