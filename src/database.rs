@@ -20,12 +20,25 @@ impl Database {
         Ok(())
     }
 
+    async fn migrate(&self, conn: &mut sqlx::AnyConnection) -> Result<()> {
+        // work out migration directory to use based on database url
+        let prefix: Vec<&str> = self.config.database.url.splitn(2, ':').collect();
+        match prefix[0] {
+            "sqlite" => sqlx::migrate!("db/migrations/sqlite").run(conn).await?,
+            "mysql" => sqlx::migrate!("db/migrations/mysql").run(conn).await?,
+            "postgres" => sqlx::migrate!("db/migrations/postgres").run(conn).await?,
+            _ => return Err(anyhow!("unsupported database type {}", prefix[0])),
+        }
+
+        Ok(())
+    }
+
     async fn inserter(&self) -> Result<()> {
         let mut receiver = self.from_coordinator.subscribe();
 
         use sqlx::Connection;
         let mut conn = sqlx::AnyConnection::connect(&self.config.database.url).await?;
-        sqlx::migrate!().run(&mut conn).await?;
+        self.migrate(&mut conn).await?;
 
         loop {
             let data = receiver.recv().await?;
