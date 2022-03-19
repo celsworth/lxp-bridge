@@ -27,3 +27,7 @@ influx:
   username:
   password:
   database: lxp
+
+database:
+  enabled: false
+  url: sqlite://lxp.db
