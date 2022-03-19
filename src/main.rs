@@ -1,6 +1,7 @@
 pub mod command;
 pub mod config;
 pub mod coordinator;
+pub mod database;
 pub mod home_assistant;
 pub mod influx;
 pub mod lxp;
@@ -51,7 +52,8 @@ async fn app() -> Result<()> {
         coordinator.start(),
         coordinator.inverter.start(),
         coordinator.mqtt.start(),
-        coordinator.influx.start()
+        coordinator.influx.start(),
+        coordinator.database.start()
     )?;
 
     Ok(())

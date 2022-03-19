@@ -7,6 +7,7 @@ pub struct Config {
     pub inverters: Vec<Inverter>,
     pub mqtt: Mqtt,
     pub influx: Influx,
+    pub database: Database,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -66,6 +67,15 @@ pub struct Influx {
     pub username: Option<String>,
     pub password: Option<String>,
 
+    pub database: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Database {
+    #[serde(default = "Config::default_database_enabled")]
+    pub enabled: bool,
+
+    pub url: String,
     pub database: String,
 }
 
@@ -129,5 +139,9 @@ impl Config {
 
     fn default_influx_enabled() -> bool {
         true
+    }
+
+    fn default_database_enabled() -> bool {
+        false
     }
 }

@@ -13,7 +13,7 @@ pub use crate::{
     command::Command,
     config::{self, Config},
     coordinator::Coordinator,
-    home_assistant, influx,
+    database, home_assistant, influx,
     lxp::{
         self,
         inverter::{Inverter, Serial},
