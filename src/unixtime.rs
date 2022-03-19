@@ -5,8 +5,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Serialize, Serializer};
 
-#[derive(Debug)]
-pub struct UnixTime(DateTime<Utc>);
+#[derive(Clone, Debug)]
+pub struct UnixTime(pub DateTime<Utc>);
 
 impl UnixTime {
     pub fn now() -> Self {

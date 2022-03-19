@@ -29,4 +29,4 @@ async-trait = "~0.1"
 reqwest = "~0.11"
 rinfluxdb = { version = "~0.1", git = "https://gitlab.com/celsworth/rinfluxdb.git", rev = "f3f5b23e" }
 
-sqlx = { version = "~0.5", features = ["runtime-tokio-native-tls", "any", "postgres", "mysql", "sqlite"] }
+sqlx = { version = "~0.5", features = ["runtime-tokio-native-tls", "any", "postgres", "mysql", "sqlite", "chrono"] }

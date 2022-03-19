@@ -12,7 +12,7 @@ pub enum ReadInput {
 }
 
 // {{{ ReadInput1
-#[derive(Debug, Serialize, Nom)]
+#[derive(Clone, Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
 pub struct ReadInput1 {
     pub status: u16,
@@ -102,7 +102,7 @@ pub struct ReadInput1 {
 } // }}}
 
 // {{{ ReadInput2
-#[derive(Debug, Serialize, Nom)]
+#[derive(Clone, Debug, Serialize, Nom)]
 #[nom(Debug, LittleEndian)]
 pub struct ReadInput2 {
     #[nom(Ignore)]
@@ -146,7 +146,7 @@ pub struct ReadInput2 {
 } // }}}
 
 // {{{ ReadInput3
-#[derive(Debug, Serialize, Nom)]
+#[derive(Clone, Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
 pub struct ReadInput3 {
     #[nom(SkipBefore(2))] // bat_brand, bat_com_type
@@ -181,14 +181,14 @@ pub struct ReadInput3 {
     pub datalog: Serial,
 } // }}}
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ReadInputs {
     #[serde(flatten)]
-    read_input_1: Option<ReadInput1>,
+    pub read_input_1: Option<ReadInput1>,
     #[serde(flatten)]
-    read_input_2: Option<ReadInput2>,
+    pub read_input_2: Option<ReadInput2>,
     #[serde(flatten)]
-    read_input_3: Option<ReadInput3>,
+    pub read_input_3: Option<ReadInput3>,
 }
 
 impl ReadInputs {

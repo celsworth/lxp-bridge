@@ -23,7 +23,7 @@ pub struct Coordinator {
     from_mqtt: mqtt::MessageSender,
     to_mqtt: mqtt::MessageSender,
     to_influx: influx::ValueSender,
-    to_database: influx::ValueSender,
+    to_database: database::InputsSender,
 }
 
 impl Coordinator {
@@ -379,14 +379,13 @@ impl Coordinator {
 
                         entry.set_read_input_3(r3);
 
-                        let value_data = serde_json::to_value(&entry)?;
-
                         if self.config.influx.enabled {
-                            self.to_influx.send(value_data.clone())?;
+                            let influx_data = serde_json::to_value(&entry)?;
+                            self.to_influx.send(influx_data)?;
                         }
 
                         if self.config.database.enabled {
-                            self.to_database.send(value_data)?;
+                            self.to_database.send(entry.clone())?;
                         }
 
                         if self.config.mqtt.enabled {
