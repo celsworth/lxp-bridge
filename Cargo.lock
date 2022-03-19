@@ -939,7 +939,7 @@ dependencies = [
 [[package]]
 name = "rinfluxdb"
 version = "0.1.0"
-source = "git+https://gitlab.com/celsworth/rinfluxdb.git?branch=celsworth-master-patch-81884#dd94ad7978a29269b767e5c79fe6c6a34316624c"
+source = "git+https://gitlab.com/celsworth/rinfluxdb.git?rev=f3f5b23e#f3f5b23ed6e2060de320a73ea984b7a0bae8ab70"
 dependencies = [
  "async-trait",
  "chrono",

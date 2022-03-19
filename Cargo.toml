@@ -27,4 +27,4 @@ chrono = "~0.4"
 enum_dispatch = "~0.3"
 async-trait = "~0.1"
 reqwest = "~0.11"
-rinfluxdb = { version = "~0.1", git = "https://gitlab.com/celsworth/rinfluxdb.git", branch = "celsworth-master-patch-81884" }
+rinfluxdb = { version = "~0.1", git = "https://gitlab.com/celsworth/rinfluxdb.git", rev = "f3f5b23e" }
