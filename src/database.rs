@@ -152,7 +152,7 @@ impl Database {
             .bind(ri1.datalog.to_string())
             .bind(ri1.time.0)
             .persistent(true)
-            .fetch_one(&mut conn)
+            .fetch_optional(&mut conn)
             .await?;
         }
     }
