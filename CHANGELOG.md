@@ -1,3 +1,7 @@
+# 0.7.0
+
+* Add Postgres/MySQL/SQLite support (#44)
+
 # 0.6.0 - 26th February 2022
 
 * Merge input data packets into one hash when publishing to MQTT and InfluxDB (#36)
