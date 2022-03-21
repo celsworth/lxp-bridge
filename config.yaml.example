@@ -22,8 +22,14 @@ mqtt:
     prefix: homeassistant
 
 influx:
-  enabled: false
+  enabled: true
   url: http://localhost:8086
   username:
   password:
   database: lxp
+
+database:
+  enabled: false
+  url: postgres://lxp:lxp@localhost/lxp
+  # url: mysql://lxp:lxp@localhost/lxp
+  # url: sqlite://lxp.db

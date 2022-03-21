@@ -17,11 +17,13 @@ pub struct Coordinator {
     pub inverter: Inverter,
     pub mqtt: mqtt::Mqtt,
     pub influx: influx::Influx,
+    pub database: database::Database,
     from_inverter: lxp::inverter::PacketChannelSender,
     to_inverter: lxp::inverter::PacketChannelSender,
     from_mqtt: mqtt::MessageSender,
     to_mqtt: mqtt::MessageSender,
     to_influx: influx::ValueSender,
+    to_database: database::InputsSender,
 }
 
 impl Coordinator {
@@ -31,6 +33,7 @@ impl Coordinator {
         let from_mqtt = Self::channel();
         let to_mqtt = Self::channel();
         let to_influx = Self::channel();
+        let to_database = Self::channel();
 
         let config = Rc::new(config);
 
@@ -47,16 +50,21 @@ impl Coordinator {
         // push messages to Influx
         let influx = influx::Influx::new(Rc::clone(&config), to_influx.clone());
 
+        // push messages to databases
+        let database = database::Database::new(Rc::clone(&config), to_database.clone());
+
         Self {
             config,
             inverter,
             mqtt,
             influx,
+            database,
             from_inverter,
             to_inverter,
             from_mqtt,
             to_mqtt,
             to_influx,
+            to_database,
         }
     }
 
@@ -357,11 +365,11 @@ impl Coordinator {
             // with the contents. If we got the third (of three) packets, send out the combined
             // MQTT message with all the data.
             if td.device_function == DeviceFunction::ReadInput {
-                use lxp::packet::ReadInput;
+                use lxp::packet::{ReadInput, ReadInputs};
 
                 let entry = inputs_store
                     .entry(td.datalog)
-                    .or_insert_with(lxp::packet::ReadInputs::default);
+                    .or_insert_with(ReadInputs::default);
 
                 match td.read_input()? {
                     ReadInput::ReadInput1(r1) => entry.set_read_input_1(r1),
@@ -371,10 +379,13 @@ impl Coordinator {
 
                         entry.set_read_input_3(r3);
 
-                        // make a serde_json::value to send to influx
                         if self.config.influx.enabled {
                             let influx_data = serde_json::to_value(&entry)?;
                             self.to_influx.send(influx_data)?;
+                        }
+
+                        if self.config.database.enabled {
+                            self.to_database.send(entry.clone())?;
                         }
 
                         if self.config.mqtt.enabled {

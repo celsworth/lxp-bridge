@@ -14,6 +14,7 @@ Currently, lxp-bridge bridges to:
 
 * mqtt (publish data for monitoring, subscribe to control commands)
 * InfluxDB (push power data for graphing etc)
+* Postgres, MySQL, and SQLite (save power data for long term storage)
 
 There's also support for publishing Home Assistant MQTT discovery packets, which is enabled by default. Home Assistant should automatically detect your inverter as a bunch of sensors (power/energy flows only for now) the first time you start lxp-bridge.
 
@@ -65,6 +66,9 @@ The database can be set in the configuration; the measurement table used is `inp
 
 There will be a single tag of the inverter's datalog, and then fields which correspond with the same as the JSON data sent via MQTT - see [inputs.md](doc/inputs.md) for details.
 
+## Databases
+
+See [database.md](doc/database.md).
 
 ## MQTT
 
