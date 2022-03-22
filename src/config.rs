@@ -1,13 +1,18 @@
 use crate::prelude::*;
 
 use serde::Deserialize;
+use serde_with::{serde_as, OneOrMany};
 
+#[serde_as]
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub inverters: Vec<Inverter>,
+    //#[serde_as(deserialize_as = "OneOrMany<_>")]
     pub mqtt: Mqtt,
+    //#[serde_as(deserialize_as = "OneOrMany<_>")]
     pub influx: Influx,
-    pub database: Database,
+    #[serde(default = "Vec::new")]
+    pub databases: Vec<Database>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -31,7 +36,7 @@ where
     raw.parse().map_err(serde::de::Error::custom)
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct HomeAssistant {
     #[serde(default = "Config::default_mqtt_homeassistant_enabled")]
     pub enabled: bool,
@@ -40,7 +45,7 @@ pub struct HomeAssistant {
     pub prefix: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Mqtt {
     #[serde(default = "Config::default_mqtt_enabled")]
     pub enabled: bool,
@@ -58,7 +63,7 @@ pub struct Mqtt {
     pub homeassistant: HomeAssistant,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Influx {
     #[serde(default = "Config::default_influx_enabled")]
     pub enabled: bool,
@@ -70,7 +75,7 @@ pub struct Influx {
     pub database: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Database {
     #[serde(default = "Config::default_database_enabled")]
     pub enabled: bool,
@@ -141,6 +146,10 @@ impl Config {
     }
 
     fn default_database_enabled() -> bool {
-        false
+        true
+    }
+
+    pub fn enabled_databases(&self) -> impl Iterator<Item = &Database> {
+        self.databases.iter().filter(|database| database.enabled)
     }
 }

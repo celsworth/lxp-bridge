@@ -14,10 +14,10 @@ pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs
 
 pub struct Coordinator {
     config: Rc<Config>,
-    pub inverter: Inverter,
+    pub inverters: Vec<Inverter>,
     pub mqtt: mqtt::Mqtt,
     pub influx: influx::Influx,
-    pub database: database::Database,
+    pub databases: Vec<Database>,
     from_inverter: lxp::inverter::PacketChannelSender,
     to_inverter: lxp::inverter::PacketChannelSender,
     from_mqtt: mqtt::MessageSender,
@@ -38,11 +38,11 @@ impl Coordinator {
         let config = Rc::new(config);
 
         // process messages from/to inverter, passing Packets
-        let inverter = Inverter::new(
-            Rc::clone(&config),
-            to_inverter.clone(),
-            from_inverter.clone(),
-        );
+        let inverters = config
+            .enabled_inverters()
+            .cloned()
+            .map(|inverter| Inverter::new(inverter, to_inverter.clone(), from_inverter.clone()))
+            .collect();
 
         // process messages from/to MQTT, passing Messages
         let mqtt = mqtt::Mqtt::new(Rc::clone(&config), to_mqtt.clone(), from_mqtt.clone());
@@ -51,14 +51,18 @@ impl Coordinator {
         let influx = influx::Influx::new(Rc::clone(&config), to_influx.clone());
 
         // push messages to databases
-        let database = database::Database::new(Rc::clone(&config), to_database.clone());
+        let databases = config
+            .enabled_databases()
+            .cloned()
+            .map(|database| Database::new(database, to_database.clone()))
+            .collect();
 
         Self {
             config,
-            inverter,
+            inverters,
             mqtt,
             influx,
-            database,
+            databases,
             from_inverter,
             to_inverter,
             from_mqtt,
@@ -68,11 +72,33 @@ impl Coordinator {
         }
     }
 
-    pub async fn start(&self) -> Result<((), ())> {
-        let f1 = self.inverter_receiver();
-        let f2 = self.mqtt_receiver();
+    pub async fn start(&self) -> Result<()> {
+        futures::try_join!(
+            self.inverter_receiver(),
+            self.mqtt_receiver(),
+            self.start_inverters(),
+            self.mqtt.start(),
+            self.influx.start(),
+            self.start_databases()
+        )?;
 
-        futures::try_join!(f1, f2)
+        Ok(())
+    }
+
+    async fn start_inverters(&self) -> Result<()> {
+        let futures = self.inverters.iter().map(|i| i.start());
+
+        futures::future::join_all(futures).await;
+
+        Ok(())
+    }
+
+    async fn start_databases(&self) -> Result<()> {
+        let futures = self.databases.iter().map(|d| d.start());
+
+        futures::future::join_all(futures).await;
+
+        Ok(())
     }
 
     async fn mqtt_receiver(&self) -> Result<()> {
@@ -384,7 +410,7 @@ impl Coordinator {
                             self.to_influx.send(influx_data)?;
                         }
 
-                        if self.config.database.enabled {
+                        if self.config.enabled_databases().count() > 0 {
                             self.to_database.send(entry.clone())?;
                         }
 

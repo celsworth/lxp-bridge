@@ -45,16 +45,12 @@ async fn app() -> Result<()> {
     info!("lxp-bridge {} starting", CARGO_PKG_VERSION);
 
     let config = Config::new(options.config_file)?;
+    println!("{:?}", config);
+    //return Ok(());
 
     let coordinator = Coordinator::new(config);
 
-    futures::try_join!(
-        coordinator.start(),
-        coordinator.inverter.start(),
-        coordinator.mqtt.start(),
-        coordinator.influx.start(),
-        coordinator.database.start()
-    )?;
+    futures::try_join!(coordinator.start())?;
 
     Ok(())
 }

@@ -12,6 +12,8 @@ With the exception of SQLite which only needs a path to a file.
 
 A new row will be added to the `inputs` table every time the inverter broadcasts data.
 
+Note that the entry under `databases` is an array; you can configure multiple and lxp-bridge will store to each enabled one. Mixing and matching different database types is fine.
+
 ## Postgres
 
 Create a user and a database:
@@ -25,8 +27,8 @@ createdb -O lxpuser lxpdb
 config.yaml:
 
 ```yaml
-database:
-  enabled: true
+databases:
+- enabled: true
   url: postgres://lxpuser:lxppass@localhost/lxpdb
 ```
 
@@ -43,8 +45,8 @@ GRANT ALL PRIVILEGES ON lxpdb.* to lxpuser@localhost;
 config.yaml:
 
 ```yaml
-database:
-  enabled: true
+databases:
+- enabled: true
   url: mysql://lxpuser:lxppass@localhost/lxpdb
 ```
 
@@ -60,7 +62,7 @@ touch /some/path/to/lxp-database.db
 config.yaml:
 
 ```yaml
-database:
-  enabled: true
+databases:
+- enabled: true
   url: sqlite://some/path/to/lxp-database.db
 ```
