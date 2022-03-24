@@ -9,12 +9,12 @@ enum DatabaseType {
 }
 
 pub struct Database {
-    config: Rc<Config>,
+    config: config::Database,
     from_coordinator: InputsSender,
 }
 
 impl Database {
-    pub fn new(config: Rc<Config>, from_coordinator: InputsSender) -> Self {
+    pub fn new(config: config::Database, from_coordinator: InputsSender) -> Self {
         Self {
             config,
             from_coordinator,
@@ -22,32 +22,27 @@ impl Database {
     }
 
     pub async fn start(&self) -> Result<()> {
-        let config = &self.config.database;
-
-        if !config.enabled {
-            info!("database disabled, skipping");
-            return Ok(());
-        }
-
+        // TODO: could log the url but would need to redact password
         info!("initializing database");
 
         futures::try_join!(self.inserter())?;
+
         Ok(())
     }
 
     fn database(&self) -> Result<DatabaseType> {
-        let prefix: Vec<&str> = self.config.database.url.splitn(2, ':').collect();
+        let prefix: Vec<&str> = self.config.url.splitn(2, ':').collect();
         match prefix[0] {
             "sqlite" => Ok(DatabaseType::SQLite),
             "mysql" => Ok(DatabaseType::MySQL),
             "postgres" => Ok(DatabaseType::Postgres),
-            _ => Err(anyhow!("unsupported database {}", self.config.database.url)),
+            _ => Err(anyhow!("unsupported database {}", self.config.url)),
         }
     }
 
     async fn connect(&self) -> Result<sqlx::any::AnyConnection> {
         use sqlx::ConnectOptions;
-        sqlx::any::AnyConnectOptions::from_str(&self.config.database.url)?
+        sqlx::any::AnyConnectOptions::from_str(&self.config.url)?
             .disable_statement_logging()
             .connect()
             .await
@@ -65,21 +60,6 @@ impl Database {
         }
 
         Ok(())
-    }
-
-    fn values_for_mysql() -> &'static str {
-        r#"(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
-    }
-
-    fn values_for_not_mysql() -> &'static str {
-        r#"($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
-            $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
-            $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
-            $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56,
-            $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
-            $71, $72, $73, $74, $75)"#
     }
 
     async fn inserter(&self) -> Result<()> {
@@ -233,5 +213,20 @@ impl Database {
             .await?;
 
         Ok(())
+    }
+
+    fn values_for_mysql() -> &'static str {
+        r#"(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
+    }
+
+    fn values_for_not_mysql() -> &'static str {
+        r#"($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15,
+            $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28,
+            $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
+            $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56,
+            $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
+            $71, $72, $73, $74, $75)"#
     }
 }

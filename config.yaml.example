@@ -10,6 +10,12 @@ inverters:
   serial: 9999999999
   datalog: 3333333333
 
+databases:
+- enabled: false
+  url: postgres://lxp:lxp@localhost/lxp
+  # url: mysql://lxp:lxp@localhost/lxp
+  # url: sqlite://lxp.db
+
 mqtt:
   enabled: true
   host: localhost
@@ -27,9 +33,3 @@ influx:
   username:
   password:
   database: lxp
-
-database:
-  enabled: false
-  url: postgres://lxp:lxp@localhost/lxp
-  # url: mysql://lxp:lxp@localhost/lxp
-  # url: sqlite://lxp.db
