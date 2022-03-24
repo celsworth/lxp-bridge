@@ -45,8 +45,6 @@ async fn app() -> Result<()> {
     info!("lxp-bridge {} starting", CARGO_PKG_VERSION);
 
     let config = Config::new(options.config_file)?;
-    println!("{:?}", config);
-    //return Ok(());
 
     let coordinator = Coordinator::new(config);
 
