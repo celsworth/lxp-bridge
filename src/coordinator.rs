@@ -14,10 +14,11 @@ pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs
 
 pub struct Coordinator {
     config: Rc<Config>,
-    pub inverters: Vec<Inverter>,
+    inverters: Vec<Inverter>,
     pub mqtt: mqtt::Mqtt,
     pub influx: influx::Influx,
-    pub databases: Vec<Database>,
+    databases: Vec<Database>,
+    have_enabled_databases: bool,
     from_inverter: lxp::inverter::PacketChannelSender,
     to_inverter: lxp::inverter::PacketChannelSender,
     from_mqtt: mqtt::MessageSender,
@@ -56,6 +57,7 @@ impl Coordinator {
             .cloned()
             .map(|database| Database::new(database, to_database.clone()))
             .collect();
+        let have_enabled_databases = config.enabled_databases().count() > 0;
 
         Self {
             config,
@@ -63,6 +65,7 @@ impl Coordinator {
             mqtt,
             influx,
             databases,
+            have_enabled_databases,
             from_inverter,
             to_inverter,
             from_mqtt,
@@ -410,7 +413,7 @@ impl Coordinator {
                             self.to_influx.send(influx_data)?;
                         }
 
-                        if self.config.enabled_databases().count() > 0 {
+                        if self.have_enabled_databases {
                             self.to_database.send(entry.clone())?;
                         }
 
