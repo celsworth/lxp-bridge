@@ -46,6 +46,10 @@ jobs:
           os: ubuntu-latest
           toolchain: stable
           target: aarch64-unknown-linux-gnu
+        - build: linux-arm
+          os: ubuntu-latest
+          toolchain: stable
+          target: arm-unknown-linux-gnueabihf
         - build: macos-x86_64
           os: macos-11
           toolchain: stable
