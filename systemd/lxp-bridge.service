@@ -6,7 +6,7 @@ After=network-online.target
 User=chris
 Restart=always
 RestartSec=5
-ExecStart=/usr/local/bin/lxp-bridge -c /usr/local/etc/lxp-bridge/config.yaml
+ExecStart=/usr/local/bin/lxp-bridge -c /etc/lxp-bridge/config.yaml
 
 [Install]
 WantedBy=default.target
