@@ -16,26 +16,32 @@ jobs:
           os: ubuntu-latest
           toolchain: stable
           target: x86_64-unknown-linux-gnu
+          cross: false
         - build: linux-aarch64
           os: ubuntu-latest
           toolchain: stable
           target: aarch64-unknown-linux-gnu
+          cross: false
         - build: linux-arm
           os: ubuntu-latest
           toolchain: stable
           target: arm-unknown-linux-gnueabihf
+          cross: true
         - build: macos-x86_64
           os: macos-11
           toolchain: stable
           target: x86_64-apple-darwin
+          cross: false
         - build: macos-aarch64
           os: macos-11
           toolchain: stable
           target: aarch64-apple-darwin
+          cross: false
         - build: win-msvc
           os: windows-2019
           toolchain: stable
           target: x86_64-pc-windows-msvc
+          cross: false
 
     steps:
       - uses: actions/checkout@v2
@@ -82,6 +88,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
+          use-cross: ${{ matrix.crosss }}
           args: --release --target ${{ matrix.target }}
 
       - name: Archive production artifacts
