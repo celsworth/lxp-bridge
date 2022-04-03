@@ -4,7 +4,7 @@
 
 > more docs and features coming soon.
 
-lxp-bridge is a tool to communicate with a LuxPower inverter (commonly used with home-battery and solar setups).
+lxp-bridge is a tool to communicate with a LuxPower inverter (commonly used with home-battery and solar setups), written in Rust.
 
 It allows you to monitor and control your inverter locally without any dependence on the manufacturer's own servers in China.
 
@@ -23,13 +23,22 @@ In future, it might possibly run a HTTP server with endpoints to fetch power dat
 
 ## Installation
 
-A range of binaries are provided on the [Releases](https://github.com/celsworth/lxp-bridge/releases) page (if you're unsure which you need, start with `uname -m`), otherwise you can compile it yourself. It's written in Rust.
+A range of binaries are provided on the [Releases](https://github.com/celsworth/lxp-bridge/releases) page (if you're unsure which you need, check the [faq](doc/faq.md)), otherwise you can compile it yourself.
+
+Installation is not trivial but hopefully these steps will get you going:
 
   1. [Install Rust](https://www.rust-lang.org/tools/install)
   1. `git clone https://github.com/celsworth/lxp-bridge.git`
   1. `cd lxp-bridge`
-  1. `cargo build`
-  1. Look in `target/` for the binary, or `cargo run` it.
+  1. `make`
+  1. `sudo make install` will install the binary to `/usr/local/bin/lxp-bridge`
+  1. `sudo mkdir /etc/lxp-bridge`
+  1. `sudo cp config.yaml.example /etc/lxp-bridge/config.yaml`
+  1. Edit /etc/lxp-bridge/config.yaml to suit your configuration
+  1. Use [systemd/lxp-bridge.service](systemd/lxp-bridge.service) to get it running:
+    1. `sudo cp systemd/lxp-bridge.service /etc/systemd/system`
+    1. `sudo systemctl daemon-reload`
+    1. `sudo systemctl start lxp-bridge`
 
 Alternatively you can try running it in Docker:
 

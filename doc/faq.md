@@ -13,7 +13,7 @@ This is normal. 204 is the expected response from InfluxDB when it has stored a 
 
 ## Which binary do I use?
 
-* `aarch64-apple-darwin` - macOS M1
+* `aarch64-apple-darwin` - macOS M1 (arm64)
 * `aarch64-unknown-linux-gnu` - 64bit ARM Linux, eg Raspberry Pi 3 or 4 with 64bit OS.
 * `arm-unknown-linux-gnueabihf` - 32bit ARM Linux, eg Raspberry Pi 1 or 2.
 * `x86_64-apple-darwin` - macOS x86

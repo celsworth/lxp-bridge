@@ -3,7 +3,7 @@ Description=lxp-bridge
 After=network-online.target
 
 [Service]
-User=chris
+User=root
 Restart=always
 RestartSec=5
 ExecStart=/usr/local/bin/lxp-bridge -c /etc/lxp-bridge/config.yaml
