@@ -173,8 +173,40 @@ TODO: separate doc with known parameters? For now only 0 is known to work, which
 
 #### topic = `lxp/cmd/{datalog}/set/ac_charge`, payload = boolean
 
-Send a boolean to this to enable or disable immediate AC Charging (from the grid).
+Send a boolean to this to enable or disable AC Charging (from the grid). Note that if you have AC Charge schedules set, this may not immediately actually start charging. This can be seen in registers 68 - 73, as per [doc/LXP_REGISTERS.txt](doc/LXP_REGISTERS.txt) - AC_CHARGE_START_HOUR, AC_CHARGE_START_MINUTE, AC_CHARGE_END_HOUR, and AC_CHARGE_END_MINUTE (and \_1 and \_2).
 
+You can check this like so:
+
+```
+$ mosquitto_pub -t lxp/cmd/all/read/hold/68 -m 6
+
+<in another terminal...>
+$ mosquitto_sub -t lxp/# -v
+lxp/cmd/all/read/hold/68 6
+lxp/BA00000000/hold/68 0
+lxp/BA00000000/hold/69 7682
+lxp/BA00000000/hold/70 7701
+lxp/BA00000000/hold/71 0
+lxp/BA00000000/hold/72 0
+lxp/BA00000000/hold/73 0
+lxp/result/BA00000000/read/hold/68 OK
+```
+
+This example corresponds to these settings (charge from 21:30 to 02:30, I think you need to split them in two to cross midnight):
+
+![](doc/lux_example_ac_charge_times.png)
+
+The integers in 69/70 can be decoded like so:
+
+```
+7682 as base2 is 1111000000010
+Split that into two bytes, to get 11110 and 00000010
+11110 as base10 is 30.
+00000010 as base10 is 2.
+So this is 2:30
+
+7701 => 1111000010101 => 11110 and 00010101 => 30 and 21 => 21:30
+```
 
 #### topic = `lxp/cmd/{datalog}/set/forced_discharge`, payload = boolean
 
