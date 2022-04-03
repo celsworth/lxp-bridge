@@ -36,9 +36,9 @@ Installation is not trivial but hopefully these steps will get you going:
   1. `sudo cp config.yaml.example /etc/lxp-bridge/config.yaml`
   1. Edit /etc/lxp-bridge/config.yaml to suit your configuration
   1. Use [systemd/lxp-bridge.service](systemd/lxp-bridge.service) to get it running:
-    1. `sudo cp systemd/lxp-bridge.service /etc/systemd/system`
-    1. `sudo systemctl daemon-reload`
-    1. `sudo systemctl start lxp-bridge`
+     1. `sudo cp systemd/lxp-bridge.service /etc/systemd/system`
+     1. `sudo systemctl daemon-reload`
+     1. `sudo systemctl start lxp-bridge`
 
 Alternatively you can try running it in Docker:
 
