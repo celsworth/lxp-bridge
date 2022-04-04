@@ -44,7 +44,10 @@ Alternatively you can try running it in Docker:
 
   1. You'll need Docker
   1. Create a `config.yaml` by copying the example from this repo and editing.
-  1. `docker run --init --rm --mount type=bind,source=${PWD}/config.yaml,target=/etc/config.yaml celsworth/lxp-bridge`
+  1. Start the container, using one of the following:
+     1. Either run docker directly with something like:
+        `docker run --init --rm --mount type=bind,source=${PWD}/config.yaml,target=/etc/config.yaml celsworth/lxp-bridge`
+     1. Or there's a [docker-compose.yaml.example](docker-compose.yaml.example) if you prefer that.
 
 The final step should leave you with a running lxp-bridge that maps the config in the current directory into the Docker image.
 

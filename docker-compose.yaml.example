@@ -1,0 +1,13 @@
+version: '3.4'
+
+services:
+ lxp-bridge:
+   container_name: lxp-bridge:latest
+   image: celsworth/lxp-bridge
+   restart: unless-stopped
+   init: true
+   volumes:
+   - type: bind
+     source: ${PWD}/config.yaml
+     target: /etc/config.yaml
+
