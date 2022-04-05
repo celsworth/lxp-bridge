@@ -30,6 +30,7 @@ Installation is not trivial but hopefully these steps will get you going:
   1. [Install Rust](https://www.rust-lang.org/tools/install)
   1. `git clone https://github.com/celsworth/lxp-bridge.git`
   1. `cd lxp-bridge`
+  1. `sudo apt-get install pkg-config libssl-dev` - or equivalent for your distribution
   1. `make`
   1. `sudo make install` will install the binary to `/usr/local/bin/lxp-bridge`
   1. `sudo mkdir /etc/lxp-bridge`

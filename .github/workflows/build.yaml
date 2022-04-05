@@ -1,47 +1,51 @@
 on:
   pull_request:
+  push:
 
 name: Build
 
 jobs:
   build:
-    name: Build ${{ matrix.target }}
+    name: Build ${{ matrix.build }}
     runs-on: ${{ matrix.os }}
     continue-on-error: true
-
     strategy:
       matrix:
         include:
-        - build: linux-x86_64
+        - build: linux-amd64
           os: ubuntu-latest
           toolchain: stable
           target: x86_64-unknown-linux-gnu
-          cross: false
-        - build: linux-aarch64
+        - build: linux-arm64
           os: ubuntu-latest
+          packages: gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+          openssl: true
           toolchain: stable
           target: aarch64-unknown-linux-gnu
-          cross: false
-        - build: linux-arm
+          gcc: aarch64-linux-gnu-gcc
+          machine: aarch64
+          arch: aarch64
+        - build: linux-arm-v7
           os: ubuntu-latest
+          packages: gcc-arm-linux-gnueabihf libc6-dev-armel-cross
+          openssl: true
           toolchain: stable
-          target: arm-unknown-linux-gnueabihf
-          cross: false
-        - build: macos-x86_64
+          target: armv7-unknown-linux-gnueabihf
+          gcc: arm-linux-gnueabihf-gcc
+          machine: arm
+          arch: arm
+        - build: darwin-amd64
           os: macos-11
           toolchain: stable
           target: x86_64-apple-darwin
-          cross: false
-        - build: macos-aarch64
+        - build: darwin-arm64
           os: macos-11
           toolchain: stable
           target: aarch64-apple-darwin
-          cross: false
-        - build: win-msvc
+        - build: windows-amd64.exe
           os: windows-2019
           toolchain: stable
           target: x86_64-pc-windows-msvc
-          cross: false
 
     steps:
       - uses: actions/checkout@v2
@@ -49,54 +53,30 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            /usr/share/rust~/.cargo
-            ~/openssl-1.1.1l
+            /usr/share/rust
             ~/.cargo
+            ~/openssl-1.1.1l
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install compiler
-        if: matrix.build == 'linux-arm'
+      - name: Install packages
+        if: matrix.packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armel-cross
-          echo CARGO_TARGET_ARM_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc >>$GITHUB_ENV
-          echo CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc >>$GITHUB_ENV
-
-
-      - name: Install compiler
-        if: matrix.build == 'linux-aarch64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
-          echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc >>$GITHUB_ENV
-          echo CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc >>$GITHUB_ENV
+          sudo apt-get install -y ${{ matrix.packages }}
 
       - name: Build OpenSSL
-        if: matrix.build == 'linux-arm'
+        if: matrix.openssl
         run: |
-            cd ~
-            wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-            tar xzf openssl-1.1.1l.tar.gz
-            export MACHINE=arm
-            export ARCH=arm
-            export CC=arm-linux-gnueabihf-gcc
-            cd openssl-1.1.1l && ./config shared && make
-            echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
-            echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
-
-      - name: Build OpenSSL
-        if: matrix.build == 'linux-aarch64'
-        run: |
-            cd ~
-            wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-            tar xzf openssl-1.1.1l.tar.gz
-            export MACHINE=aarch64
-            export ARCH=aarch64
-            export CC=aarch64-linux-gnu-gcc
-            cd openssl-1.1.1l && ./config shared && make
-            echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
-            echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
+          cd ~
+          wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
+          tar xzf openssl-1.1.1l.tar.gz
+          export MACHINE=${{ matrix.machine }}
+          export ARCH=${{ matrix.arch }}
+          export CC=${{ matrix.gcc }}
+          cd openssl-1.1.1l && ./config shared && make
+          echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
+          echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
@@ -110,14 +90,20 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          use-cross: ${{ matrix.cross }}
           args: --release --target ${{ matrix.target }}
 
-      - name: Archive production artifacts
-        uses: actions/upload-artifact@v2
+      - name: Rename release binary
+        if: matrix.os != 'windows-2019'
+        run: |
+          mv target/${{ matrix.target }}/release/lxp-bridge lxp-bridge.${{ matrix.build }}
+
+      - name: Rename release binary
+        if: matrix.os == 'windows-2019'
+        run: |
+          mv target/${{ matrix.target }}/release/lxp-bridge.exe lxp-bridge.${{ matrix.build }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
         with:
-          name: ${{ matrix.target }}
-          if-no-files-found: ignore
-          path: |
-            target/${{ matrix.target }}/release/lxp-bridge
-            target/${{ matrix.target }}/release/lxp-bridge.exe
+          name: lxp-bridge.${{ matrix.build }}
+          path: lxp-bridge.${{ matrix.build }}
