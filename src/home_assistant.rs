@@ -40,9 +40,9 @@ impl Config {
             Self::energy(inverter, mqtt_config, "e_dischg_all", 2)?,
             Self::energy(inverter, mqtt_config, "e_to_user_all", 2)?,
             Self::energy(inverter, mqtt_config, "e_to_grid_all", 2)?,
-            Self::temperature(inverter, mqtt_config, "t_inner", 2)?,
-            Self::temperature(inverter, mqtt_config, "t_rad_1", 2)?,
-            Self::temperature(inverter, mqtt_config, "t_rad_2", 2)?,
+            Self::temperature(inverter, mqtt_config, "t_inner", "Inverter Temperature", 2)?,
+            Self::temperature(inverter, mqtt_config, "t_rad_1", "Radiator 1 Temperature", 2)?,
+            Self::temperature(inverter, mqtt_config, "t_rad_2", "Radiator 2 Temperature", 2)?,
         ];
 
         Ok(r)
@@ -165,6 +165,7 @@ impl Config {
         inverter: &config::Inverter,
         mqtt_config: &config::Mqtt,
         name: &str,
+        label: &str,
         input: u16,
     ) -> Result<mqtt::Message> {
         let config = Self {
@@ -177,7 +178,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{} {}", inverter.datalog, name),
+            name: format!("{}", label),
         };
 
         Ok(mqtt::Message {
