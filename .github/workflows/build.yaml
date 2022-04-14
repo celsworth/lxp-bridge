@@ -14,13 +14,11 @@ jobs:
         include:
         - build: linux-amd64
           os: ubuntu-latest
-          toolchain: stable
           target: x86_64-unknown-linux-gnu
         - build: linux-arm64
           os: ubuntu-latest
           packages: gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
           openssl: true
-          toolchain: stable
           target: aarch64-unknown-linux-gnu
           gcc: aarch64-linux-gnu-gcc
           machine: aarch64
@@ -29,23 +27,22 @@ jobs:
           os: ubuntu-latest
           packages: gcc-arm-linux-gnueabihf libc6-dev-armel-cross
           openssl: true
-          toolchain: stable
           target: armv7-unknown-linux-gnueabihf
           gcc: arm-linux-gnueabihf-gcc
           machine: arm
           arch: arm
         - build: darwin-amd64
           os: macos-11
-          toolchain: stable
           target: x86_64-apple-darwin
         - build: darwin-arm64
           os: macos-11
-          toolchain: stable
           target: aarch64-apple-darwin
         - build: windows-amd64.exe
           os: windows-2019
-          toolchain: stable
           target: x86_64-pc-windows-msvc
+        - build: windows-arm64.exe
+          os: windows-2019
+          target: aarch64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v2
@@ -81,7 +78,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: stable
           profile: minimal
           override: true
           target: ${{ matrix.target }}
