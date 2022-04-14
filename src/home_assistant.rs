@@ -126,7 +126,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{}", label),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
@@ -155,7 +155,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{}", label),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
@@ -184,7 +184,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{}", label),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
@@ -213,7 +213,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{}", label),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
@@ -243,7 +243,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{}", label),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
