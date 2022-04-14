@@ -132,7 +132,7 @@ impl Database {
         let ri2 = data.read_input_2.as_ref().unwrap();
         let ri3 = data.read_input_3.as_ref().unwrap();
 
-        sqlx::query::<sqlx::Any>(&query)
+        sqlx::query::<sqlx::Any>(query)
             .bind(ri1.status as i32)
             .bind(ri1.v_pv)
             .bind(ri1.v_pv_1)
