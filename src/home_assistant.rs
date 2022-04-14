@@ -19,30 +19,91 @@ impl Config {
         mqtt_config: &config::Mqtt,
     ) -> Result<Vec<mqtt::Message>> {
         let r = vec![
-            Self::battery(inverter, mqtt_config, "soc", 1)?,
-            Self::voltage(inverter, mqtt_config, "v_pv_1", 1)?,
-            Self::voltage(inverter, mqtt_config, "v_pv_2", 1)?,
-            Self::voltage(inverter, mqtt_config, "v_pv_3", 1)?,
-            Self::voltage(inverter, mqtt_config, "v_bat", 1)?,
-            Self::power(inverter, mqtt_config, "p_pv", 1)?,
-            Self::power(inverter, mqtt_config, "p_pv_1", 1)?,
-            Self::power(inverter, mqtt_config, "p_pv_2", 1)?,
-            Self::power(inverter, mqtt_config, "p_pv_3", 1)?,
-            Self::power(inverter, mqtt_config, "p_charge", 1)?,
-            Self::power(inverter, mqtt_config, "p_discharge", 1)?,
-            Self::power(inverter, mqtt_config, "p_to_user", 1)?,
-            Self::power(inverter, mqtt_config, "p_to_grid", 1)?,
-            Self::energy(inverter, mqtt_config, "e_pv_all", 2)?,
-            Self::energy(inverter, mqtt_config, "e_pv_all_1", 2)?,
-            Self::energy(inverter, mqtt_config, "e_pv_all_2", 2)?,
-            Self::energy(inverter, mqtt_config, "e_pv_all_3", 2)?,
-            Self::energy(inverter, mqtt_config, "e_chg_all", 2)?,
-            Self::energy(inverter, mqtt_config, "e_dischg_all", 2)?,
-            Self::energy(inverter, mqtt_config, "e_to_user_all", 2)?,
-            Self::energy(inverter, mqtt_config, "e_to_grid_all", 2)?,
-            Self::temperature(inverter, mqtt_config, "t_inner", 2)?,
-            Self::temperature(inverter, mqtt_config, "t_rad_1", 2)?,
-            Self::temperature(inverter, mqtt_config, "t_rad_2", 2)?,
+            Self::battery(inverter, mqtt_config, "soc", "Battery Percentage", 1)?,
+            Self::voltage(inverter, mqtt_config, "v_pv", "Voltage (PV Array)", 1)?,
+            Self::voltage(inverter, mqtt_config, "v_pv_1", "Voltage (PV String 1)", 1)?,
+            Self::voltage(inverter, mqtt_config, "v_pv_2", "Voltage (PV String 2)", 1)?,
+            Self::voltage(inverter, mqtt_config, "v_pv_3", "Voltage (PV String 3)", 1)?,
+            Self::voltage(inverter, mqtt_config, "v_bat", "Battery Voltage", 1)?,
+            Self::power(inverter, mqtt_config, "p_pv", "Power (PV Array)", 1)?,
+            Self::power(inverter, mqtt_config, "p_pv_1", "Power (PV String 1)", 1)?,
+            Self::power(inverter, mqtt_config, "p_pv_2", "Power (PV String 2)", 1)?,
+            Self::power(inverter, mqtt_config, "p_pv_3", "Power (PV String 3)", 1)?,
+            Self::power(inverter, mqtt_config, "p_charge", "Battery Charge", 1)?,
+            Self::power(inverter, mqtt_config, "p_discharge", "Battery Discharge", 1)?,
+            Self::power(inverter, mqtt_config, "p_to_user", "Power from Grid", 1)?,
+            Self::power(inverter, mqtt_config, "p_to_grid", "Power to Grid", 1)?,
+            Self::energy(
+                inverter,
+                mqtt_config,
+                "e_pv_all",
+                "PV Generation (All time)",
+                2,
+            )?,
+            Self::energy(
+                inverter,
+                mqtt_config,
+                "e_pv_all_1",
+                "PV Generation (All time) (String 1)",
+                2,
+            )?,
+            Self::energy(
+                inverter,
+                mqtt_config,
+                "e_pv_all_2",
+                "PV Generation (All time) (String 2)",
+                2,
+            )?,
+            Self::energy(
+                inverter,
+                mqtt_config,
+                "e_pv_all_3",
+                "PV Generation (All time) (String 3)",
+                2,
+            )?,
+            Self::energy(
+                inverter,
+                mqtt_config,
+                "e_chg_all",
+                "Battery Charge (All time)",
+                2,
+            )?,
+            Self::energy(
+                inverter,
+                mqtt_config,
+                "e_dischg_all",
+                "Battery Discharge (All time)",
+                2,
+            )?,
+            Self::energy(
+                inverter,
+                mqtt_config,
+                "e_to_user_all",
+                "Energy from Grid (All time)",
+                2,
+            )?,
+            Self::energy(
+                inverter,
+                mqtt_config,
+                "e_to_grid_all",
+                "Energy to Grid (All time)",
+                2,
+            )?,
+            Self::temperature(inverter, mqtt_config, "t_inner", "Inverter Temperature", 2)?,
+            Self::temperature(
+                inverter,
+                mqtt_config,
+                "t_rad_1",
+                "Radiator 1 Temperature",
+                2,
+            )?,
+            Self::temperature(
+                inverter,
+                mqtt_config,
+                "t_rad_2",
+                "Radiator 2 Temperature",
+                2,
+            )?,
         ];
 
         Ok(r)
@@ -52,6 +113,7 @@ impl Config {
         inverter: &config::Inverter,
         mqtt_config: &config::Mqtt,
         name: &str,
+        label: &str,
         input: u16,
     ) -> Result<mqtt::Message> {
         let config = Self {
@@ -64,7 +126,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{} {}", inverter.datalog, name),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
@@ -80,6 +142,7 @@ impl Config {
         inverter: &config::Inverter,
         mqtt_config: &config::Mqtt,
         name: &str,
+        label: &str,
         input: u16,
     ) -> Result<mqtt::Message> {
         let config = Self {
@@ -92,7 +155,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{} {}", inverter.datalog, name),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
@@ -108,6 +171,7 @@ impl Config {
         inverter: &config::Inverter,
         mqtt_config: &config::Mqtt,
         name: &str,
+        label: &str,
         input: u16,
     ) -> Result<mqtt::Message> {
         let config = Self {
@@ -120,7 +184,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{} {}", inverter.datalog, name),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
@@ -136,6 +200,7 @@ impl Config {
         inverter: &config::Inverter,
         mqtt_config: &config::Mqtt,
         name: &str,
+        label: &str,
         input: u16,
     ) -> Result<mqtt::Message> {
         let config = Self {
@@ -148,7 +213,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{} {}", inverter.datalog, name),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
@@ -165,6 +230,7 @@ impl Config {
         inverter: &config::Inverter,
         mqtt_config: &config::Mqtt,
         name: &str,
+        label: &str,
         input: u16,
     ) -> Result<mqtt::Message> {
         let config = Self {
@@ -177,7 +243,7 @@ impl Config {
                 mqtt_config.namespace, inverter.datalog, input
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog, name),
-            name: format!("{} {}", inverter.datalog, name),
+            name: label.to_string(),
         };
 
         Ok(mqtt::Message {
