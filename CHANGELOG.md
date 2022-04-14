@@ -1,6 +1,7 @@
 # 0.7.0
 
 * Add Postgres/MySQL/SQLite support (#44, #45, #47)
+* Use more meaningful labels for HomeAssistant autodiscovery (#55, @chriscn)
 
 # 0.6.0 - 26th February 2022
 
