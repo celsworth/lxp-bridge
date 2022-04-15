@@ -278,6 +278,9 @@ impl Config {
 
     fn sensor_enabled(sensors: &Vec<String>, name: &str) -> bool {
         // this is rather suboptimal but it only gets run at startup so not time critical
-        sensors.iter().any(|s| s == "all") || sensors.iter().any(|s| s == name)
+        sensors
+            .iter()
+            .map(|s| s.replace(" ", ""))
+            .any(|s| s == "all" || s == name)
     }
 }
