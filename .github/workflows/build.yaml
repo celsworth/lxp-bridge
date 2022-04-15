@@ -87,12 +87,12 @@ jobs:
           args: --release --target ${{ matrix.target }}
 
       - name: Rename release binary
-        if: matrix.os != 'windows-2019'
+        if: runner.os != 'Windows'
         run: |
           mv target/${{ matrix.target }}/release/lxp-bridge lxp-bridge.${{ matrix.build }}
 
       - name: Rename release binary
-        if: matrix.os == 'windows-2019'
+        if: runner.os == 'Windows'
         run: |
           mv target/${{ matrix.target }}/release/lxp-bridge.exe lxp-bridge.${{ matrix.build }}
 
