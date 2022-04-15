@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use serde::Deserialize;
-use serde_with::serde_as; //, OneOrMany;
+use serde_with::{rust::StringWithSeparator, serde_as, CommaSeparator}; //, OneOrMany;
 
 #[serde_as]
 #[derive(Debug, Deserialize)]
@@ -43,6 +43,10 @@ pub struct HomeAssistant {
 
     #[serde(default = "Config::default_mqtt_homeassistant_prefix")]
     pub prefix: String,
+
+    #[serde(default = "Config::default_mqtt_homeassistant_sensors")]
+    #[serde(with = "StringWithSeparator::<CommaSeparator>")]
+    pub sensors: Vec<String>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -131,6 +135,7 @@ impl Config {
         HomeAssistant {
             enabled: Self::default_mqtt_homeassistant_enabled(),
             prefix: Self::default_mqtt_homeassistant_prefix(),
+            sensors: Self::default_mqtt_homeassistant_sensors(),
         }
     }
 
@@ -139,6 +144,10 @@ impl Config {
     }
     fn default_mqtt_homeassistant_prefix() -> String {
         "homeassistant".to_string()
+    }
+    fn default_mqtt_homeassistant_sensors() -> Vec<String> {
+        // by default, use the special-case string of "all" rather than list them all out
+        vec!["all".to_string()]
     }
 
     fn default_influx_enabled() -> bool {

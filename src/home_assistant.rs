@@ -106,7 +106,8 @@ impl Config {
             )?,
         ];
 
-        Ok(r)
+        // drop all None
+        Ok(r.into_iter().flatten().collect())
     }
 
     fn battery(
@@ -115,7 +116,11 @@ impl Config {
         name: &str,
         label: &str,
         input: u16,
-    ) -> Result<mqtt::Message> {
+    ) -> Result<Option<mqtt::Message>> {
+        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+            return Ok(None);
+        }
+
         let config = Self {
             device_class: "battery".to_owned(),
             state_class: "measurement".to_owned(),
@@ -129,13 +134,13 @@ impl Config {
             name: label.to_string(),
         };
 
-        Ok(mqtt::Message {
+        Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
                 mqtt_config.homeassistant.prefix, inverter.datalog, name
             ),
             payload: serde_json::to_string(&config)?,
-        })
+        }))
     }
 
     fn power(
@@ -144,7 +149,11 @@ impl Config {
         name: &str,
         label: &str,
         input: u16,
-    ) -> Result<mqtt::Message> {
+    ) -> Result<Option<mqtt::Message>> {
+        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+            return Ok(None);
+        }
+
         let config = Self {
             device_class: "power".to_owned(),
             state_class: "measurement".to_owned(),
@@ -158,13 +167,13 @@ impl Config {
             name: label.to_string(),
         };
 
-        Ok(mqtt::Message {
+        Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
                 mqtt_config.homeassistant.prefix, inverter.datalog, name
             ),
             payload: serde_json::to_string(&config)?,
-        })
+        }))
     }
 
     fn energy(
@@ -173,7 +182,11 @@ impl Config {
         name: &str,
         label: &str,
         input: u16,
-    ) -> Result<mqtt::Message> {
+    ) -> Result<Option<mqtt::Message>> {
+        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+            return Ok(None);
+        }
+
         let config = Self {
             device_class: "energy".to_owned(),
             state_class: "total_increasing".to_owned(),
@@ -187,13 +200,13 @@ impl Config {
             name: label.to_string(),
         };
 
-        Ok(mqtt::Message {
+        Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
                 mqtt_config.homeassistant.prefix, inverter.datalog, name
             ),
             payload: serde_json::to_string(&config)?,
-        })
+        }))
     }
 
     fn voltage(
@@ -202,7 +215,11 @@ impl Config {
         name: &str,
         label: &str,
         input: u16,
-    ) -> Result<mqtt::Message> {
+    ) -> Result<Option<mqtt::Message>> {
+        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+            return Ok(None);
+        }
+
         let config = Self {
             device_class: "voltage".to_owned(),
             state_class: "measurement".to_owned(),
@@ -216,14 +233,14 @@ impl Config {
             name: label.to_string(),
         };
 
-        Ok(mqtt::Message {
+        Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
                 mqtt_config.homeassistant.prefix, inverter.datalog, name
             ),
 
             payload: serde_json::to_string(&config)?,
-        })
+        }))
     }
 
     fn temperature(
@@ -232,7 +249,11 @@ impl Config {
         name: &str,
         label: &str,
         input: u16,
-    ) -> Result<mqtt::Message> {
+    ) -> Result<Option<mqtt::Message>> {
+        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+            return Ok(None);
+        }
+
         let config = Self {
             device_class: "temperature".to_owned(),
             state_class: "measurement".to_owned(),
@@ -246,12 +267,17 @@ impl Config {
             name: label.to_string(),
         };
 
-        Ok(mqtt::Message {
+        Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
                 mqtt_config.homeassistant.prefix, inverter.datalog, name
             ),
             payload: serde_json::to_string(&config)?,
-        })
+        }))
+    }
+
+    fn sensor_enabled(sensors: &Vec<String>, name: &str) -> bool {
+        // this is rather suboptimal but it only gets run at startup so not time critical
+        sensors.iter().any(|s| s == "all") || sensors.iter().any(|s| s == name)
     }
 }
