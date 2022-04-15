@@ -10,7 +10,6 @@
 name: rust-clippy analyze
 
 on:
-  push:
   pull_request:
   schedule:
     - cron: '34 19 * * 6'
