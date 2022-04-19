@@ -30,8 +30,8 @@ Installation is not trivial but hopefully these steps will get you going:
   1. [Install Rust](https://www.rust-lang.org/tools/install)
   1. `git clone https://github.com/celsworth/lxp-bridge.git`
   1. `cd lxp-bridge`
-  1. `make`
-  1. `sudo make install` will install the binary to `/usr/local/bin/lxp-bridge`
+  1. `cargo build`
+  1. `sudo cp target/debug/lxp-bridge /usr/local/bin/lxp-bridge`
   1. `sudo mkdir /etc/lxp-bridge`
   1. `sudo cp config.yaml.example /etc/lxp-bridge/config.yaml`
   1. Edit /etc/lxp-bridge/config.yaml to suit your configuration
