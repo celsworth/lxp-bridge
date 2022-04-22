@@ -6,6 +6,7 @@ After=network-online.target
 User=root
 Restart=always
 RestartSec=5
+Environment="RUST_LOG=info"
 ExecStart=/usr/local/bin/lxp-bridge -c /etc/lxp-bridge/config.yaml
 
 [Install]
