@@ -26,6 +26,7 @@ mqtt:
   homeassistant:
     enabled: true
     prefix: homeassistant
+    sensors: all # or e_pv_all,v_bat,soc etc
 
 influx:
   enabled: true
