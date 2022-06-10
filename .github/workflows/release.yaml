@@ -25,7 +25,7 @@ jobs:
 
       - name: Get the version
         id: vars
-        run: echo ::set-output name=tag::$(echo ${GITHUB_REF##*/})
+        run: echo ::set-output name=tag::$(echo ${{github.ref_name}})
 
       - name: Build and push
         uses: docker/build-push-action@v2
