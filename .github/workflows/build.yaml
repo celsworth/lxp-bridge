@@ -1,6 +1,10 @@
 on:
-  pull_request:
   push:
+  - master
+  pull_request:
+    branches:
+    - master
+
 
 name: Build
 
