@@ -12,23 +12,32 @@ jobs:
       - uses: actions/checkout@v2
 
       - name: Login to DockerHub Registry
-        run: echo ${{ secrets.DOCKERHUB_PASSWORD }} | docker login -u celsworth --password-stdin
+        uses: docker/login-action@v1
+        with:
+          username: celsworth
+          password: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
 
       - name: Get the version
         id: vars
-        run: echo ::set-output name=tag::$(echo ${GITHUB_REF:10})
+        run: echo ::set-output name=tag::$(echo ${{github.ref_name}})
 
-      - name: Build the tagged Docker image
-        run: docker build . --file Dockerfile --tag celsworth/lxp-bridge:${{steps.vars.outputs.tag}}
-
-      - name: Push the tagged Docker image
-        run: docker push celsworth/lxp-bridge:${{steps.vars.outputs.tag}}
-
-      - name: Tag the latest Docker image
-        run: docker tag celsworth/lxp-bridge:${{steps.vars.outputs.tag}} celsworth/lxp-bridge:latest
-
-      - name: Push the latest Docker image
-        run: docker push celsworth/lxp-bridge:latest
+      - name: Build and push
+        uses: docker/build-push-action@v2
+        with:
+          context: .
+          file: ci/Dockerfile
+          push: true
+          tags: celsworth/lxp-bridge:latest,celsworth/lxp-bridge:${{steps.vars.outputs.tag}}
+          platforms: |
+            linux/amd64
+            linux/arm64
+            linux/arm/v7
 
   build:
     name: Build ${{ matrix.target }}
@@ -74,26 +83,37 @@ jobs:
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install compiler
-        if: matrix.build == 'linux-aarch64'
+      - name: Build OpenSSL
+        if: matrix.build == 'linux-arm'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
-          echo CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc >>$GITHUB_ENV
-          echo CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc >>$GITHUB_ENV
+          sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armel-cross
+          echo CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc >>$GITHUB_ENV
+          cd ~
+          wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
+          tar xzf openssl-1.1.1l.tar.gz
+          export MACHINE=arm
+          export ARCH=arm
+          export CC=arm-linux-gnueabihf-gcc
+          cd openssl-1.1.1l && ./config shared && make
+          echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
+          echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
 
       - name: Build OpenSSL
         if: matrix.build == 'linux-aarch64'
         run: |
-            cd ~
-            wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-            tar xzf openssl-1.1.1l.tar.gz
-            export MACHINE=aarch64
-            export ARCH=aarch64
-            export CC=aarch64-linux-gnu-gcc
-            cd openssl-1.1.1l && ./config shared && make
-            echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
-            echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+          echo CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc >>$GITHUB_ENV
+          cd ~
+          wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
+          tar xzf openssl-1.1.1l.tar.gz
+          export MACHINE=aarch64
+          export ARCH=aarch64
+          export CC=aarch64-linux-gnu-gcc
+          cd openssl-1.1.1l && ./config shared && make
+          echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
+          echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
 
       - name: Install Rust
         uses: actions-rs/toolchain@v1
