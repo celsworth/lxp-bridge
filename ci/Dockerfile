@@ -1,10 +1,3 @@
-# https://hub.docker.com/repository/docker/celsworth/lxp-bridge
-#
-# Building/publishing:
-# docker build -t celsworth/lxp-bridge .
-# docker push celsworth/lxp-bridge:latest
-#
-
 FROM --platform=$BUILDPLATFORM rust:latest as builder
 ARG TARGETPLATFORM
 WORKDIR /usr/src/lxp-bridge
