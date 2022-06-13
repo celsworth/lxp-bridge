@@ -349,6 +349,29 @@ pub struct ReadInput3 {
     pub bat_count: u16,
     pub bat_capacity: u16,
 
+    #[nom(Parse = "utils::le_i16_div100")]
+    pub bat_current: f64,
+
+    pub bms_event_1: u16,
+    pub bms_event_2: u16,
+
+    // TODO: probably floats but need non-zero sample data to check. just guessing at the div100.
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub max_cell_voltage: f64,
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub min_cell_voltage: f64,
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub max_cell_temp: f64,
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub min_cell_temp: f64,
+
+    pub bms_fw_update_state: u16,
+
+    pub cycle_count: u16,
+
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub vbat_inv: f64,
+
     // following are for influx capability only
     #[nom(Parse = "utils::current_time")]
     pub time: UnixTime,
@@ -454,16 +477,16 @@ impl ReadInputs {
             bat_status_inv: ri3.bat_status_inv,
             bat_count: ri3.bat_count,
             bat_capacity: ri3.bat_capacity,
-            bat_current: 0.0,
-            bms_event_1: 0,
-            bms_event_2: 0,
-            bms_fw_update_state: 0,
-            cycle_count: 0,
-            max_cell_temp: 0.0,
-            min_cell_temp: 0.0,
-            max_cell_voltage: 0.0,
-            min_cell_voltage: 0.0,
-            vbat_inv: 0.0,
+            bat_current: ri3.bat_current,
+            bms_event_1: ri3.bms_event_1,
+            bms_event_2: ri3.bms_event_2,
+            max_cell_voltage: ri3.max_cell_voltage,
+            min_cell_voltage: ri3.min_cell_voltage,
+            max_cell_temp: ri3.max_cell_temp,
+            min_cell_temp: ri3.min_cell_temp,
+            bms_fw_update_state: ri3.bms_fw_update_state,
+            cycle_count: ri3.cycle_count,
+            vbat_inv: ri3.vbat_inv,
             datalog: ri1.datalog,
             time: ri1.time.clone(),
         }
