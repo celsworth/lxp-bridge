@@ -402,27 +402,10 @@ impl Coordinator {
 
                 match td.read_input()? {
                     ReadInput::ReadInputAll(r_all) => {
-                        let datalog = r_all.datalog;
-
-                        if self.config.influx.enabled {
-                            let influx_data =
-                                channel::Message::JsonValue(serde_json::to_value(&r_all)?);
-                            self.to_influx.send(influx_data)?;
-                        }
-
-                        /*
-                        if self.have_enabled_databases {
-                            let tmp = lxp::packet::ReadInput::ReadInputAll(r_all);
-                            self.to_database.send(tmp)?;
-                        }
-                        */
-
-                        if self.config.mqtt.enabled {
-                            for message in mqtt::Message::for_input_all(&r_all, datalog) {
-                                self.to_mqtt.send(message)?;
-                            }
-                        }
+                        // no need for MQTT here, done below
+                        self.save_input_all(r_all).await?
                     }
+
                     ReadInput::ReadInput1(r1) => entry.set_read_input_1(r1),
                     ReadInput::ReadInput2(r2) => entry.set_read_input_2(r2),
                     ReadInput::ReadInput3(r3) => {
@@ -430,21 +413,15 @@ impl Coordinator {
 
                         entry.set_read_input_3(r3);
 
-                        if self.config.influx.enabled {
-                            let influx_data =
-                                channel::Message::JsonValue(serde_json::to_value(&entry)?);
-                            self.to_influx.send(influx_data)?;
-                        }
-
-                        if self.have_enabled_databases {
-                            self.to_database.send(entry.clone())?;
-                        }
+                        let input = entry.to_input_all();
 
                         if self.config.mqtt.enabled {
-                            for message in mqtt::Message::for_inputs(entry, datalog) {
+                            for message in mqtt::Message::for_input_all(&input, datalog) {
                                 self.to_mqtt.send(message)?;
                             }
                         }
+
+                        self.save_input_all(input).await?;
                     }
                 }
             }
@@ -466,6 +443,19 @@ impl Coordinator {
                     error!("{}", e);
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    async fn save_input_all(&self, input: lxp::packet::ReadInputAll) -> Result<()> {
+        if self.config.influx.enabled {
+            let influx_data = channel::Message::JsonValue(serde_json::to_value(&input)?);
+            self.to_influx.send(influx_data)?;
+        }
+
+        if self.have_enabled_databases {
+            self.to_database.send(input)?;
         }
 
         Ok(())

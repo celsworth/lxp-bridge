@@ -58,18 +58,6 @@ impl Message {
         }]
     }
 
-    pub fn for_inputs(
-        inputs: &lxp::packet::ReadInputs,
-        datalog: lxp::inverter::Serial,
-    ) -> Vec<Message> {
-        let payload = serde_json::to_string(&inputs).unwrap();
-
-        vec![mqtt::Message {
-            topic: format!("{}/inputs/all", datalog),
-            payload,
-        }]
-    }
-
     pub fn for_input(td: lxp::packet::TranslatedData) -> Result<Vec<Message>> {
         use lxp::packet::ReadInput;
 
