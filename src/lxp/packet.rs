@@ -6,10 +6,186 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
 
 pub enum ReadInput {
+    ReadInputAll(ReadInputAll),
     ReadInput1(ReadInput1),
     ReadInput2(ReadInput2),
     ReadInput3(ReadInput3),
 }
+
+// {{{ ReadInputAll
+#[derive(Clone, Debug, Serialize, Nom)]
+#[nom(LittleEndian)]
+pub struct ReadInputAll {
+    pub status: u16,
+    #[nom(Ignore)]
+    pub v_pv: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_pv_1: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_pv_2: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_pv_3: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_bat: f64,
+
+    pub soc: u8,
+    pub soh: u8,
+    #[nom(SkipBefore(2))]
+    #[nom(Ignore)]
+    pub p_pv: u16,
+    pub p_pv_1: u16,
+    pub p_pv_2: u16,
+    pub p_pv_3: u16,
+    pub p_charge: u16,
+    pub p_discharge: u16,
+
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_ac_r: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_ac_s: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_ac_t: f64,
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub f_ac: f64,
+
+    pub p_inv: u16,
+    pub p_rec: u16,
+
+    #[nom(SkipBefore(2))]
+    #[nom(Parse = "utils::le_u16_div1000")]
+    pub pf: f64,
+
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_eps_r: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_eps_s: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_eps_t: f64,
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub f_eps: f64,
+    #[nom(SkipBefore(4))] // peps and seps
+    pub p_to_grid: u16,
+    pub p_to_user: u16,
+
+    #[nom(Ignore)]
+    pub e_pv_day: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_pv_day_1: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_pv_day_2: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_pv_day_3: f64,
+
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_inv_day: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_rec_day: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_chg_day: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_dischg_day: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_eps_day: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_to_grid_day: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub e_to_user_day: f64,
+
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_bus_1: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub v_bus_2: f64,
+
+    #[nom(Ignore)]
+    pub e_pv_all: f64,
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_pv_all_1: f64,
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_pv_all_2: f64,
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_pv_all_3: f64,
+
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_inv_all: f64,
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_rec_all: f64,
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_chg_all: f64,
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_dischg_all: f64,
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_eps_all: f64,
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_to_grid_all: f64,
+    #[nom(Parse = "utils::le_u32_div10")]
+    pub e_to_user_all: f64,
+
+    #[nom(SkipBefore(8))] // 4 byte fault code, 4 byte warning code?
+    pub t_inner: u16,
+    pub t_rad_1: u16,
+    pub t_rad_2: u16,
+    pub t_bat: u16,
+
+    #[nom(SkipBefore(2))] // reserved
+    pub runtime: u32,
+    // 18 bytes of auto_test stuff here I'm not doing yet
+    #[nom(SkipBefore(18))] // auto_test stuff, TODO..
+    #[nom(SkipBefore(2))] // bat_brand, bat_com_type
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub max_chg_curr: f64,
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub max_dischg_curr: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub charge_volt_ref: f64,
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub dischg_cut_volt: f64,
+
+    pub bat_status_0: u16,
+    pub bat_status_1: u16,
+    pub bat_status_2: u16,
+    pub bat_status_3: u16,
+    pub bat_status_4: u16,
+    pub bat_status_5: u16,
+    pub bat_status_6: u16,
+    pub bat_status_7: u16,
+    pub bat_status_8: u16,
+    pub bat_status_9: u16,
+    pub bat_status_inv: u16,
+
+    pub bat_count: u16,
+    pub bat_capacity: u16,
+
+    #[nom(Parse = "utils::le_i16_div100")]
+    pub bat_current: f64,
+
+    pub bms_event_1: u16,
+    pub bms_event_2: u16,
+
+    // TODO: probably floats but need non-zero sample data to check. just guessing at the div100.
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub max_cell_voltage: f64,
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub min_cell_voltage: f64,
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub max_cell_temp: f64,
+    #[nom(Parse = "utils::le_u16_div100")]
+    pub min_cell_temp: f64,
+
+    pub bms_fw_update_state: u16,
+
+    pub cycle_count: u16,
+
+    #[nom(Parse = "utils::le_u16_div10")]
+    pub vbat_inv: f64,
+
+    // 14 bytes I'm not sure what they are; possibly generator stuff
+    #[nom(SkipBefore(14))]
+    // following are for influx capability only
+    #[nom(Parse = "utils::current_time")]
+    pub time: UnixTime,
+    #[nom(Ignore)]
+    pub datalog: Serial,
+} // }}}
 
 // {{{ ReadInput1
 #[derive(Clone, Debug, Serialize, Nom)]
@@ -137,7 +313,7 @@ pub struct ReadInput2 {
 
     #[nom(SkipBefore(2))] // reserved
     pub runtime: u32,
-    // bunch of auto_test stuff here I'm not doing yet
+    // 18 bytes of auto_test stuff here I'm not doing yet
     //
     #[nom(Parse = "utils::current_time")]
     pub time: UnixTime,
@@ -392,10 +568,25 @@ impl TranslatedData {
     pub fn read_input(&self) -> Result<ReadInput> {
         // note len() is of Vec<u8>, so not register count
         match (self.register, self.values.len()) {
+            (0, 254) => Ok(ReadInput::ReadInputAll(self.read_input_all()?)),
             (0, 80) => Ok(ReadInput::ReadInput1(self.read_input1()?)),
             (40, 80) => Ok(ReadInput::ReadInput2(self.read_input2()?)),
             (80, 80) => Ok(ReadInput::ReadInput3(self.read_input3()?)),
             (r1, r2) => Err(anyhow!("unhandled ReadInput register={} len={}", r1, r2)),
+        }
+    }
+
+    fn read_input_all(&self) -> Result<ReadInputAll> {
+        match ReadInputAll::parse(&self.values) {
+            Ok((_, mut r)) => {
+                r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
+                r.v_pv = r.v_pv_1 + r.v_pv_2 + r.v_pv_3;
+                r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
+                r.e_pv_all = r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3;
+                r.datalog = self.datalog;
+                Ok(r)
+            }
+            Err(_) => Err(anyhow!("meh")),
         }
     }
 
@@ -492,10 +683,10 @@ impl TranslatedData {
     ) -> bool {
         use DeviceFunction::*;
 
-        let p2 = protocol == 2;
+        let p1 = protocol == 1;
         let psi = source == PacketSource::Inverter;
 
-        p2 && psi && (device_function == ReadHold || device_function == ReadInput)
+        !p1 && psi && (device_function == ReadHold || device_function == ReadInput)
 
         /* for future support, we don't actually do WriteMulti yet anyway */
         // let b2 = p2 && !psi && device_function == WriteMulti;

@@ -23,7 +23,7 @@ pub struct Coordinator {
     to_inverter: lxp::inverter::PacketChannelSender,
     from_mqtt: mqtt::MessageSender,
     to_mqtt: mqtt::MessageSender,
-    to_influx: influx::ValueSender,
+    to_influx: channel::MessageSender,
     to_database: database::InputsSender,
 }
 
@@ -401,6 +401,28 @@ impl Coordinator {
                     .or_insert_with(ReadInputs::default);
 
                 match td.read_input()? {
+                    ReadInput::ReadInputAll(r_all) => {
+                        let datalog = r_all.datalog;
+
+                        if self.config.influx.enabled {
+                            let influx_data =
+                                channel::Message::JsonValue(serde_json::to_value(&r_all)?);
+                            self.to_influx.send(influx_data)?;
+                        }
+
+                        /*
+                        if self.have_enabled_databases {
+                            let tmp = lxp::packet::ReadInput::ReadInputAll(r_all);
+                            self.to_database.send(tmp)?;
+                        }
+                        */
+
+                        if self.config.mqtt.enabled {
+                            for message in mqtt::Message::for_input_all(&r_all, datalog) {
+                                self.to_mqtt.send(message)?;
+                            }
+                        }
+                    }
                     ReadInput::ReadInput1(r1) => entry.set_read_input_1(r1),
                     ReadInput::ReadInput2(r2) => entry.set_read_input_2(r2),
                     ReadInput::ReadInput3(r3) => {
@@ -409,7 +431,8 @@ impl Coordinator {
                         entry.set_read_input_3(r3);
 
                         if self.config.influx.enabled {
-                            let influx_data = serde_json::to_value(&entry)?;
+                            let influx_data =
+                                channel::Message::JsonValue(serde_json::to_value(&entry)?);
                             self.to_influx.send(influx_data)?;
                         }
 

@@ -46,6 +46,18 @@ impl Message {
         Ok(r)
     }
 
+    pub fn for_input_all(
+        inputs: &lxp::packet::ReadInputAll,
+        datalog: lxp::inverter::Serial,
+    ) -> Vec<Message> {
+        let payload = serde_json::to_string(&inputs).unwrap();
+
+        vec![mqtt::Message {
+            topic: format!("{}/inputs/all", datalog),
+            payload,
+        }]
+    }
+
     pub fn for_inputs(
         inputs: &lxp::packet::ReadInputs,
         datalog: lxp::inverter::Serial,
@@ -64,6 +76,10 @@ impl Message {
         let mut r = Vec::new();
 
         match td.read_input()? {
+            ReadInput::ReadInputAll(r_all) => r.push(mqtt::Message {
+                topic: format!("{}/inputs/all", td.datalog),
+                payload: serde_json::to_string(&r_all)?,
+            }),
             ReadInput::ReadInput1(r1) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/1", td.datalog),
                 payload: serde_json::to_string(&r1)?,
@@ -184,7 +200,7 @@ impl Mqtt {
             return Ok(());
         }
 
-        let mut options = MqttOptions::new("lxp-bridge", &m.host, m.port);
+        let mut options = MqttOptions::new("lxp-bridge2", &m.host, m.port);
 
         options.set_keep_alive(std::time::Duration::from_secs(60));
         if let (Some(u), Some(p)) = (&m.username, &m.password) {

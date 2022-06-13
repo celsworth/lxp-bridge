@@ -10,6 +10,7 @@ pub use log::{debug, error, info, trace, warn};
 pub use tokio::sync::broadcast;
 
 pub use crate::{
+    channel,
     command::Command,
     config::{self, Config},
     coordinator::Coordinator,

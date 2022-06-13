@@ -5,15 +5,13 @@ use rinfluxdb::line_protocol::{r#async::Client, LineBuilder};
 
 static INPUTS_MEASUREMENT: &str = "inputs";
 
-pub type ValueSender = broadcast::Sender<serde_json::Value>;
-
 pub struct Influx {
     config: Rc<Config>,
-    from_coordinator: ValueSender,
+    from_coordinator: channel::MessageSender,
 }
 
 impl Influx {
-    pub fn new(config: Rc<Config>, from_coordinator: ValueSender) -> Self {
+    pub fn new(config: Rc<Config>, from_coordinator: channel::MessageSender) -> Self {
         Self {
             config,
             from_coordinator,
@@ -49,7 +47,7 @@ impl Influx {
         loop {
             let mut line = LineBuilder::new(INPUTS_MEASUREMENT);
 
-            let data = receiver.recv().await?;
+            let channel::Message::JsonValue(data) = receiver.recv().await?;
 
             for (key, value) in data.as_object().unwrap() {
                 let key = key.to_string();
