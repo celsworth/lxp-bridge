@@ -46,8 +46,8 @@ impl Message {
         Ok(r)
     }
 
-    pub fn for_inputs(
-        inputs: &lxp::packet::ReadInputs,
+    pub fn for_input_all(
+        inputs: &lxp::packet::ReadInputAll,
         datalog: lxp::inverter::Serial,
     ) -> Vec<Message> {
         let payload = serde_json::to_string(&inputs).unwrap();
@@ -64,6 +64,10 @@ impl Message {
         let mut r = Vec::new();
 
         match td.read_input()? {
+            ReadInput::ReadInputAll(r_all) => r.push(mqtt::Message {
+                topic: format!("{}/inputs/all", td.datalog),
+                payload: serde_json::to_string(&r_all)?,
+            }),
             ReadInput::ReadInput1(r1) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/1", td.datalog),
                 payload: serde_json::to_string(&r1)?,

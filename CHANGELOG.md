@@ -3,6 +3,8 @@
 * Add Postgres/MySQL/SQLite support (#44, #45, #47)
 * Use more meaningful labels for HomeAssistant autodiscovery (#55, @chriscn)
 * Allow enabling individual HomeAssistant discovery sensors (#56)
+* Support combined inputs data packet found in newer firmwares (#65)
+
 
 # 0.6.0 - 26th February 2022
 
