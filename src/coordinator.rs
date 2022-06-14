@@ -23,7 +23,7 @@ pub struct Coordinator {
     to_inverter: lxp::inverter::PacketChannelSender,
     from_mqtt: mqtt::MessageSender,
     to_mqtt: mqtt::MessageSender,
-    to_influx: channel::MessageSender,
+    to_influx: influx::ValueSender,
     to_database: database::InputsSender,
 }
 
@@ -450,7 +450,7 @@ impl Coordinator {
 
     async fn save_input_all(&self, input: lxp::packet::ReadInputAll) -> Result<()> {
         if self.config.influx.enabled {
-            let influx_data = channel::Message::JsonValue(serde_json::to_value(&input)?);
+            let influx_data = serde_json::to_value(&input)?;
             self.to_influx.send(influx_data)?;
         }
 
