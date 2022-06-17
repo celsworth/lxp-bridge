@@ -5,15 +5,21 @@ use rinfluxdb::line_protocol::{r#async::Client, LineBuilder};
 
 static INPUTS_MEASUREMENT: &str = "inputs";
 
-pub type ValueSender = broadcast::Sender<serde_json::Value>;
+#[derive(Clone, Debug)]
+pub enum ChannelData {
+    InputData(serde_json::Value),
+    Shutdown,
+}
+
+pub type Sender = broadcast::Sender<ChannelData>;
 
 pub struct Influx {
     config: Rc<Config>,
-    from_coordinator: ValueSender,
+    from_coordinator: Sender,
 }
 
 impl Influx {
-    pub fn new(config: Rc<Config>, from_coordinator: ValueSender) -> Self {
+    pub fn new(config: Rc<Config>, from_coordinator: Sender) -> Self {
         Self {
             config,
             from_coordinator,
@@ -40,38 +46,47 @@ impl Influx {
 
         futures::try_join!(self.sender(client))?;
 
+        info!("influx loop exiting");
+
         Ok(())
     }
 
     async fn sender(&self, client: rinfluxdb::line_protocol::r#async::Client) -> Result<()> {
+        use ChannelData::*;
+
         let mut receiver = self.from_coordinator.subscribe();
 
         loop {
             let mut line = LineBuilder::new(INPUTS_MEASUREMENT);
 
-            let data = receiver.recv().await?;
+            match receiver.recv().await? {
+                Shutdown => break,
+                InputData(data) => {
+                    for (key, value) in data.as_object().unwrap() {
+                        let key = key.to_string();
 
-            for (key, value) in data.as_object().unwrap() {
-                let key = key.to_string();
+                        line = if key == "time" {
+                            line.set_timestamp(chrono::Utc.timestamp(value.as_i64().unwrap(), 0))
+                        } else if key == "datalog" {
+                            line.insert_tag(key, value.as_str().unwrap())
+                        } else if value.is_f64() {
+                            line.insert_field(key, value.as_f64().unwrap())
+                        } else {
+                            // can't be anything other than int
+                            line.insert_field(key, value.as_u64().unwrap())
+                        }
+                    }
 
-                line = if key == "time" {
-                    line.set_timestamp(chrono::Utc.timestamp(value.as_i64().unwrap(), 0))
-                } else if key == "datalog" {
-                    line.insert_tag(key, value.as_str().unwrap())
-                } else if value.is_f64() {
-                    line.insert_field(key, value.as_f64().unwrap())
-                } else {
-                    // can't be anything other than int
-                    line.insert_field(key, value.as_u64().unwrap())
+                    let lines = vec![line.build()];
+
+                    while let Err(err) = client.send(&self.config.influx.database, &lines).await {
+                        error!("push failed: {:?} - retrying in 10s", err);
+                        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                    }
                 }
             }
-
-            let lines = vec![line.build()];
-
-            while let Err(err) = client.send(&self.config.influx.database, &lines).await {
-                error!("push failed: {:?} - retrying in 10s", err);
-                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-            }
         }
+
+        Ok(())
     }
 }

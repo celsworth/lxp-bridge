@@ -115,7 +115,7 @@ impl Message {
                 DischargeCutoffSocLimit(inverter, self.payload_int()?)
             }
 
-            [..] => return Err(anyhow!("unhandled: {:?}", self)),
+            [..] => bail!("unhandled: {:?}", self),
         };
 
         Ok(r)
@@ -130,7 +130,7 @@ impl Message {
         // bail if the topic is too short to handle.
         // this *shouldn't* happen as our subscribe is for lxp/cmd/{datalog}/#
         if parts.len() < 2 {
-            return Err(anyhow!("ignoring badly formed MQTT topic: {}", self.topic));
+            bail!("ignoring badly formed MQTT topic: {}", self.topic);
         }
 
         if parts[1] == "all" {

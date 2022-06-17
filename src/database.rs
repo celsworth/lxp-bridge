@@ -1,6 +1,12 @@
 use crate::prelude::*;
 
-pub type InputsSender = broadcast::Sender<lxp::packet::ReadInputAll>;
+#[derive(Clone, Debug)]
+pub enum ChannelData {
+    ReadInputAll(Box<lxp::packet::ReadInputAll>),
+    Shutdown,
+}
+
+pub type Sender = broadcast::Sender<ChannelData>;
 
 enum DatabaseType {
     MySQL,
@@ -10,11 +16,11 @@ enum DatabaseType {
 
 pub struct Database {
     config: config::Database,
-    from_coordinator: InputsSender,
+    from_coordinator: Sender,
 }
 
 impl Database {
-    pub fn new(config: config::Database, from_coordinator: InputsSender) -> Self {
+    pub fn new(config: config::Database, from_coordinator: Sender) -> Self {
         Self {
             config,
             from_coordinator,
@@ -26,6 +32,8 @@ impl Database {
         info!("initializing database");
 
         futures::try_join!(self.inserter())?;
+
+        info!("database loop exiting");
 
         Ok(())
     }
@@ -111,15 +119,22 @@ impl Database {
         );
 
         loop {
-            let data = receiver.recv().await?;
+            use ChannelData::*;
 
-            while let Err(err) = self.insert(&mut conn, &query, &data).await {
-                error!("INSERT failed: {:?} - reconnecting in 10s", err);
-                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+            match receiver.recv().await? {
+                Shutdown => break,
+                ReadInputAll(data) => {
+                    while let Err(err) = self.insert(&mut conn, &query, &data).await {
+                        error!("INSERT failed: {:?} - reconnecting in 10s", err);
+                        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
 
-                conn = self.connect().await?;
+                        conn = self.connect().await?;
+                    }
+                }
             }
         }
+
+        Ok(())
     }
 
     async fn insert(

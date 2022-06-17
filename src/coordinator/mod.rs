@@ -1,6 +1,8 @@
 use crate::prelude::*;
 
-use lxp::inverter::{PacketChannelData, WaitForReply};
+pub mod commands;
+
+use lxp::inverter::WaitForReply;
 use lxp::packet::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
 
 pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
@@ -19,12 +21,12 @@ pub struct Coordinator {
     pub influx: influx::Influx,
     databases: Vec<Database>,
     have_enabled_databases: bool,
-    from_inverter: lxp::inverter::PacketChannelSender,
-    to_inverter: lxp::inverter::PacketChannelSender,
+    from_inverter: lxp::inverter::Sender,
+    to_inverter: lxp::inverter::Sender,
     from_mqtt: mqtt::MessageSender,
     to_mqtt: mqtt::MessageSender,
-    to_influx: influx::ValueSender,
-    to_database: database::InputsSender,
+    to_influx: influx::Sender,
+    to_database: database::Sender,
 }
 
 impl Coordinator {
@@ -143,8 +145,7 @@ impl Coordinator {
     }
 
     async fn process_command(&self, command: Command) -> Result<()> {
-        use lxp::packet::Register;
-        use lxp::packet::RegisterBit;
+        use lxp::packet::{Register, RegisterBit};
         use Command::*;
 
         match command {
@@ -207,22 +208,15 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
-        let register = register.into();
-
-        let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog,
-            device_function: DeviceFunction::ReadInput,
-            inverter: inverter.serial,
+        commands::read_inputs::ReadInputs::new(
+            self.from_inverter.clone(),
+            self.to_inverter.clone(),
+            inverter.clone(),
             register,
-            values: count.to_le_bytes().to_vec(),
-        });
-
-        let mut receiver = self.from_inverter.subscribe();
-
-        self.to_inverter
-            .send(PacketChannelData::Packet(packet.clone()))?;
-
-        let _ = receiver.wait_for_reply(&packet).await?;
+            count,
+        )
+        .run()
+        .await?;
 
         Ok(())
     }
@@ -244,7 +238,7 @@ impl Coordinator {
         let mut receiver = self.from_inverter.subscribe();
 
         self.to_inverter
-            .send(PacketChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
 
         let _ = receiver.wait_for_reply(&packet).await?;
 
@@ -265,7 +259,7 @@ impl Coordinator {
         let mut receiver = self.from_inverter.subscribe();
 
         self.to_inverter
-            .send(PacketChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
 
         let _ = receiver.wait_for_reply(&packet).await?;
 
@@ -288,16 +282,16 @@ impl Coordinator {
         });
 
         self.to_inverter
-            .send(PacketChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
 
         let packet = receiver.wait_for_reply(&packet).await?;
         if packet.value() != value {
-            return Err(anyhow!(
+            bail!(
                 "failed to set register {}, got back value {} (wanted {})",
                 register,
                 packet.value(),
                 value
-            ));
+            );
         }
 
         Ok(())
@@ -326,7 +320,7 @@ impl Coordinator {
         });
 
         self.to_inverter
-            .send(PacketChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
 
         let packet = receiver.wait_for_reply(&packet).await?;
         let value = if enable {
@@ -345,16 +339,16 @@ impl Coordinator {
             values,
         });
         self.to_inverter
-            .send(PacketChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
 
         let packet = receiver.wait_for_reply(&packet).await?;
         if packet.value() != value {
-            return Err(anyhow!(
+            bail!(
                 "failed to update register {:?}, got back value {} (wanted {})",
                 register,
                 packet.value(),
                 value
-            ));
+            );
         }
 
         Ok(())
@@ -367,7 +361,7 @@ impl Coordinator {
 
         // this loop holds no state so doesn't care about inverter reconnects
         loop {
-            if let PacketChannelData::Packet(packet) = receiver.recv().await? {
+            if let lxp::inverter::ChannelData::Packet(packet) = receiver.recv().await? {
                 self.process_inverter_packet(packet, &mut inputs_store)
                     .await?;
             }
@@ -421,7 +415,7 @@ impl Coordinator {
                             }
                         }
 
-                        self.save_input_all(input).await?;
+                        self.save_input_all(Box::new(input)).await?;
                     }
                 }
             }
@@ -448,14 +442,15 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn save_input_all(&self, input: lxp::packet::ReadInputAll) -> Result<()> {
+    async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
         if self.config.influx.enabled {
-            let influx_data = serde_json::to_value(&input)?;
-            self.to_influx.send(influx_data)?;
+            let channel_data = influx::ChannelData::InputData(serde_json::to_value(&input)?);
+            self.to_influx.send(channel_data)?;
         }
 
         if self.have_enabled_databases {
-            self.to_database.send(input)?;
+            let channel_data = database::ChannelData::ReadInputAll(input);
+            self.to_database.send(channel_data)?;
         }
 
         Ok(())

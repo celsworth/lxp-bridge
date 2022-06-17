@@ -6,7 +6,7 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
 
 pub enum ReadInput {
-    ReadInputAll(ReadInputAll),
+    ReadInputAll(Box<ReadInputAll>),
     ReadInput1(ReadInput1),
     ReadInput2(ReadInput2),
     ReadInput3(ReadInput3),
@@ -585,7 +585,7 @@ impl TcpFrameFactory {
 }
 
 #[enum_dispatch(PacketCommon)]
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Packet {
     Heartbeat(Heartbeat),
     TranslatedData(TranslatedData),
@@ -604,7 +604,7 @@ enum PacketSource {
 //
 /////////////
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct Heartbeat {
     pub datalog: Serial,
 }
@@ -649,7 +649,7 @@ impl PacketCommon for Heartbeat {
 //
 /////////////
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct TranslatedData {
     pub datalog: Serial,
     pub device_function: DeviceFunction, // ReadHold or ReadInput etc..
@@ -673,7 +673,7 @@ impl TranslatedData {
     pub fn read_input(&self) -> Result<ReadInput> {
         // note len() is of Vec<u8>, so not register count
         match (self.register, self.values.len()) {
-            (0, 254) => Ok(ReadInput::ReadInputAll(self.read_input_all()?)),
+            (0, 254) => Ok(ReadInput::ReadInputAll(Box::new(self.read_input_all()?))),
             (0, 80) => Ok(ReadInput::ReadInput1(self.read_input1()?)),
             (40, 80) => Ok(ReadInput::ReadInput2(self.read_input2()?)),
             (80, 80) => Ok(ReadInput::ReadInput3(self.read_input3()?)),
@@ -864,7 +864,7 @@ impl PacketCommon for TranslatedData {
 //
 /////////////
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct ReadParam {
     pub datalog: Serial,
     pub register: u16,   // first register of values
