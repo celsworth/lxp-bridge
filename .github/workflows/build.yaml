@@ -41,6 +41,7 @@ jobs:
     name: Build ${{ matrix.build }}
     runs-on: ${{ matrix.os }}
     continue-on-error: true
+    needs: test
     strategy:
       matrix:
         include:
