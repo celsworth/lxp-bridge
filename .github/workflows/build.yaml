@@ -10,6 +10,31 @@ on:
 name: Build
 
 jobs:
+  test:
+    steps:
+      - uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            /usr/share/rust
+            ~/.cargo
+            ~/openssl-1.1.1l
+            target
+          key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Build release binary
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+
   build:
     name: Build ${{ matrix.build }}
     runs-on: ${{ matrix.os }}
