@@ -11,6 +11,7 @@ name: Build
 
 jobs:
   test:
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
 
