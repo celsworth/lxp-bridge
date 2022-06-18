@@ -12,7 +12,7 @@ pub use tokio::sync::broadcast;
 pub use crate::{
     command::Command,
     config::{self, Config},
-    coordinator::Coordinator,
+    coordinator::{self, Coordinator},
     database::{self, Database},
     home_assistant, influx,
     lxp::{

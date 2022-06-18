@@ -5,6 +5,17 @@ authors = ["Chris Elsworth <chris@cae.me.uk>"]
 edition = "2018"
 repository = "https://github.com/celsworth/lxp-bridge"
 
+[[bin]]
+name = "lxp-bridge"
+path = "src/main.rs"
+
+[lib]
+name = "lxp_bridge"
+path = "src/lib.rs"
+
+[dev-dependencies]
+mockito = "*"
+
 [dependencies]
 anyhow = "~1"
 bytes = "~1"

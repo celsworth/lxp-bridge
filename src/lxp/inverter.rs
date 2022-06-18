@@ -8,19 +8,19 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::codec::Decoder;
 
 #[derive(Debug, Clone)]
-pub enum PacketChannelData {
+pub enum ChannelData {
     Disconnect(Serial), // strictly speaking, only ever goes inverter->coordinator, but eh.
     Packet(Packet),     // this one goes both ways through the channel.
 }
-pub type PacketChannelSender = broadcast::Sender<PacketChannelData>;
-pub type PacketChannelReceiver = broadcast::Receiver<PacketChannelData>;
+pub type Sender = broadcast::Sender<ChannelData>;
+pub type Receiver = broadcast::Receiver<ChannelData>;
 
 #[async_trait]
 pub trait WaitForReply {
     async fn wait_for_reply(&mut self, packet: &Packet) -> Result<Packet>;
 }
 #[async_trait]
-impl WaitForReply for PacketChannelReceiver {
+impl WaitForReply for Receiver {
     async fn wait_for_reply(&mut self, packet: &Packet) -> Result<Packet> {
         let start = std::time::Instant::now();
 
@@ -28,7 +28,7 @@ impl WaitForReply for PacketChannelReceiver {
             match (packet, self.try_recv()) {
                 (
                     Packet::TranslatedData(td),
-                    Ok(PacketChannelData::Packet(Packet::TranslatedData(reply))),
+                    Ok(ChannelData::Packet(Packet::TranslatedData(reply))),
                 ) => {
                     if td.datalog == reply.datalog
                         && td.register == reply.register
@@ -37,8 +37,8 @@ impl WaitForReply for PacketChannelReceiver {
                         return Ok(Packet::TranslatedData(reply));
                     }
                 }
-                (_, Ok(PacketChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
-                (_, Ok(PacketChannelData::Disconnect(inverter_datalog))) => {
+                (_, Ok(ChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
+                (_, Ok(ChannelData::Disconnect(inverter_datalog))) => {
                     if inverter_datalog == packet.datalog() {
                         return Err(anyhow!("inverter disconnect?"));
                     }
@@ -55,7 +55,7 @@ impl WaitForReply for PacketChannelReceiver {
     }
 }
 
-impl PacketChannelData {}
+impl ChannelData {}
 
 // Serial {{{
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -112,16 +112,12 @@ impl std::fmt::Debug for Serial {
 
 pub struct Inverter {
     config: config::Inverter,
-    from_coordinator: PacketChannelSender,
-    to_coordinator: PacketChannelSender,
+    from_coordinator: Sender,
+    to_coordinator: Sender,
 }
 
 impl Inverter {
-    pub fn new(
-        config: config::Inverter,
-        from_coordinator: PacketChannelSender,
-        to_coordinator: PacketChannelSender,
-    ) -> Self {
+    pub fn new(config: config::Inverter, from_coordinator: Sender, to_coordinator: Sender) -> Self {
         Self {
             config,
             from_coordinator,
@@ -137,7 +133,7 @@ impl Inverter {
                     error!("inverter {}: {}", self.config.datalog, e);
                     info!("inverter {}: reconnecting in 5s", self.config.datalog);
                     self.to_coordinator
-                        .send(PacketChannelData::Disconnect(self.config.datalog))?; // kill any waiting readers
+                        .send(ChannelData::Disconnect(self.config.datalog))?; // kill any waiting readers
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 }
             }
@@ -179,16 +175,14 @@ impl Inverter {
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
                     debug!("inverter {}: RX {:?}", self.config.datalog, packet);
-                    self.to_coordinator
-                        .send(PacketChannelData::Packet(packet))?;
+                    self.to_coordinator.send(ChannelData::Packet(packet))?;
                 }
                 break;
             }
 
             while let Some(packet) = decoder.decode(&mut buf)? {
                 debug!("inverter {}: RX {:?}", self.config.datalog, packet);
-                self.to_coordinator
-                    .send(PacketChannelData::Packet(packet))?;
+                self.to_coordinator.send(ChannelData::Packet(packet))?;
             }
         }
 
@@ -199,7 +193,7 @@ impl Inverter {
     async fn sender(&self, mut socket: tokio::net::tcp::OwnedWriteHalf) -> Result<()> {
         let mut receiver = self.from_coordinator.subscribe();
 
-        while let PacketChannelData::Packet(packet) = receiver.recv().await? {
+        while let ChannelData::Packet(packet) = receiver.recv().await? {
             if packet.datalog() == self.config.datalog {
                 // debug!("inverter {}: TX {:?}", datalog, packet);
                 let bytes = lxp::packet::TcpFrameFactory::build(&packet);
@@ -208,8 +202,6 @@ impl Inverter {
         }
 
         // this doesn't actually happen yet; Disconnect is never sent to this channel
-        Err(anyhow!(
-            "sender exiting due to PacketChannelData::Disconnect"
-        ))
+        Err(anyhow!("sender exiting due to ChannelData::Disconnect"))
     }
 }
