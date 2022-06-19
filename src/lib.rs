@@ -1,3 +1,4 @@
+pub mod channels;
 pub mod command;
 pub mod config;
 pub mod coordinator;
