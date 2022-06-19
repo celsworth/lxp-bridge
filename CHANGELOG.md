@@ -4,6 +4,7 @@
 * Use more meaningful labels for HomeAssistant autodiscovery (#55, @chriscn)
 * Allow enabling individual HomeAssistant discovery sensors (#56)
 * Support combined inputs data packet found in newer firmwares (#65)
+* Add WriteMulti packet support (#68)
 
 
 # 0.6.0 - 26th February 2022

@@ -195,8 +195,9 @@ impl Inverter {
 
         while let ChannelData::Packet(packet) = receiver.recv().await? {
             if packet.datalog() == self.config.datalog {
-                // debug!("inverter {}: TX {:?}", datalog, packet);
+                //debug!("inverter {}: TX {:?}", self.config.datalog, packet);
                 let bytes = lxp::packet::TcpFrameFactory::build(&packet);
+                //debug!("inverter {}: TX {:?}", self.config.datalog, bytes);
                 socket.write_all(&bytes).await?
             }
         }

@@ -790,11 +790,11 @@ impl TranslatedData {
 
         let p1 = protocol == 1;
         let psi = source == PacketSource::Inverter;
-
-        !p1 && psi && (device_function == ReadHold || device_function == ReadInput)
-
-        /* for future support, we don't actually do WriteMulti yet anyway */
-        // let b2 = p2 && !psi && device_function == WriteMulti;
+        match device_function {
+            ReadHold | ReadInput => !p1 && psi,
+            WriteSingle => false,
+            WriteMulti => !p1 && !psi,
+        }
     }
 
     fn checksum(data: &[u8]) -> [u8; 2] {
@@ -804,7 +804,11 @@ impl TranslatedData {
 
 impl PacketCommon for TranslatedData {
     fn protocol(&self) -> u16 {
-        1
+        if self.device_function == DeviceFunction::WriteMulti {
+            2
+        } else {
+            1
+        }
     }
 
     fn datalog(&self) -> Serial {
@@ -824,6 +828,11 @@ impl PacketCommon for TranslatedData {
         // WIP - trying to work out how to learn the datalog sn
         //data[2..12].copy_from_slice(&[0xFF; 10]);
         data[12..14].copy_from_slice(&self.register.to_le_bytes());
+
+        if self.device_function == DeviceFunction::WriteMulti {
+            let register_count = self.pairs().len() as u16;
+            data.extend_from_slice(&register_count.to_le_bytes());
+        }
 
         if Self::has_value_length_byte(PacketSource::Client, self.protocol(), self.device_function)
         {
