@@ -1,15 +1,18 @@
-pub use std::convert::TryFrom;
-pub use std::convert::TryInto;
-pub use std::io::Write;
-pub use std::rc::Rc;
-pub use std::str::FromStr;
+pub use std::{
+    convert::{TryFrom, TryInto},
+    io::Write,
+    rc::Rc,
+    str::FromStr,
+};
 
-pub use anyhow::{anyhow, bail, Error, Result};
-pub use log::{debug, error, info, trace, warn};
-
-pub use tokio::sync::broadcast;
+pub use {
+    anyhow::{anyhow, bail, Error, Result},
+    log::{debug, error, info, trace, warn},
+    tokio::sync::broadcast,
+};
 
 pub use crate::{
+    channels::Channels,
     command::Command,
     config::{self, Config},
     coordinator::{self, Coordinator},
