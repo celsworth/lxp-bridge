@@ -52,7 +52,7 @@ impl TimeSync {
                 dt - now
             );
 
-            let limit = chrono::Duration::seconds(10);
+            let limit = chrono::Duration::seconds(120);
 
             if dt - now > limit || now - dt > limit {
                 let packet = self.set_current_time_packet();
