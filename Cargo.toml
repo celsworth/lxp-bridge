@@ -36,6 +36,7 @@ tokio = { version = "~1", features = ["net"] }
 tokio-util = { version = "~0.6", features = ["codec"] }
 structopt = { version = "~0.3", default-features = false }
 chrono = "~0.4"
+cron-parser = "~0.7"
 enum_dispatch = "~0.3"
 async-trait = "~0.1"
 reqwest = "~0.11"

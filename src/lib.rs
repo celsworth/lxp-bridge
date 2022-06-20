@@ -9,6 +9,7 @@ pub mod lxp;
 pub mod mqtt;
 pub mod options;
 pub mod prelude;
+pub mod scheduler;
 pub mod unixtime;
 pub mod utils;
 

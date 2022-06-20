@@ -13,11 +13,13 @@ pub struct Config {
     pub influx: Influx,
     #[serde(default = "Vec::new")]
     pub databases: Vec<Database>,
+
+    pub scheduler: Option<Scheduler>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Inverter {
-    #[serde(default = "Config::default_inverter_enabled")]
+    #[serde(default = "Config::default_enabled")]
     pub enabled: bool,
 
     pub host: String,
@@ -38,7 +40,7 @@ where
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct HomeAssistant {
-    #[serde(default = "Config::default_mqtt_homeassistant_enabled")]
+    #[serde(default = "Config::default_enabled")]
     pub enabled: bool,
 
     #[serde(default = "Config::default_mqtt_homeassistant_prefix")]
@@ -51,7 +53,7 @@ pub struct HomeAssistant {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Mqtt {
-    #[serde(default = "Config::default_mqtt_enabled")]
+    #[serde(default = "Config::default_enabled")]
     pub enabled: bool,
 
     pub host: String,
@@ -69,7 +71,7 @@ pub struct Mqtt {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Influx {
-    #[serde(default = "Config::default_influx_enabled")]
+    #[serde(default = "Config::default_enabled")]
     pub enabled: bool,
 
     pub url: String,
@@ -81,10 +83,26 @@ pub struct Influx {
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Database {
-    #[serde(default = "Config::default_database_enabled")]
+    #[serde(default = "Config::default_enabled")]
     pub enabled: bool,
 
     pub url: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Scheduler {
+    #[serde(default = "Config::default_enabled")]
+    pub enabled: bool,
+
+    pub timesync: Crontab,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct Crontab {
+    #[serde(default = "Config::default_enabled")]
+    pub enabled: bool,
+
+    pub cron: String,
 }
 
 impl Config {
@@ -116,13 +134,6 @@ impl Config {
         Ok(r)
     }
 
-    fn default_inverter_enabled() -> bool {
-        true
-    }
-
-    fn default_mqtt_enabled() -> bool {
-        true
-    }
     fn default_mqtt_port() -> u16 {
         1883
     }
@@ -132,15 +143,12 @@ impl Config {
 
     fn default_mqtt_homeassistant() -> HomeAssistant {
         HomeAssistant {
-            enabled: Self::default_mqtt_homeassistant_enabled(),
+            enabled: Self::default_enabled(),
             prefix: Self::default_mqtt_homeassistant_prefix(),
             sensors: Self::default_mqtt_homeassistant_sensors(),
         }
     }
 
-    fn default_mqtt_homeassistant_enabled() -> bool {
-        true
-    }
     fn default_mqtt_homeassistant_prefix() -> String {
         "homeassistant".to_string()
     }
@@ -149,11 +157,7 @@ impl Config {
         vec!["all".to_string()]
     }
 
-    fn default_influx_enabled() -> bool {
-        true
-    }
-
-    fn default_database_enabled() -> bool {
+    fn default_enabled() -> bool {
         true
     }
 
