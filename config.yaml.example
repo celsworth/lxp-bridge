@@ -34,3 +34,9 @@ influx:
   username:
   password:
   database: lxp
+
+scheduler:
+  enabled: false
+  timesync:
+    enabled: false
+    cron: "0 0 * * *"

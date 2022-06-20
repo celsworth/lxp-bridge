@@ -78,9 +78,18 @@ impl Coordinator {
             self.start_inverters(),
             self.mqtt_receiver(),
             self.start_databases(),
+            self.start_scheduler(),
             mqtt.start(),
             influx.start(),
         )?;
+
+        Ok(())
+    }
+
+    async fn start_scheduler(&self) -> Result<()> {
+        let scheduler = scheduler::Scheduler::new(Rc::clone(&self.config), self.channels.clone());
+
+        scheduler.start().await?;
 
         Ok(())
     }

@@ -612,15 +612,12 @@ impl Heartbeat {
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 19 {
-            return Err(anyhow!("heartbeat packet too short"));
+            bail!("heartbeat packet too short");
         }
 
         // assert that the final byte is 0, meaning 0 data bytes follow it
         if input[18] != 0 {
-            return Err(anyhow!(
-                "heartbeat with non-zero ({}) length byte?",
-                input[18]
-            ));
+            bail!("heartbeat with non-zero ({}) length byte?", input[18]);
         }
 
         let datalog = Serial::new(&input[8..18])?;
@@ -658,10 +655,6 @@ pub struct TranslatedData {
     pub values: Vec<u8>,                 // undecoded, since can be u16 or u32s?
 }
 impl TranslatedData {
-    pub fn value(&self) -> u16 {
-        utils::u16ify(&self.values, 0)
-    }
-
     pub fn pairs(&self) -> Vec<(u16, u16)> {
         self.values
             .chunks(2)
@@ -732,7 +725,7 @@ impl TranslatedData {
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 38 {
-            return Err(anyhow!("packet too short"));
+            bail!("packet too short");
         }
 
         let protocol = utils::u16ify(input, 2);
@@ -742,11 +735,11 @@ impl TranslatedData {
 
         let checksum = &input[len - 2..];
         if Self::checksum(data) != checksum {
-            return Err(anyhow!(
+            bail!(
                 "TranslatedData::decode checksum mismatch - got {:?}, expected {:?}",
                 checksum,
                 Self::checksum(data)
-            ));
+            );
         }
 
         //let address = data[0]; // 0=client, 1=inverter?
@@ -765,11 +758,11 @@ impl TranslatedData {
         let values = data[value_offset..].to_vec();
 
         if values.len() != value_len {
-            return Err(anyhow!(
+            bail!(
                 "TranslatedData::decode mismatch: values.len()={}, value_length_byte={}",
                 values.len(),
                 value_len
-            ));
+            );
         }
 
         Ok(Self {
@@ -889,7 +882,7 @@ impl ReadParam {
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 24 {
-            return Err(anyhow!("packet too short"));
+            bail!("packet too short");
         }
 
         let protocol = utils::u16ify(input, 2);
@@ -909,11 +902,11 @@ impl ReadParam {
         let values = data[value_offset..].to_vec();
 
         if values.len() != value_len {
-            return Err(anyhow!(
+            bail!(
                 "ReadParam::decode mismatch: values.len()={}, value_length_byte={}",
                 values.len(),
                 value_len
-            ));
+            );
         }
 
         Ok(Self {
@@ -963,19 +956,19 @@ impl Parser {
     pub fn parse(input: &[u8]) -> Result<Packet> {
         let input_len = input.len() as u8;
         if input_len < 18 {
-            return Err(anyhow!("packet less than 18 bytes?"));
+            bail!("packet less than 18 bytes?");
         }
 
         if input[0..2] != [161, 26] {
-            return Err(anyhow!("invalid packet prefix"));
+            bail!("invalid packet prefix");
         }
 
         if input_len < input[4] - 6 {
-            return Err(anyhow!(
+            bail!(
                 "Parser::parse mismatch: input.len()={},  frame_length={}",
                 input_len,
                 input[4] - 6
-            ));
+            );
         }
 
         match TcpFunction::try_from(input[7])? {
