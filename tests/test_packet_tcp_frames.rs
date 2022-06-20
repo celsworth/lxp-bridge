@@ -106,6 +106,43 @@ fn parse_read_inputs_reply() {
 }
 
 #[test]
+fn build_write_single() {
+    let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
+        datalog: datalog(),
+        device_function: lxp::packet::DeviceFunction::WriteSingle,
+        inverter: serial(),
+        register: 66,
+        values: vec![100, 0],
+    });
+
+    assert_eq!(
+        lxp::packet::TcpFrameFactory::build(&packet),
+        vec![
+            161, 26, 1, 0, 32, 0, 1, 194, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 18, 0, 0, 6, 53,
+            53, 53, 53, 53, 53, 53, 53, 53, 53, 66, 0, 100, 0, 136, 61
+        ]
+    );
+}
+
+#[test]
+fn parse_write_single_reply() {
+    let input = [
+        161, 26, 2, 0, 32, 0, 1, 194, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 18, 0, 1, 6, 53, 53,
+        53, 53, 53, 53, 53, 53, 53, 53, 66, 0, 100, 0, 73, 173,
+    ];
+
+    assert_eq!(
+        lxp::packet::Parser::parse(&input).unwrap(),
+        Packet::TranslatedData(lxp::packet::TranslatedData {
+            datalog: datalog(),
+            device_function: lxp::packet::DeviceFunction::WriteSingle,
+            inverter: serial(),
+            register: 66,
+            values: vec![100, 0]
+        })
+    );
+}
+#[test]
 fn build_write_multi() {
     let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
         datalog: datalog(),

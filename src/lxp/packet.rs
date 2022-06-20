@@ -820,14 +820,14 @@ impl PacketCommon for TranslatedData {
     }
 
     fn bytes(&self) -> Vec<u8> {
-        let mut data = vec![0; 14];
+        let mut data = vec![0; 16];
 
-        // data[0] is 0 when writing to inverter, 1 when reading from it?
-        data[1] = self.device_function as u8;
-        data[2..12].copy_from_slice(&self.inverter.data());
+        // data[2] (address) is 0 when writing to inverter, 1 when reading from it
+        data[3] = self.device_function as u8;
+        data[4..14].copy_from_slice(&self.inverter.data());
         // WIP - trying to work out how to learn the datalog sn
         //data[2..12].copy_from_slice(&[0xFF; 10]);
-        data[12..14].copy_from_slice(&self.register.to_le_bytes());
+        data[14..16].copy_from_slice(&self.register.to_le_bytes());
 
         if self.device_function == DeviceFunction::WriteMulti {
             let register_count = self.pairs().len() as u16;
@@ -846,16 +846,14 @@ impl PacketCommon for TranslatedData {
         }
         data.append(&mut m);
 
-        data.extend_from_slice(&Self::checksum(&data));
+        // the first two bytes are the data length, excluding checksum which we'll add next
+        let data_length = data.len() as u16;
+        data[0..2].copy_from_slice(&data_length.to_le_bytes());
 
-        // the first two bytes now have to be the length, but not including the length bytes.
-        // this could probably be a lot neater..
-        let data_length = data.len();
-        let mut r = Vec::with_capacity(2 + data_length);
-        r.extend_from_slice(&(data_length as u16).to_le_bytes());
-        r.extend(data);
+        // checksum does not include the first two bytes (data length)
+        data.extend_from_slice(&Self::checksum(&data[2..]));
 
-        r
+        data
     }
 
     fn register(&self) -> u16 {
