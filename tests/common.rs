@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 pub use lxp_bridge::prelude::*;
 
 pub use {mockito::*, serde_json::json};
