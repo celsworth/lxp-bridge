@@ -1,22 +1,29 @@
 use crate::prelude::*;
 
-use async_trait::async_trait;
-use bytes::BytesMut;
-use net2::TcpStreamExt; // for set_keepalive
-use serde::{Serialize, Serializer};
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use tokio_util::codec::Decoder;
+use {
+    async_trait::async_trait,
+    serde::{Serialize, Serializer},
+    tokio::io::{AsyncReadExt, AsyncWriteExt},
+};
 
 #[derive(Debug, Clone)]
 pub enum ChannelData {
     Disconnect(Serial), // strictly speaking, only ever goes inverter->coordinator, but eh.
     Packet(Packet),     // this one goes both ways through the channel.
+    Shutdown,
 }
 pub type Sender = broadcast::Sender<ChannelData>;
 pub type Receiver = broadcast::Receiver<ChannelData>;
 
+// WaitForReply {{{
 #[async_trait]
 pub trait WaitForReply {
+    #[cfg(not(feature = "mocks"))]
+    const TIMEOUT: u64 = 10;
+
+    #[cfg(feature = "mocks")]
+    const TIMEOUT: u64 = 0; // fail immediately in tests
+
     async fn wait_for_reply(&mut self, packet: &Packet) -> Result<Packet>;
 }
 #[async_trait]
@@ -40,22 +47,21 @@ impl WaitForReply for Receiver {
                 (_, Ok(ChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
                 (_, Ok(ChannelData::Disconnect(inverter_datalog))) => {
                     if inverter_datalog == packet.datalog() {
-                        return Err(anyhow!("inverter disconnect?"));
+                        bail!("inverter disconnect?");
                     }
                 }
+                (_, Ok(ChannelData::Shutdown)) => bail!("shutting down"),
                 (_, Err(broadcast::error::TryRecvError::Empty)) => {} // ignore and loop
-                (_, Err(err)) => return Err(anyhow!("try_recv error: {:?}", err)),
+                (_, Err(err)) => bail!("try_recv error: {:?}", err),
             }
-            if start.elapsed().as_secs() > 5 {
-                return Err(anyhow!("wait_for_reply {:?} - timeout", packet));
+            if start.elapsed().as_secs() > Self::TIMEOUT {
+                bail!("wait_for_reply {:?} - timeout", packet);
             }
 
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         }
     }
-}
-
-impl ChannelData {}
+} // }}}
 
 // Serial {{{
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -141,6 +147,8 @@ impl Inverter {
     }
 
     async fn connect(&self) -> Result<()> {
+        use net2::TcpStreamExt; // for set_keepalive
+                                //
         info!(
             "connecting to inverter {} at {}:{}",
             &self.config.datalog, &self.config.host, self.config.port
@@ -162,6 +170,8 @@ impl Inverter {
 
     // inverter -> coordinator
     async fn receiver(&self, mut socket: tokio::net::tcp::OwnedReadHalf) -> Result<()> {
+        use {bytes::BytesMut, tokio_util::codec::Decoder};
+
         let mut buf = BytesMut::new();
         let mut decoder = lxp::packet_decoder::PacketDecoder::new();
 

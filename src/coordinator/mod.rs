@@ -3,7 +3,7 @@ use crate::prelude::*;
 pub mod commands;
 
 use lxp::inverter::WaitForReply;
-use lxp::packet::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
+use lxp::packet::{DeviceFunction, ReadParam, TcpFunction};
 
 pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
 
@@ -16,96 +16,32 @@ pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs
 
 pub struct Coordinator {
     config: Rc<Config>,
-    inverters: Vec<Inverter>,
-    databases: Vec<Database>,
     have_enabled_databases: bool,
     channels: Channels,
 }
 
 impl Coordinator {
-    pub fn new(config: Config) -> Self {
-        let channels = Channels::new();
-
-        let config = Rc::new(config);
-
-        // process messages from/to inverter
-        let inverters = config
-            .enabled_inverters()
-            .cloned()
-            .map(|inverter| {
-                Inverter::new(
-                    inverter,
-                    channels.to_inverter.clone(),
-                    channels.from_inverter.clone(),
-                )
-            })
-            .collect();
-
-        // push messages to databases
-        let databases = config
-            .enabled_databases()
-            .cloned()
-            .map(|database| Database::new(database, channels.to_database.clone()))
-            .collect();
+    pub fn new(config: Rc<Config>, channels: Channels) -> Self {
         let have_enabled_databases = config.enabled_databases().count() > 0;
 
         Self {
             config,
-            inverters,
-            databases,
             have_enabled_databases,
             channels,
         }
     }
 
     pub async fn start(&self) -> Result<()> {
-        // process messages from/to MQTT
-        let mqtt = mqtt::Mqtt::new(
-            Rc::clone(&self.config),
-            self.channels.to_mqtt.clone(),
-            self.channels.from_mqtt.clone(),
-        );
-
-        // push messages to Influx
-        let influx = influx::Influx::new(Rc::clone(&self.config), self.channels.to_influx.clone());
-
-        // TODO:
-        // a lot of this doesn't need to be in the coordinator.
-        // probably only inverter_receiver and mqtt_receiver really belongs here?
-        // the others could be independently started in src/lib.rs
-        futures::try_join!(
-            self.inverter_receiver(),
-            self.start_inverters(),
-            self.mqtt_receiver(),
-            self.start_databases(),
-            self.start_scheduler(),
-            mqtt.start(),
-            influx.start(),
-        )?;
+        futures::try_join!(self.inverter_receiver(), self.mqtt_receiver())?;
 
         Ok(())
     }
 
-    async fn start_scheduler(&self) -> Result<()> {
-        let scheduler = scheduler::Scheduler::new(Rc::clone(&self.config), self.channels.clone());
-
-        scheduler.start().await?;
-
-        Ok(())
-    }
-
-    async fn start_inverters(&self) -> Result<()> {
-        let futures = self.inverters.iter().map(|i| i.start());
-
-        futures::future::join_all(futures).await;
-
-        Ok(())
-    }
-
-    async fn start_databases(&self) -> Result<()> {
-        let futures = self.databases.iter().map(|d| d.start());
-
-        futures::future::join_all(futures).await;
+    pub fn stop(&self) -> Result<()> {
+        self.channels
+            .from_inverter
+            .send(lxp::inverter::ChannelData::Shutdown)?;
+        self.channels.from_mqtt.send(mqtt::ChannelData::Shutdown)?;
 
         Ok(())
     }
@@ -114,10 +50,15 @@ impl Coordinator {
         let mut receiver = self.channels.from_mqtt.subscribe();
 
         loop {
-            let message = receiver.recv().await?;
-
-            let _ = self.process_message(message).await;
+            match receiver.recv().await? {
+                mqtt::ChannelData::Message(message) => {
+                    let _ = self.process_message(message).await;
+                }
+                mqtt::ChannelData::Shutdown => break,
+            }
         }
+
+        Ok(())
     }
 
     async fn process_message(&self, message: mqtt::Message) -> Result<()> {
@@ -133,7 +74,9 @@ impl Coordinator {
                         topic: topic_reply,
                         payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
                     };
-                    self.channels.to_mqtt.send(reply)?;
+                    self.channels
+                        .to_mqtt
+                        .send(mqtt::ChannelData::Message(reply))?;
 
                     //if let Err(err) = result {
                     //    error!("{:?}: {:?}", command, err);
@@ -213,8 +156,7 @@ impl Coordinator {
         U: Into<u16>,
     {
         commands::read_inputs::ReadInputs::new(
-            self.channels.from_inverter.clone(),
-            self.channels.to_inverter.clone(),
+            self.channels.clone(),
             inverter.clone(),
             register,
             count,
@@ -229,23 +171,14 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
-        let register = register.into();
-
-        let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog,
-            device_function: DeviceFunction::ReadHold,
-            inverter: inverter.serial,
+        commands::read_hold::ReadHold::new(
+            self.channels.clone(),
+            inverter.clone(),
             register,
-            values: count.to_le_bytes().to_vec(),
-        });
-
-        let mut receiver = self.channels.from_inverter.subscribe();
-
-        self.channels
-            .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
-
-        let _ = receiver.wait_for_reply(&packet).await?;
+            count,
+        )
+        .run()
+        .await?;
 
         Ok(())
     }
@@ -276,30 +209,9 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
-        let mut receiver = self.channels.from_inverter.subscribe();
-        let register = register.into();
-
-        let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog,
-            device_function: DeviceFunction::WriteSingle,
-            inverter: inverter.serial,
-            register,
-            values: value.to_le_bytes().to_vec(),
-        });
-
-        self.channels
-            .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
-
-        let packet = receiver.wait_for_reply(&packet).await?;
-        if packet.value() != value {
-            bail!(
-                "failed to set register {}, got back value {} (wanted {})",
-                register,
-                packet.value(),
-                value
-            );
-        }
+        commands::set_hold::SetHold::new(self.channels.clone(), inverter.clone(), register, value)
+            .run()
+            .await?;
 
         Ok(())
     }
@@ -314,67 +226,39 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
-        let mut receiver = self.channels.from_inverter.subscribe();
-        let register = register.into();
-
-        // get register from inverter
-        let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog,
-            device_function: DeviceFunction::ReadHold,
-            inverter: inverter.serial,
+        commands::update_hold::UpdateHold::new(
+            self.channels.clone(),
+            inverter.clone(),
             register,
-            values: vec![1, 0],
-        });
-
-        self.channels
-            .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
-
-        let packet = receiver.wait_for_reply(&packet).await?;
-        let value = if enable {
-            packet.value() | u16::from(bit)
-        } else {
-            packet.value() & !u16::from(bit)
-        };
-
-        // new packet to set register with a new value
-        let values = value.to_le_bytes().to_vec();
-        let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog,
-            device_function: DeviceFunction::WriteSingle,
-            inverter: inverter.serial,
-            register,
-            values,
-        });
-        self.channels
-            .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
-
-        let packet = receiver.wait_for_reply(&packet).await?;
-        if packet.value() != value {
-            bail!(
-                "failed to update register {:?}, got back value {} (wanted {})",
-                register,
-                packet.value(),
-                value
-            );
-        }
+            bit,
+            enable,
+        )
+        .run()
+        .await?;
 
         Ok(())
     }
 
     async fn inverter_receiver(&self) -> Result<()> {
+        use lxp::inverter::ChannelData::*;
+
         let mut receiver = self.channels.from_inverter.subscribe();
 
         let mut inputs_store = InputsStore::new();
 
-        // this loop holds no state so doesn't care about inverter reconnects
         loop {
-            if let lxp::inverter::ChannelData::Packet(packet) = receiver.recv().await? {
-                self.process_inverter_packet(packet, &mut inputs_store)
-                    .await?;
+            match receiver.recv().await? {
+                Packet(packet) => {
+                    self.process_inverter_packet(packet, &mut inputs_store)
+                        .await?;
+                }
+                // this loop holds no state so doesn't care about inverter reconnects
+                Disconnect(_) => {}
+                Shutdown => break,
             }
         }
+
+        Ok(())
     }
 
     async fn process_inverter_packet(
@@ -420,7 +304,9 @@ impl Coordinator {
 
                         if self.config.mqtt.enabled {
                             for message in mqtt::Message::for_input_all(&input, datalog) {
-                                self.channels.to_mqtt.send(message)?;
+                                self.channels
+                                    .to_mqtt
+                                    .send(mqtt::ChannelData::Message(message))?;
                             }
                         }
 
@@ -437,7 +323,9 @@ impl Coordinator {
             match Self::packet_to_messages(packet) {
                 Ok(messages) => {
                     for message in messages {
-                        self.channels.to_mqtt.send(message)?;
+                        self.channels
+                            .to_mqtt
+                            .send(mqtt::ChannelData::Message(message))?;
                     }
                 }
                 Err(e) => {

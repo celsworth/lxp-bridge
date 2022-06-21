@@ -2,15 +2,16 @@
 // influxdb::Timestamp with a preset precision - to the second is more
 // than good enough and should let Influx store it more efficiently.
 
-use chrono::{DateTime, Utc};
+use crate::utils::Utils;
+
 use serde::{Serialize, Serializer};
 
-#[derive(Clone, Debug)]
-pub struct UnixTime(pub DateTime<Utc>);
+#[derive(PartialEq, Clone, Debug)]
+pub struct UnixTime(pub chrono::DateTime<chrono::Utc>);
 
 impl UnixTime {
     pub fn now() -> Self {
-        Self(Utc::now())
+        Self(Utils::utc())
     }
 }
 
