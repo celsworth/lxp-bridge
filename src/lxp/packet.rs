@@ -531,7 +531,7 @@ pub enum Register {
     DischgCutOffSocEod = 105,   // Discharge cut-off SOC (%)
 }
 
-#[derive(Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum RegisterBit {
     // Register 21

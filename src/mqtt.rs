@@ -163,21 +163,12 @@ pub type MessageSender = broadcast::Sender<Message>;
 
 pub struct Mqtt {
     config: Rc<Config>,
-    from_coordinator: MessageSender,
-    to_coordinator: MessageSender,
+    channels: Channels,
 }
 
 impl Mqtt {
-    pub fn new(
-        config: Rc<Config>,
-        from_coordinator: MessageSender,
-        to_coordinator: MessageSender,
-    ) -> Self {
-        Self {
-            config,
-            from_coordinator,
-            to_coordinator,
-        }
+    pub fn new(config: Rc<Config>, channels: Channels) -> Self {
+        Self { config, channels }
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -265,14 +256,14 @@ impl Mqtt {
             payload: String::from_utf8(publish.payload.to_vec())?,
         };
         debug!("RX: {:?}", message);
-        self.to_coordinator.send(message)?;
+        self.channels.from_mqtt.send(message)?;
 
         Ok(())
     }
 
     // coordinator -> mqtt
     async fn sender(&self, client: AsyncClient) -> Result<()> {
-        let mut receiver = self.from_coordinator.subscribe();
+        let mut receiver = self.channels.to_mqtt.subscribe();
         loop {
             let message = receiver.recv().await?;
 

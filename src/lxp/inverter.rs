@@ -8,13 +8,13 @@ use {
 
 #[derive(Debug, Clone)]
 pub enum ChannelData {
-    NoOp,
     Disconnect(Serial), // strictly speaking, only ever goes inverter->coordinator, but eh.
     Packet(Packet),     // this one goes both ways through the channel.
 }
 pub type Sender = broadcast::Sender<ChannelData>;
 pub type Receiver = broadcast::Receiver<ChannelData>;
 
+// WaitForReply {{{
 #[async_trait]
 pub trait WaitForReply {
     #[cfg(not(feature = "mocks"))]
@@ -49,7 +49,6 @@ impl WaitForReply for Receiver {
                         bail!("inverter disconnect?");
                     }
                 }
-                (_, Ok(ChannelData::NoOp)) => {} // ignore and loop
                 (_, Err(broadcast::error::TryRecvError::Empty)) => {} // ignore and loop
                 (_, Err(err)) => bail!("try_recv error: {:?}", err),
             }
@@ -60,9 +59,7 @@ impl WaitForReply for Receiver {
             tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         }
     }
-}
-
-impl ChannelData {}
+} // }}}
 
 // Serial {{{
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]

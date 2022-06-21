@@ -15,15 +15,12 @@ pub type Sender = broadcast::Sender<ChannelData>;
 
 pub struct Influx {
     config: Rc<Config>,
-    from_coordinator: Sender,
+    channels: Channels,
 }
 
 impl Influx {
-    pub fn new(config: Rc<Config>, from_coordinator: Sender) -> Self {
-        Self {
-            config,
-            from_coordinator,
-        }
+    pub fn new(config: Rc<Config>, channels: Channels) -> Self {
+        Self { config, channels }
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -51,10 +48,10 @@ impl Influx {
         Ok(())
     }
 
-    async fn sender(&self, client: rinfluxdb::line_protocol::r#async::Client) -> Result<()> {
+    async fn sender(&self, client: Client) -> Result<()> {
         use ChannelData::*;
 
-        let mut receiver = self.from_coordinator.subscribe();
+        let mut receiver = self.channels.to_influx.subscribe();
 
         loop {
             let mut line = LineBuilder::new(INPUTS_MEASUREMENT);

@@ -3,7 +3,7 @@ use crate::prelude::*;
 pub mod commands;
 
 use lxp::inverter::WaitForReply;
-use lxp::packet::{DeviceFunction, ReadParam, TcpFunction, TranslatedData};
+use lxp::packet::{DeviceFunction, ReadParam, TcpFunction};
 
 pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
 
@@ -23,11 +23,7 @@ pub struct Coordinator {
 }
 
 impl Coordinator {
-    pub fn new(config: Config) -> Self {
-        let channels = Channels::new();
-
-        let config = Rc::new(config);
-
+    pub fn new(config: Rc<Config>, channels: Channels) -> Self {
         // process messages from/to inverter
         let inverters = config
             .enabled_inverters()
@@ -59,16 +55,6 @@ impl Coordinator {
     }
 
     pub async fn start(&self) -> Result<()> {
-        // process messages from/to MQTT
-        let mqtt = mqtt::Mqtt::new(
-            Rc::clone(&self.config),
-            self.channels.to_mqtt.clone(),
-            self.channels.from_mqtt.clone(),
-        );
-
-        // push messages to Influx
-        let influx = influx::Influx::new(Rc::clone(&self.config), self.channels.to_influx.clone());
-
         // TODO:
         // a lot of this doesn't need to be in the coordinator.
         // probably only inverter_receiver and mqtt_receiver really belongs here?
@@ -78,18 +64,7 @@ impl Coordinator {
             self.start_inverters(),
             self.mqtt_receiver(),
             self.start_databases(),
-            self.start_scheduler(),
-            mqtt.start(),
-            influx.start(),
         )?;
-
-        Ok(())
-    }
-
-    async fn start_scheduler(&self) -> Result<()> {
-        let scheduler = scheduler::Scheduler::new(Rc::clone(&self.config), self.channels.clone());
-
-        scheduler.start().await?;
 
         Ok(())
     }
@@ -283,51 +258,15 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
-        let mut receiver = self.channels.from_inverter.subscribe();
-        let register = register.into();
-
-        // get register from inverter
-        let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog,
-            device_function: DeviceFunction::ReadHold,
-            inverter: inverter.serial,
+        commands::update_hold::UpdateHold::new(
+            self.channels.clone(),
+            inverter.clone(),
             register,
-            values: vec![1, 0],
-        });
-
-        self.channels
-            .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
-
-        let packet = receiver.wait_for_reply(&packet).await?;
-        let value = if enable {
-            packet.value() | u16::from(bit)
-        } else {
-            packet.value() & !u16::from(bit)
-        };
-
-        // new packet to set register with a new value
-        let values = value.to_le_bytes().to_vec();
-        let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog,
-            device_function: DeviceFunction::WriteSingle,
-            inverter: inverter.serial,
-            register,
-            values,
-        });
-        self.channels
-            .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
-
-        let packet = receiver.wait_for_reply(&packet).await?;
-        if packet.value() != value {
-            bail!(
-                "failed to update register {:?}, got back value {} (wanted {})",
-                register,
-                packet.value(),
-                value
-            );
-        }
+            bit,
+            enable,
+        )
+        .run()
+        .await?;
 
         Ok(())
     }

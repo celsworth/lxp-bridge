@@ -46,11 +46,21 @@ async fn app() -> Result<()> {
 
     info!("lxp-bridge {} starting", CARGO_PKG_VERSION);
 
-    let config = Config::new(options.config_file)?;
+    let config = Rc::new(Config::new(options.config_file)?);
 
-    let coordinator = Coordinator::new(config);
+    let channels = Channels::new();
 
-    futures::try_join!(coordinator.start())?;
+    let scheduler = Scheduler::new(Rc::clone(&config), channels.clone());
+    let mqtt = Mqtt::new(Rc::clone(&config), channels.clone());
+    let influx = Influx::new(Rc::clone(&config), channels.clone());
+    let coordinator = Coordinator::new(config, channels.clone());
+
+    futures::try_join!(
+        scheduler.start(),
+        mqtt.start(),
+        influx.start(),
+        coordinator.start()
+    )?;
 
     Ok(())
 }
