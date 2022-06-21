@@ -11,7 +11,7 @@ async fn happy_path() {
     let register = 0 as u16;
     let count = 40 as u16;
 
-    let subject = coordinator::commands::read_inputs::ReadInputs::new(
+    let subject = coordinator::commands::read_hold::ReadHold::new(
         channels.clone(),
         inverter.clone(),
         register,
@@ -20,7 +20,7 @@ async fn happy_path() {
 
     let reply = Packet::TranslatedData(lxp::packet::TranslatedData {
         datalog: inverter.datalog,
-        device_function: lxp::packet::DeviceFunction::ReadInput,
+        device_function: lxp::packet::DeviceFunction::ReadHold,
         inverter: inverter.serial,
         register: 0,
         values: vec![0, 0],

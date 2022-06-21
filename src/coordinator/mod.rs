@@ -213,8 +213,7 @@ impl Coordinator {
         U: Into<u16>,
     {
         commands::read_inputs::ReadInputs::new(
-            self.channels.from_inverter.clone(),
-            self.channels.to_inverter.clone(),
+            self.channels.clone(),
             inverter.clone(),
             register,
             count,
@@ -229,23 +228,14 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
-        let register = register.into();
-
-        let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog,
-            device_function: DeviceFunction::ReadHold,
-            inverter: inverter.serial,
+        commands::read_hold::ReadHold::new(
+            self.channels.clone(),
+            inverter.clone(),
             register,
-            values: count.to_le_bytes().to_vec(),
-        });
-
-        let mut receiver = self.channels.from_inverter.subscribe();
-
-        self.channels
-            .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
-
-        let _ = receiver.wait_for_reply(&packet).await?;
+            count,
+        )
+        .run()
+        .await?;
 
         Ok(())
     }
@@ -276,30 +266,9 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
-        let mut receiver = self.channels.from_inverter.subscribe();
-        let register = register.into();
-
-        let packet = Packet::TranslatedData(TranslatedData {
-            datalog: inverter.datalog,
-            device_function: DeviceFunction::WriteSingle,
-            inverter: inverter.serial,
-            register,
-            values: value.to_le_bytes().to_vec(),
-        });
-
-        self.channels
-            .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
-
-        let packet = receiver.wait_for_reply(&packet).await?;
-        if packet.value() != value {
-            bail!(
-                "failed to set register {}, got back value {} (wanted {})",
-                register,
-                packet.value(),
-                value
-            );
-        }
+        commands::set_hold::SetHold::new(self.channels.clone(), inverter.clone(), register, value)
+            .run()
+            .await?;
 
         Ok(())
     }

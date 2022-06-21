@@ -5,15 +5,15 @@ use lxp::{
     packet::{DeviceFunction, TranslatedData},
 };
 
-pub struct ReadInputs {
+pub struct SetHold {
     channels: Channels,
     inverter: config::Inverter,
     register: u16,
-    count: u16,
+    value: u16,
 }
 
-impl ReadInputs {
-    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, count: u16) -> Self
+impl SetHold {
+    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, value: u16) -> Self
     where
         U: Into<u16>,
     {
@@ -21,17 +21,17 @@ impl ReadInputs {
             channels,
             inverter,
             register: register.into(),
-            count,
+            value,
         }
     }
 
     pub async fn run(&self) -> Result<Packet> {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: self.inverter.datalog,
-            device_function: DeviceFunction::ReadInput,
+            device_function: DeviceFunction::WriteSingle,
             inverter: self.inverter.serial,
             register: self.register,
-            values: self.count.to_le_bytes().to_vec(),
+            values: self.value.to_le_bytes().to_vec(),
         });
 
         let mut receiver = self.channels.from_inverter.subscribe();
@@ -40,6 +40,16 @@ impl ReadInputs {
             .to_inverter
             .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
 
-        receiver.wait_for_reply(&packet).await
+        let packet = receiver.wait_for_reply(&packet).await?;
+        if packet.value() != self.value {
+            bail!(
+                "failed to set register {}, got back value {} (wanted {})",
+                self.register,
+                packet.value(),
+                self.value
+            );
+        }
+
+        Ok(packet)
     }
 }

@@ -24,8 +24,8 @@ impl Scheduler {
             if config.timesync.enabled {
                 let timesync_config = &config.timesync;
 
-                while let Ok(next) = parse(&timesync_config.cron, &chrono::Local::now()) {
-                    let sleep = next - chrono::Local::now();
+                while let Ok(next) = parse(&timesync_config.cron, &Utils::localtime()) {
+                    let sleep = next - Utils::localtime();
                     info!("next timesync at {}, sleeping for {}", next, sleep);
                     tokio::time::sleep(sleep.to_std()?).await;
                     self.timesync().await?;

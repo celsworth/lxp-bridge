@@ -5,14 +5,14 @@ use lxp::{
     packet::{DeviceFunction, TranslatedData},
 };
 
-pub struct ReadInputs {
+pub struct ReadHold {
     channels: Channels,
     inverter: config::Inverter,
     register: u16,
     count: u16,
 }
 
-impl ReadInputs {
+impl ReadHold {
     pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, count: u16) -> Self
     where
         U: Into<u16>,
@@ -28,7 +28,7 @@ impl ReadInputs {
     pub async fn run(&self) -> Result<Packet> {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: self.inverter.datalog,
-            device_function: DeviceFunction::ReadInput,
+            device_function: DeviceFunction::ReadHold,
             inverter: self.inverter.serial,
             register: self.register,
             values: self.count.to_le_bytes().to_vec(),
