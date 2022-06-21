@@ -10,6 +10,7 @@ use {
 pub enum ChannelData {
     Disconnect(Serial), // strictly speaking, only ever goes inverter->coordinator, but eh.
     Packet(Packet),     // this one goes both ways through the channel.
+    Shutdown,
 }
 pub type Sender = broadcast::Sender<ChannelData>;
 pub type Receiver = broadcast::Receiver<ChannelData>;
@@ -49,6 +50,7 @@ impl WaitForReply for Receiver {
                         bail!("inverter disconnect?");
                     }
                 }
+                (_, Ok(ChannelData::Shutdown)) => bail!("shutting down"),
                 (_, Err(broadcast::error::TryRecvError::Empty)) => {} // ignore and loop
                 (_, Err(err)) => bail!("try_recv error: {:?}", err),
             }

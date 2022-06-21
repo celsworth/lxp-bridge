@@ -6,7 +6,7 @@ use crate::utils::Utils;
 
 use serde::{Serialize, Serializer};
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub struct UnixTime(pub chrono::DateTime<chrono::Utc>);
 
 impl UnixTime {

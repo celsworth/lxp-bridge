@@ -13,7 +13,7 @@ pub enum ReadInput {
 }
 
 // {{{ ReadInputAll
-#[derive(Clone, Debug, Serialize, Nom)]
+#[derive(PartialEq, Clone, Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
 pub struct ReadInputAll {
     pub status: u16,

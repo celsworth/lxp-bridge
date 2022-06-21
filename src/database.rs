@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ChannelData {
     ReadInputAll(Box<lxp::packet::ReadInputAll>),
     Shutdown,

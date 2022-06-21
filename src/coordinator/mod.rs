@@ -16,71 +16,32 @@ pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs
 
 pub struct Coordinator {
     config: Rc<Config>,
-    inverters: Vec<Inverter>,
-    databases: Vec<Database>,
     have_enabled_databases: bool,
     channels: Channels,
 }
 
 impl Coordinator {
     pub fn new(config: Rc<Config>, channels: Channels) -> Self {
-        // process messages from/to inverter
-        let inverters = config
-            .enabled_inverters()
-            .cloned()
-            .map(|inverter| {
-                Inverter::new(
-                    inverter,
-                    channels.to_inverter.clone(),
-                    channels.from_inverter.clone(),
-                )
-            })
-            .collect();
-
-        // push messages to databases
-        let databases = config
-            .enabled_databases()
-            .cloned()
-            .map(|database| Database::new(database, channels.to_database.clone()))
-            .collect();
         let have_enabled_databases = config.enabled_databases().count() > 0;
 
         Self {
             config,
-            inverters,
-            databases,
             have_enabled_databases,
             channels,
         }
     }
 
     pub async fn start(&self) -> Result<()> {
-        // TODO:
-        // a lot of this doesn't need to be in the coordinator.
-        // probably only inverter_receiver and mqtt_receiver really belongs here?
-        // the others could be independently started in src/lib.rs
-        futures::try_join!(
-            self.inverter_receiver(),
-            self.start_inverters(),
-            self.mqtt_receiver(),
-            self.start_databases(),
-        )?;
+        futures::try_join!(self.inverter_receiver(), self.mqtt_receiver())?;
 
         Ok(())
     }
 
-    async fn start_inverters(&self) -> Result<()> {
-        let futures = self.inverters.iter().map(|i| i.start());
-
-        futures::future::join_all(futures).await;
-
-        Ok(())
-    }
-
-    async fn start_databases(&self) -> Result<()> {
-        let futures = self.databases.iter().map(|d| d.start());
-
-        futures::future::join_all(futures).await;
+    pub fn stop(&self) -> Result<()> {
+        self.channels
+            .from_inverter
+            .send(lxp::inverter::ChannelData::Shutdown)?;
+        self.channels.from_mqtt.send(mqtt::ChannelData::Shutdown)?;
 
         Ok(())
     }
@@ -89,10 +50,15 @@ impl Coordinator {
         let mut receiver = self.channels.from_mqtt.subscribe();
 
         loop {
-            let message = receiver.recv().await?;
-
-            let _ = self.process_message(message).await;
+            match receiver.recv().await? {
+                mqtt::ChannelData::Message(message) => {
+                    let _ = self.process_message(message).await;
+                }
+                mqtt::ChannelData::Shutdown => break,
+            }
         }
+
+        Ok(())
     }
 
     async fn process_message(&self, message: mqtt::Message) -> Result<()> {
@@ -108,7 +74,9 @@ impl Coordinator {
                         topic: topic_reply,
                         payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
                     };
-                    self.channels.to_mqtt.send(reply)?;
+                    self.channels
+                        .to_mqtt
+                        .send(mqtt::ChannelData::Message(reply))?;
 
                     //if let Err(err) = result {
                     //    error!("{:?}: {:?}", command, err);
@@ -272,17 +240,25 @@ impl Coordinator {
     }
 
     async fn inverter_receiver(&self) -> Result<()> {
+        use lxp::inverter::ChannelData::*;
+
         let mut receiver = self.channels.from_inverter.subscribe();
 
         let mut inputs_store = InputsStore::new();
 
-        // this loop holds no state so doesn't care about inverter reconnects
         loop {
-            if let lxp::inverter::ChannelData::Packet(packet) = receiver.recv().await? {
-                self.process_inverter_packet(packet, &mut inputs_store)
-                    .await?;
+            match receiver.recv().await? {
+                Packet(packet) => {
+                    self.process_inverter_packet(packet, &mut inputs_store)
+                        .await?;
+                }
+                // this loop holds no state so doesn't care about inverter reconnects
+                Disconnect(_) => {}
+                Shutdown => break,
             }
         }
+
+        Ok(())
     }
 
     async fn process_inverter_packet(
@@ -328,7 +304,9 @@ impl Coordinator {
 
                         if self.config.mqtt.enabled {
                             for message in mqtt::Message::for_input_all(&input, datalog) {
-                                self.channels.to_mqtt.send(message)?;
+                                self.channels
+                                    .to_mqtt
+                                    .send(mqtt::ChannelData::Message(message))?;
                             }
                         }
 
@@ -345,7 +323,9 @@ impl Coordinator {
             match Self::packet_to_messages(packet) {
                 Ok(messages) => {
                     for message in messages {
-                        self.channels.to_mqtt.send(message)?;
+                        self.channels
+                            .to_mqtt
+                            .send(mqtt::ChannelData::Message(message))?;
                     }
                 }
                 Err(e) => {

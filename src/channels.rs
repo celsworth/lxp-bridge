@@ -4,8 +4,8 @@ use crate::prelude::*;
 pub struct Channels {
     pub from_inverter: broadcast::Sender<lxp::inverter::ChannelData>,
     pub to_inverter: broadcast::Sender<lxp::inverter::ChannelData>,
-    pub from_mqtt: broadcast::Sender<mqtt::Message>,
-    pub to_mqtt: broadcast::Sender<mqtt::Message>,
+    pub from_mqtt: broadcast::Sender<mqtt::ChannelData>,
+    pub to_mqtt: broadcast::Sender<mqtt::ChannelData>,
     pub to_influx: broadcast::Sender<influx::ChannelData>,
     pub to_database: broadcast::Sender<database::ChannelData>,
 }

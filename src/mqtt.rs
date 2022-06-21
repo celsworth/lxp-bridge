@@ -3,7 +3,7 @@ use crate::prelude::*;
 use rumqttc::{AsyncClient, Event, EventLoop, Incoming, MqttOptions, Publish, QoS};
 
 // Message {{{
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct Message {
     pub topic: String,
     pub payload: String,
@@ -159,7 +159,13 @@ impl Message {
     }
 } // }}}
 
-pub type MessageSender = broadcast::Sender<Message>;
+#[derive(PartialEq, Debug, Clone)]
+pub enum ChannelData {
+    Message(Message),
+    Shutdown,
+}
+
+pub type Sender = broadcast::Sender<ChannelData>;
 
 pub struct Mqtt {
     config: Rc<Config>,
@@ -179,7 +185,7 @@ impl Mqtt {
             return Ok(());
         }
 
-        let mut options = MqttOptions::new("lxp-bridge", &m.host, m.port);
+        let mut options = MqttOptions::new("lxp-bridge2", &m.host, m.port);
 
         options.set_keep_alive(std::time::Duration::from_secs(60));
         if let (Some(u), Some(p)) = (&m.username, &m.password) {
@@ -256,7 +262,9 @@ impl Mqtt {
             payload: String::from_utf8(publish.payload.to_vec())?,
         };
         debug!("RX: {:?}", message);
-        self.channels.from_mqtt.send(message)?;
+        self.channels
+            .from_mqtt
+            .send(ChannelData::Message(message))?;
 
         Ok(())
     }
@@ -265,14 +273,14 @@ impl Mqtt {
     async fn sender(&self, client: AsyncClient) -> Result<()> {
         let mut receiver = self.channels.to_mqtt.subscribe();
         loop {
-            let message = receiver.recv().await?;
-
-            let topic = format!("{}/{}", self.config.mqtt.namespace, message.topic);
-            debug!("publishing: {} = {}", topic, message.payload);
-            let _ = client
-                .publish(&topic, QoS::AtLeastOnce, false, message.payload)
-                .await
-                .map_err(|err| error!("publish {} failed: {:?} .. skipping", topic, err));
+            if let ChannelData::Message(message) = receiver.recv().await? {
+                let topic = format!("{}/{}", self.config.mqtt.namespace, message.topic);
+                debug!("publishing: {} = {}", topic, message.payload);
+                let _ = client
+                    .publish(&topic, QoS::AtLeastOnce, false, message.payload)
+                    .await
+                    .map_err(|err| error!("publish {} failed: {:?} .. skipping", topic, err));
+            }
         }
     }
 }

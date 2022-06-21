@@ -5,7 +5,7 @@ use rinfluxdb::line_protocol::{r#async::Client, LineBuilder};
 
 static INPUTS_MEASUREMENT: &str = "inputs";
 
-#[derive(Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ChannelData {
     InputData(serde_json::Value),
     Shutdown,
