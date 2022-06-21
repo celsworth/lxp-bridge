@@ -11,7 +11,7 @@ fn mock_influxdb() -> Mock {
 async fn sends_http_request() {
     common_setup();
 
-    let mut config = example_config();
+    let mut config = Factory::example_config();
     config.influx.url = mockito::server_url();
     let channel = sender();
 

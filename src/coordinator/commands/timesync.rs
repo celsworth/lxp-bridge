@@ -44,7 +44,7 @@ impl TimeSync {
                 .ymd(2000 + year as i32, month, day)
                 .and_hms(hour, minute, second);
 
-            let now = chrono::Local::now();
+            let now = Utils::localtime();
 
             debug!(
                 "inverter {} time difference is {}",
@@ -73,7 +73,7 @@ impl TimeSync {
     fn set_current_time_packet(&self) -> Packet {
         use chrono::{Datelike, Timelike};
 
-        let now = chrono::Local::now();
+        let now = Utils::localtime();
 
         Packet::TranslatedData(TranslatedData {
             datalog: self.inverter.datalog,

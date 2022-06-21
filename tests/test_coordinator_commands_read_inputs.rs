@@ -5,8 +5,7 @@ use common::*;
 async fn stuff() {
     common_setup();
 
-    let config = example_config();
-    let inverter = config.inverters[0].clone();
+    let inverter = Factory::inverter();
 
     let from_inverter = sender();
     let to_inverter = sender();

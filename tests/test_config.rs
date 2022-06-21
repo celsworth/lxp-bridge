@@ -1,6 +1,10 @@
 mod common;
 use common::*;
 
+pub fn example_serial() -> lxp::inverter::Serial {
+    lxp::inverter::Serial::from_str("TESTSERIAL").unwrap()
+}
+
 #[test]
 fn config_returns_err_on_nonexistent_file() {
     let config = Config::new("nonexistent".to_owned());
@@ -57,7 +61,7 @@ fn homeassistant_sensors_parsing() {
 
 #[test]
 fn enabled_inverters() {
-    let mut config = example_config();
+    let mut config = Factory::example_config();
 
     config.inverters = vec![
         config::Inverter {
@@ -82,7 +86,7 @@ fn enabled_inverters() {
 
 #[test]
 fn inverters_for_message() {
-    let mut config = example_config();
+    let mut config = Factory::example_config();
 
     config.inverters = vec![
         config::Inverter {
@@ -128,7 +132,7 @@ fn inverters_for_message() {
 
 #[test]
 fn enabled_databases() {
-    let mut config = example_config();
+    let mut config = Factory::example_config();
 
     config.databases = vec![
         config::Database {

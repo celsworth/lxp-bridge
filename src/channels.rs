@@ -10,6 +10,12 @@ pub struct Channels {
     pub to_database: broadcast::Sender<database::ChannelData>,
 }
 
+impl Default for Channels {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Channels {
     pub fn new() -> Self {
         Self {

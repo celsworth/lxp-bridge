@@ -27,5 +27,5 @@ pub use crate::{
     options::Options,
     scheduler,
     unixtime::UnixTime,
-    utils,
+    utils::Utils,
 };
