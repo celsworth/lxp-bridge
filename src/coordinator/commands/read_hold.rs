@@ -36,9 +36,14 @@ impl ReadHold {
 
         let mut receiver = self.channels.from_inverter.subscribe();
 
-        self.channels
+        if self
+            .channels
             .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))
+            .is_err()
+        {
+            bail!("send(to_inverter) failed - channel closed?");
+        }
 
         receiver.wait_for_reply(&packet).await
     }

@@ -45,9 +45,14 @@ impl UpdateHold {
             values: vec![1, 0],
         });
 
-        self.channels
+        if self
+            .channels
             .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))
+            .is_err()
+        {
+            bail!("send(to_inverter) failed - channel closed?");
+        }
 
         let packet = receiver.wait_for_reply(&packet).await?;
         let bit = u16::from(self.bit.clone());
@@ -66,9 +71,15 @@ impl UpdateHold {
             register: self.register,
             values,
         });
-        self.channels
+
+        if self
+            .channels
             .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))
+            .is_err()
+        {
+            bail!("send(to_inverter) failed - channel closed?");
+        }
 
         let packet = receiver.wait_for_reply(&packet).await?;
         if packet.value() != value {

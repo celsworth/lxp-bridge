@@ -262,9 +262,14 @@ impl Mqtt {
             payload: String::from_utf8(publish.payload.to_vec())?,
         };
         debug!("RX: {:?}", message);
-        self.channels
+        if self
+            .channels
             .from_mqtt
-            .send(ChannelData::Message(message))?;
+            .send(ChannelData::Message(message))
+            .is_err()
+        {
+            bail!("send(from_mqtt) failed - channel closed?");
+        }
 
         Ok(())
     }

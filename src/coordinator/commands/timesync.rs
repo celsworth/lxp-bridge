@@ -28,9 +28,14 @@ impl TimeSync {
 
         let mut receiver = self.channels.from_inverter.subscribe();
 
-        self.channels
+        if self
+            .channels
             .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))
+            .is_err()
+        {
+            bail!("send(to_inverter) failed - channel closed?");
+        }
 
         if let Packet::TranslatedData(td) = receiver.wait_for_reply(&packet).await? {
             let year = td.values[0] as u32;
@@ -56,9 +61,15 @@ impl TimeSync {
 
             if dt - now > limit || now - dt > limit {
                 let packet = self.set_current_time_packet();
-                self.channels
+                if self
+                    .channels
                     .to_inverter
-                    .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
+                    .send(lxp::inverter::ChannelData::Packet(packet.clone()))
+                    .is_err()
+                {
+                    bail!("send(to_inverter) failed - channel closed?");
+                }
+
                 if let Packet::TranslatedData(_) = receiver.wait_for_reply(&packet).await? {
                     debug!("time set ok");
                 } else {

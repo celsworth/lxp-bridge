@@ -7,13 +7,6 @@ use lxp::packet::{DeviceFunction, ReadParam, TcpFunction};
 
 pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
 
-// the coordinator takes messages from both MQ and the inverter and decides
-// what to do with them.
-//
-// usually this will just be relaying directly out the other side, but some
-// messages need a bit of state storing, eg "enable ac charge" is actually
-// two inverter messages.
-
 pub struct Coordinator {
     config: Rc<Config>,
     have_enabled_databases: bool,
@@ -51,10 +44,10 @@ impl Coordinator {
 
         loop {
             match receiver.recv().await? {
+                mqtt::ChannelData::Shutdown => break,
                 mqtt::ChannelData::Message(message) => {
                     let _ = self.process_message(message).await;
                 }
-                mqtt::ChannelData::Shutdown => break,
             }
         }
 
@@ -70,17 +63,13 @@ impl Coordinator {
                     let topic_reply = command.to_result_topic();
                     let result = self.process_command(command).await;
 
-                    let reply = mqtt::Message {
+                    let reply = mqtt::ChannelData::Message(mqtt::Message {
                         topic: topic_reply,
                         payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
-                    };
-                    self.channels
-                        .to_mqtt
-                        .send(mqtt::ChannelData::Message(reply))?;
-
-                    //if let Err(err) = result {
-                    //    error!("{:?}: {:?}", command, err);
-                    //}
+                    });
+                    if self.channels.to_mqtt.send(reply).is_err() {
+                        bail!("send(to_mqtt) failed - channel closed?");
+                    }
                 }
                 Err(err) => {
                     error!("{:?}", err);
@@ -196,9 +185,14 @@ impl Coordinator {
 
         let mut receiver = self.channels.from_inverter.subscribe();
 
-        self.channels
+        if self
+            .channels
             .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
+            .send(lxp::inverter::ChannelData::Packet(packet.clone()))
+            .is_err()
+        {
+            bail!("send(to_inverter) failed - channel closed?");
+        }
 
         let _ = receiver.wait_for_reply(&packet).await?;
 
@@ -304,9 +298,10 @@ impl Coordinator {
 
                         if self.config.mqtt.enabled {
                             for message in mqtt::Message::for_input_all(&input, datalog) {
-                                self.channels
-                                    .to_mqtt
-                                    .send(mqtt::ChannelData::Message(message))?;
+                                let message = mqtt::ChannelData::Message(message);
+                                if self.channels.to_mqtt.send(message).is_err() {
+                                    bail!("send(to_mqtt) failed - channel closed?");
+                                }
                             }
                         }
 
@@ -323,9 +318,10 @@ impl Coordinator {
             match Self::packet_to_messages(packet) {
                 Ok(messages) => {
                     for message in messages {
-                        self.channels
-                            .to_mqtt
-                            .send(mqtt::ChannelData::Message(message))?;
+                        let message = mqtt::ChannelData::Message(message);
+                        if self.channels.to_mqtt.send(message).is_err() {
+                            bail!("send(to_mqtt) failed - channel closed?");
+                        }
                     }
                 }
                 Err(e) => {
@@ -342,12 +338,16 @@ impl Coordinator {
     async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
         if self.config.influx.enabled {
             let channel_data = influx::ChannelData::InputData(serde_json::to_value(&input)?);
-            self.channels.to_influx.send(channel_data)?;
+            if self.channels.to_influx.send(channel_data).is_err() {
+                bail!("send(to_influx) failed - channel closed?");
+            }
         }
 
         if self.have_enabled_databases {
             let channel_data = database::ChannelData::ReadInputAll(input);
-            self.channels.to_database.send(channel_data)?;
+            if self.channels.to_database.send(channel_data).is_err() {
+                bail!("send(to_database) failed - channel closed?");
+            }
         }
 
         Ok(())
