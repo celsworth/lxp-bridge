@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+use sqlx::{any::AnyConnectOptions, AnyPool, ConnectOptions};
+
 #[derive(PartialEq, Clone, Debug)]
 pub enum ChannelData {
     ReadInputAll(Box<lxp::packet::ReadInputAll>),
@@ -14,16 +16,19 @@ enum DatabaseType {
     SQLite,
 }
 
+#[derive(Clone, Debug)]
 pub struct Database {
     config: config::Database,
-    from_coordinator: Sender,
+    channels: Channels,
+    pool: RefCell<Option<AnyPool>>,
 }
 
 impl Database {
-    pub fn new(config: config::Database, from_coordinator: Sender) -> Self {
+    pub fn new(config: config::Database, channels: Channels) -> Self {
         Self {
             config,
-            from_coordinator,
+            channels,
+            pool: RefCell::new(None),
         }
     }
 
@@ -38,6 +43,10 @@ impl Database {
         Ok(())
     }
 
+    pub fn stop(&self) {
+        let _ = self.channels.to_database.send(ChannelData::Shutdown);
+    }
+
     fn database(&self) -> Result<DatabaseType> {
         let prefix: Vec<&str> = self.config.url.splitn(2, ':').collect();
         match prefix[0] {
@@ -48,34 +57,52 @@ impl Database {
         }
     }
 
-    async fn connect(&self) -> Result<sqlx::any::AnyConnection> {
-        use sqlx::ConnectOptions;
-        sqlx::any::AnyConnectOptions::from_str(&self.config.url)?
-            .disable_statement_logging()
-            .connect()
-            .await
-            .map_err(|err| anyhow!("database connection error: {}", err))
+    async fn connect(&self) -> Result<()> {
+        let mut options = AnyConnectOptions::from_str(&self.config.url)?;
+        options.disable_statement_logging();
+        let pool = sqlx::any::AnyPool::connect_with(options).await?;
+
+        //debug!("{:?}", pool.any_kind());
+        let _ = self.pool.borrow_mut().insert(pool);
+
+        Ok(())
     }
 
-    async fn migrate(&self, conn: &mut sqlx::AnyConnection) -> Result<()> {
+    pub async fn connection(&self) -> Result<sqlx::pool::PoolConnection<sqlx::Any>> {
+        let conn = if let Some(pool) = &*self.pool.borrow() {
+            pool.acquire().await?
+        } else {
+            todo!()
+        };
+
+        Ok(conn)
+    }
+
+    async fn migrate(&self) -> Result<()> {
         use DatabaseType::*;
+
+        let mut conn = self.connection().await?;
 
         // work out migration directory to use based on database url
         match self.database()? {
-            SQLite => sqlx::migrate!("db/migrations/sqlite").run(conn).await?,
-            MySQL => sqlx::migrate!("db/migrations/mysql").run(conn).await?,
-            Postgres => sqlx::migrate!("db/migrations/postgres").run(conn).await?,
+            SQLite => sqlx::migrate!("db/migrations/sqlite"),
+            MySQL => sqlx::migrate!("db/migrations/mysql"),
+            Postgres => sqlx::migrate!("db/migrations/postgres"),
         }
+        .run(&mut conn)
+        .await?;
 
         Ok(())
     }
 
     async fn inserter(&self) -> Result<()> {
-        let mut conn = self.connect().await?;
-        info!("database connected");
-        self.migrate(&mut conn).await?;
+        self.connect().await?;
 
-        let mut receiver = self.from_coordinator.subscribe();
+        info!("database connected");
+
+        self.migrate().await?;
+
+        let mut receiver = self.channels.to_database.subscribe();
 
         let values = match self.database()? {
             DatabaseType::MySQL => Self::values_for_mysql(),
@@ -124,11 +151,9 @@ impl Database {
             match receiver.recv().await? {
                 Shutdown => break,
                 ReadInputAll(data) => {
-                    while let Err(err) = self.insert(&mut conn, &query, &data).await {
-                        error!("INSERT failed: {:?} - reconnecting in 10s", err);
+                    while let Err(err) = self.insert(&query, &data).await {
+                        error!("INSERT failed: {:?} - retrying in 10s", err);
                         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-
-                        conn = self.connect().await?;
                     }
                 }
             }
@@ -137,13 +162,10 @@ impl Database {
         Ok(())
     }
 
-    async fn insert(
-        &self,
-        conn: &mut sqlx::AnyConnection,
-        query: &str,
-        data: &lxp::packet::ReadInputAll,
-    ) -> Result<()> {
-        sqlx::query::<sqlx::Any>(query)
+    async fn insert(&self, query: &str, data: &lxp::packet::ReadInputAll) -> Result<()> {
+        let mut conn = self.connection().await?;
+
+        sqlx::query(query)
             .bind(data.status as i32)
             .bind(data.v_pv)
             .bind(data.v_pv_1)
@@ -220,7 +242,7 @@ impl Database {
             .bind(data.datalog.to_string())
             .bind(data.time.0)
             .persistent(true)
-            .fetch_optional(conn)
+            .fetch_optional(&mut conn)
             .await?;
 
         Ok(())

@@ -48,6 +48,10 @@ impl Influx {
         Ok(())
     }
 
+    pub fn stop(&mut self) -> () {
+        let _ = self.channels.to_influx.send(ChannelData::Shutdown);
+    }
+
     async fn sender(&self, client: Client) -> Result<()> {
         use ChannelData::*;
 
@@ -83,6 +87,8 @@ impl Influx {
                 }
             }
         }
+
+        info!("sender loop exiting");
 
         Ok(())
     }

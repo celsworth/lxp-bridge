@@ -74,7 +74,7 @@ async fn bad_reply() {
             result.unwrap_err().to_string(),
             "failed to set register 5, got back value 200 (wanted 10)"
         );
-        Ok(())
+        Ok::<(), anyhow::Error>(())
     };
 
     let tf = async {
@@ -120,4 +120,33 @@ async fn no_reply() {
     };
 
     futures::try_join!(tf, sf).unwrap();
+}
+
+#[tokio::test]
+async fn inverter_not_receiving() {
+    common_setup();
+
+    let inverter = Factory::inverter();
+    let channels = Channels::new();
+
+    let register = 5 as u16;
+    let value = 10 as u16;
+
+    let subject = coordinator::commands::set_hold::SetHold::new(
+        channels.clone(),
+        inverter.clone(),
+        register,
+        value,
+    );
+
+    let sf = async {
+        let result = subject.run().await;
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "send(to_inverter) failed - channel closed?"
+        );
+        Ok::<(), anyhow::Error>(())
+    };
+
+    futures::try_join!(sf).unwrap();
 }

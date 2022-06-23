@@ -5,6 +5,11 @@ pub mod commands;
 use lxp::inverter::WaitForReply;
 use lxp::packet::{DeviceFunction, ReadParam, TcpFunction};
 
+#[derive(PartialEq, Debug, Clone)]
+pub enum ChannelData {
+    Shutdown,
+}
+
 pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
 
 pub struct Coordinator {
@@ -30,13 +35,13 @@ impl Coordinator {
         Ok(())
     }
 
-    pub fn stop(&self) -> Result<()> {
-        self.channels
+    pub fn stop(&self) {
+        let _ = self
+            .channels
             .from_inverter
-            .send(lxp::inverter::ChannelData::Shutdown)?;
-        self.channels.from_mqtt.send(mqtt::ChannelData::Shutdown)?;
+            .send(lxp::inverter::ChannelData::Shutdown);
 
-        Ok(())
+        let _ = self.channels.from_mqtt.send(mqtt::ChannelData::Shutdown);
     }
 
     async fn mqtt_receiver(&self) -> Result<()> {
@@ -297,11 +302,10 @@ impl Coordinator {
                         let input = entry.to_input_all();
 
                         if self.config.mqtt.enabled {
-                            for message in mqtt::Message::for_input_all(&input, datalog) {
-                                let message = mqtt::ChannelData::Message(message);
-                                if self.channels.to_mqtt.send(message).is_err() {
-                                    bail!("send(to_mqtt) failed - channel closed?");
-                                }
+                            let message = mqtt::Message::for_input_all(&input, datalog)?;
+                            let channel_data = mqtt::ChannelData::Message(message);
+                            if self.channels.to_mqtt.send(channel_data).is_err() {
+                                bail!("send(to_mqtt) failed - channel closed?");
                             }
                         }
 

@@ -49,13 +49,11 @@ impl Message {
     pub fn for_input_all(
         inputs: &lxp::packet::ReadInputAll,
         datalog: lxp::inverter::Serial,
-    ) -> Vec<Message> {
-        let payload = serde_json::to_string(&inputs).unwrap();
-
-        vec![mqtt::Message {
+    ) -> Result<Message> {
+        Ok(mqtt::Message {
             topic: format!("{}/inputs/all", datalog),
-            payload,
-        }]
+            payload: serde_json::to_string(&inputs)?,
+        })
     }
 
     pub fn for_input(td: lxp::packet::TranslatedData) -> Result<Vec<Message>> {
@@ -169,12 +167,17 @@ pub type Sender = broadcast::Sender<ChannelData>;
 
 pub struct Mqtt {
     config: Rc<Config>,
+    shutdown: bool,
     channels: Channels,
 }
 
 impl Mqtt {
     pub fn new(config: Rc<Config>, channels: Channels) -> Self {
-        Self { config, channels }
+        Self {
+            config,
+            channels,
+            shutdown: false,
+        }
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -185,7 +188,7 @@ impl Mqtt {
             return Ok(());
         }
 
-        let mut options = MqttOptions::new("lxp-bridge2", &m.host, m.port);
+        let mut options = MqttOptions::new("lxp-bridge", &m.host, m.port);
 
         options.set_keep_alive(std::time::Duration::from_secs(60));
         if let (Some(u), Some(p)) = (&m.username, &m.password) {
@@ -203,6 +206,12 @@ impl Mqtt {
         )?;
 
         Ok(())
+    }
+
+    pub fn stop(&mut self) {
+        self.shutdown = true;
+
+        let _ = self.channels.from_mqtt.send(ChannelData::Shutdown);
     }
 
     async fn setup(&self, client: AsyncClient) -> Result<()> {
@@ -237,19 +246,32 @@ impl Mqtt {
     // mqtt -> coordinator
     async fn receiver(&self, mut eventloop: EventLoop) -> Result<()> {
         loop {
-            match eventloop.poll().await {
-                Ok(Event::Incoming(Incoming::Publish(publish))) => {
-                    self.handle_message(publish)?;
+            if self.shutdown {
+                break;
+            }
+
+            match tokio::time::timeout(std::time::Duration::from_secs(1), eventloop.poll()).await {
+                Ok(event) => {
+                    match event {
+                        Ok(Event::Incoming(Incoming::Publish(publish))) => {
+                            self.handle_message(publish)?;
+                        }
+                        Err(e) => {
+                            // should automatically reconnect on next poll()..
+                            error!("{}", e);
+                            info!("reconnecting in 5s");
+                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                        }
+                        _ => {} // keepalives etc
+                    }
                 }
-                Err(e) => {
-                    // should automatically reconnect on next poll()..
-                    error!("{}", e);
-                    info!("reconnecting in 5s");
-                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                }
-                _ => {} // keepalives etc
+                Err(_) => {} // ignore and loop, we just timed out polling
             }
         }
+
+        info!("receiver loop exiting");
+
+        Ok(())
     }
 
     fn handle_message(&self, publish: Publish) -> Result<()> {
@@ -276,16 +298,26 @@ impl Mqtt {
 
     // coordinator -> mqtt
     async fn sender(&self, client: AsyncClient) -> Result<()> {
+        use ChannelData::*;
+
         let mut receiver = self.channels.to_mqtt.subscribe();
+
         loop {
-            if let ChannelData::Message(message) = receiver.recv().await? {
-                let topic = format!("{}/{}", self.config.mqtt.namespace, message.topic);
-                debug!("publishing: {} = {}", topic, message.payload);
-                let _ = client
-                    .publish(&topic, QoS::AtLeastOnce, false, message.payload)
-                    .await
-                    .map_err(|err| error!("publish {} failed: {:?} .. skipping", topic, err));
+            match receiver.recv().await? {
+                Shutdown => break,
+                Message(message) => {
+                    let topic = format!("{}/{}", self.config.mqtt.namespace, message.topic);
+                    debug!("publishing: {} = {}", topic, message.payload);
+                    let _ = client
+                        .publish(&topic, QoS::AtLeastOnce, false, message.payload)
+                        .await
+                        .map_err(|err| error!("publish {} failed: {:?} .. skipping", topic, err));
+                }
             }
         }
+
+        info!("sender loop exiting");
+
+        Ok(())
     }
 }

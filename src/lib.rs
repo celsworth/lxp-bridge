@@ -70,7 +70,7 @@ async fn app() -> Result<()> {
     let databases = config
         .enabled_databases()
         .cloned()
-        .map(|database| Database::new(database, channels.to_database.clone()))
+        .map(|database| Database::new(database, channels.clone()))
         .collect();
 
     futures::try_join!(

@@ -46,7 +46,7 @@ async fn publishes_read_hold_mqtt() {
         assert_eq!(to_influx.try_recv(), Err(TryRecvError::Empty));
         assert_eq!(to_db.try_recv(), Err(TryRecvError::Empty));
 
-        coordinator.stop()?;
+        coordinator.stop();
 
         Ok::<(), anyhow::Error>(())
     };
@@ -94,16 +94,15 @@ async fn handles_read_input_all() {
             })
         );
 
-        // verify influx output
+        // verify influx and database output
         let d = unwrap_influx_channeldata_input_data(to_influx.recv().await?);
         assert_eq!(d["soc"], 1);
         assert_eq!(d["v_pv"], 77.1);
-
         let d = unwrap_database_channeldata_read_input_all(to_database.recv().await?);
         assert_eq!(d.soc, 1);
         assert_eq!(d.v_pv, 77.1);
 
-        coordinator.stop()?;
+        coordinator.stop();
 
         Ok::<(), anyhow::Error>(())
     };
