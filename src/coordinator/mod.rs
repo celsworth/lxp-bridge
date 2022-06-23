@@ -90,9 +90,9 @@ impl Coordinator {
         use Command::*;
 
         match command {
-            ReadInputs(inverter, register, count) => {
-                self.read_inputs(inverter, register, count).await
-            }
+            ReadInputs1(inverter) => self.read_inputs(inverter, 0_u16, 40).await,
+            ReadInputs2(inverter) => self.read_inputs(inverter, 40_u16, 40).await,
+            ReadInputs3(inverter) => self.read_inputs(inverter, 80_u16, 40).await,
             ReadHold(inverter, register, count) => self.read_hold(inverter, register, count).await,
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
             SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,

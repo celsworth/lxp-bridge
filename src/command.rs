@@ -2,7 +2,9 @@ use crate::prelude::*;
 
 #[derive(Debug)]
 pub enum Command {
-    ReadInputs(config::Inverter, u16, u16),
+    ReadInputs1(config::Inverter),
+    ReadInputs2(config::Inverter),
+    ReadInputs3(config::Inverter),
     ReadHold(config::Inverter, u16, u16),
     ReadParam(config::Inverter, u16),
     SetHold(config::Inverter, u16, u16),
@@ -20,18 +22,9 @@ impl Command {
         use Command::*;
 
         let rest = match self {
-            ReadInputs(inverter, register, _) => {
-                // TODO: can we consolidate all this knowledge about
-                // registers 0/40/80 and inputs 1/2/3? its duplicated
-                // in at least 3 places now
-                let n = match register {
-                    0 => 1,
-                    40 => 2,
-                    80 => 3,
-                    _ => panic!("unhandled ReadInputs register"),
-                };
-                format!("{}/read/inputs/{}", inverter.datalog, n)
-            }
+            ReadInputs1(inverter) => format!("{}/read/inputs/1", inverter.datalog),
+            ReadInputs2(inverter) => format!("{}/read/inputs/2", inverter.datalog),
+            ReadInputs3(inverter) => format!("{}/read/inputs/3", inverter.datalog),
             ReadHold(inverter, register, _) => {
                 format!("{}/read/hold/{}", inverter.datalog, register)
             }

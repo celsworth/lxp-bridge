@@ -109,3 +109,82 @@ async fn handles_read_input_all() {
 
     futures::try_join!(coordinator.start(), tf).unwrap();
 }
+
+#[tokio::test]
+async fn complete_path_read_hold_command() {
+    common_setup();
+
+    // setup config with only mqtt enabled
+    let mut config = Factory::example_config();
+    let config = Rc::new(config);
+
+    let inverter = &config.inverters[0];
+
+    let channels = Channels::new();
+
+    let coordinator = Coordinator::new(Rc::clone(&config), channels.clone());
+
+    let tf = async {
+        let mut to_inverter = channels.to_inverter.subscribe();
+        let mut to_mqtt = channels.to_mqtt.subscribe();
+
+        // simulate:
+        //   mqtt incoming "read this hold" command
+        let message = mqtt::Message {
+            topic: "cmd/all/read/hold/12".to_owned(),
+            payload: "".to_owned(),
+        };
+        channels
+            .from_mqtt
+            .send(mqtt::ChannelData::Message(message))
+            .unwrap();
+
+        //   wait for inverter to receive the right packet
+        let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
+            datalog: inverter.datalog,
+            device_function: lxp::packet::DeviceFunction::ReadHold,
+            inverter: inverter.serial,
+            register: 12,
+            values: vec![1, 0],
+        });
+        assert_eq!(
+            to_inverter.recv().await?,
+            lxp::inverter::ChannelData::Packet(packet),
+        );
+
+        //   send the packet back from the inverter
+        let reply = Packet::TranslatedData(lxp::packet::TranslatedData {
+            datalog: inverter.datalog,
+            device_function: lxp::packet::DeviceFunction::ReadHold,
+            inverter: inverter.serial,
+            register: 12,
+            values: vec![22, 6],
+        });
+        channels
+            .from_inverter
+            .send(lxp::inverter::ChannelData::Packet(reply))
+            .unwrap();
+
+        //   wait for mqtt to get the right responses
+        assert_eq!(
+            to_mqtt.recv().await?,
+            mqtt::ChannelData::Message(mqtt::Message {
+                topic: "2222222222/hold/12".to_owned(),
+                payload: "1558".to_owned()
+            })
+        );
+        assert_eq!(
+            to_mqtt.recv().await?,
+            mqtt::ChannelData::Message(mqtt::Message {
+                topic: "result/2222222222/read/hold/12".to_owned(),
+                payload: "OK".to_owned()
+            })
+        );
+
+        coordinator.stop();
+
+        Ok::<(), anyhow::Error>(())
+    };
+
+    futures::try_join!(coordinator.start(), tf).unwrap();
+}

@@ -91,9 +91,9 @@ impl Message {
         let parts = &parts[2..];
 
         let r = match parts {
-            ["read", "inputs", "1"] => ReadInputs(inverter, 0, 40),
-            ["read", "inputs", "2"] => ReadInputs(inverter, 40, 40),
-            ["read", "inputs", "3"] => ReadInputs(inverter, 80, 40),
+            ["read", "inputs", "1"] => ReadInputs1(inverter),
+            ["read", "inputs", "2"] => ReadInputs2(inverter),
+            ["read", "inputs", "3"] => ReadInputs3(inverter),
             ["read", "hold", register] => {
                 ReadHold(inverter, register.parse()?, self.payload_int_or_1()?)
             }
@@ -250,22 +250,21 @@ impl Mqtt {
                 break;
             }
 
-            match tokio::time::timeout(std::time::Duration::from_secs(1), eventloop.poll()).await {
-                Ok(event) => {
-                    match event {
-                        Ok(Event::Incoming(Incoming::Publish(publish))) => {
-                            self.handle_message(publish)?;
-                        }
-                        Err(e) => {
-                            // should automatically reconnect on next poll()..
-                            error!("{}", e);
-                            info!("reconnecting in 5s");
-                            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                        }
-                        _ => {} // keepalives etc
+            if let Ok(event) =
+                tokio::time::timeout(std::time::Duration::from_secs(1), eventloop.poll()).await
+            {
+                match event {
+                    Ok(Event::Incoming(Incoming::Publish(publish))) => {
+                        self.handle_message(publish)?;
                     }
+                    Err(e) => {
+                        // should automatically reconnect on next poll()..
+                        error!("{}", e);
+                        info!("reconnecting in 5s");
+                        tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                    }
+                    _ => {} // keepalives etc
                 }
-                Err(_) => {} // ignore and loop, we just timed out polling
             }
         }
 

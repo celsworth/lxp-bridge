@@ -69,13 +69,13 @@ impl Database {
     }
 
     pub async fn connection(&self) -> Result<sqlx::pool::PoolConnection<sqlx::Any>> {
-        let conn = if let Some(pool) = &*self.pool.borrow() {
-            pool.acquire().await?
+        let acquire = if let Some(pool) = &*self.pool.borrow() {
+            pool.acquire()
         } else {
             todo!()
         };
 
-        Ok(conn)
+        Ok(acquire.await?)
     }
 
     async fn migrate(&self) -> Result<()> {

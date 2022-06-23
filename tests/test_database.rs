@@ -24,7 +24,7 @@ async fn sqlite_insertion() {
             tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             retries = retries + 1;
             if retries > 50 {
-                break;
+                panic!("database not ready for messages");
             }
         }
 
