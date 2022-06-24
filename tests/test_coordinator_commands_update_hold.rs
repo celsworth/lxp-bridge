@@ -37,9 +37,11 @@ async fn happy_path() {
     };
 
     let tf = async {
+        let mut to_inverter = channels.to_inverter.subscribe();
+
         // wait for packet requesting current values
         assert_eq!(
-            unwrap_inverter_channeldata_packet(channels.to_inverter.subscribe().recv().await?),
+            unwrap_inverter_channeldata_packet(to_inverter.recv().await?),
             Packet::TranslatedData(lxp::packet::TranslatedData {
                 datalog: inverter.datalog,
                 device_function: lxp::packet::DeviceFunction::ReadHold,
@@ -63,7 +65,7 @@ async fn happy_path() {
 
         // wait for packet setting new value
         assert_eq!(
-            unwrap_inverter_channeldata_packet(channels.to_inverter.subscribe().recv().await?),
+            unwrap_inverter_channeldata_packet(to_inverter.recv().await?),
             Packet::TranslatedData(lxp::packet::TranslatedData {
                 datalog: inverter.datalog,
                 device_function: lxp::packet::DeviceFunction::WriteSingle,
@@ -116,7 +118,7 @@ async fn no_reply() {
             result.unwrap_err().to_string(),
             "wait_for_reply TranslatedData(TranslatedData { datalog: 2222222222, device_function: ReadHold, inverter: 5555555555, register: 21, values: [1, 0] }) - timeout"
         );
-        Ok(())
+        Ok::<(), anyhow::Error>(())
     };
 
     let tf = async {

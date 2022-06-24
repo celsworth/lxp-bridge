@@ -48,7 +48,7 @@ impl Influx {
         Ok(())
     }
 
-    pub fn stop(&mut self) {
+    pub fn stop(&self) {
         let _ = self.channels.to_influx.send(ChannelData::Shutdown);
     }
 
