@@ -574,9 +574,9 @@ impl TcpFrameFactory {
         r[6] = 1; // unsure what this is, always seems to be 1
         r[7] = data.tcp_function() as u8;
 
-        r[8..18].copy_from_slice(&data.datalog().data());
+        //r[8..18].copy_from_slice(&data.datalog().data());
         // WIP - trying to work out how to learn the inverter sn
-        //r[8..18].copy_from_slice(&[0; 10]);
+        r[8..18].copy_from_slice(&[0; 10]);
 
         r[18..].copy_from_slice(&data_bytes);
 
@@ -817,9 +817,9 @@ impl PacketCommon for TranslatedData {
 
         // data[2] (address) is 0 when writing to inverter, 1 when reading from it
         data[3] = self.device_function as u8;
-        data[4..14].copy_from_slice(&self.inverter.data());
+        //data[4..14].copy_from_slice(&self.inverter.data());
         // WIP - trying to work out how to learn the datalog sn
-        //data[2..12].copy_from_slice(&[0xFF; 10]);
+        data[4..14].copy_from_slice(&[0x00; 10]);
         data[14..16].copy_from_slice(&self.register.to_le_bytes());
 
         if self.device_function == DeviceFunction::WriteMulti {
