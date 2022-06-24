@@ -184,7 +184,8 @@ impl Inverter {
 
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
-                    debug!("inverter {}: RX {:?}", self.config.datalog, packet);
+                    // bytes received are logged in packet_decoder, no need here
+                    //debug!("inverter {}: RX {:?}", self.config.datalog, packet);
                     self.to_coordinator.send(ChannelData::Packet(packet))?;
                 }
                 break;
@@ -207,7 +208,7 @@ impl Inverter {
             if packet.datalog() == self.config.datalog {
                 //debug!("inverter {}: TX {:?}", self.config.datalog, packet);
                 let bytes = lxp::packet::TcpFrameFactory::build(&packet);
-                //debug!("inverter {}: TX {:?}", self.config.datalog, bytes);
+                debug!("inverter {}: TX {:?}", self.config.datalog, bytes);
                 socket.write_all(&bytes).await?
             }
         }
