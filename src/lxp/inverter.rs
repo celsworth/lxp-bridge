@@ -290,7 +290,8 @@ impl Inverter {
                 "datalog serial mismatch found; packet={}, config={} - please check config!",
                 packet, b_datalog
             );
-            self.serials.borrow_mut().datalog = packet;
+            // uncomment this when I fix serials in outgoing packets?
+            //self.serials.borrow_mut().datalog = packet;
         }
     }
 
@@ -302,6 +303,7 @@ impl Inverter {
                 "inverter serial mismatch found; packet={}, config={} - please check config!",
                 packet, b_inverter
             );
+            // uncomment this when I fix serials in outgoing packets?
             self.serials.borrow_mut().inverter = packet;
         }
     }
