@@ -116,39 +116,52 @@ impl std::fmt::Debug for Serial {
     }
 } // }}}
 
+// these are kept separately because we learn what the correct ones are from the inverter
+struct Serials {
+    pub datalog: Serial,
+    pub inverter: Serial,
+}
+
 pub struct Inverter {
     config: config::Inverter,
-    from_coordinator: Sender,
-    to_coordinator: Sender,
+    channels: Channels,
+    serials: RefCell<Serials>,
 }
 
 impl Inverter {
-    pub fn new(config: config::Inverter, from_coordinator: Sender, to_coordinator: Sender) -> Self {
+    pub fn new(config: config::Inverter, channels: Channels) -> Self {
+        let serials = RefCell::new(Serials {
+            datalog: config.datalog,
+            inverter: config.serial,
+        });
+
         Self {
             config,
-            from_coordinator,
-            to_coordinator,
+            channels,
+            serials,
         }
     }
 
     pub async fn start(&self) -> Result<()> {
-        loop {
-            match self.connect().await {
-                Ok(_) => return Ok(()),
-                Err(e) => {
-                    error!("inverter {}: {}", self.config.datalog, e);
-                    info!("inverter {}: reconnecting in 5s", self.config.datalog);
-                    self.to_coordinator
-                        .send(ChannelData::Disconnect(self.config.datalog))?; // kill any waiting readers
-                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                }
-            }
+        while let Err(e) = self.connect().await {
+            error!("inverter {}: {}", self.config.datalog, e);
+            info!("inverter {}: reconnecting in 5s", self.config.datalog);
+            self.channels
+                .from_inverter
+                .send(ChannelData::Disconnect(self.config.datalog))?; // kill any waiting readers
+            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
+
+        Ok(())
+    }
+
+    pub fn stop(&self) {
+        let _ = self.channels.to_inverter.send(ChannelData::Shutdown);
     }
 
     async fn connect(&self) -> Result<()> {
         use net2::TcpStreamExt; // for set_keepalive
-                                //
+
         info!(
             "connecting to inverter {} at {}:{}",
             &self.config.datalog, &self.config.host, self.config.port
@@ -186,14 +199,27 @@ impl Inverter {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
                     // bytes received are logged in packet_decoder, no need here
                     //debug!("inverter {}: RX {:?}", self.config.datalog, packet);
-                    self.to_coordinator.send(ChannelData::Packet(packet))?;
+
+                    self.channels
+                        .from_inverter
+                        .send(ChannelData::Packet(packet))?;
                 }
                 break;
             }
 
             while let Some(packet) = decoder.decode(&mut buf)? {
-                debug!("inverter {}: RX {:?}", self.config.datalog, packet);
-                self.to_coordinator.send(ChannelData::Packet(packet))?;
+                // bytes received are logged in packet_decoder, no need here
+                //debug!("inverter {}: RX {:?}", self.config.datalog, packet);
+
+                self.channels
+                    .from_inverter
+                    .send(ChannelData::Packet(packet.clone()))?;
+
+                self.compare_datalog(packet.datalog()); // all packets have datalog serial
+                if let Packet::TranslatedData(td) = packet {
+                    // only TranslatedData has inverter serial
+                    self.compare_inverter(td.inverter);
+                };
             }
         }
 
@@ -202,18 +228,83 @@ impl Inverter {
 
     // coordinator -> inverter
     async fn sender(&self, mut socket: tokio::net::tcp::OwnedWriteHalf) -> Result<()> {
-        let mut receiver = self.from_coordinator.subscribe();
+        let mut receiver = self.channels.to_inverter.subscribe();
 
-        while let ChannelData::Packet(packet) = receiver.recv().await? {
-            if packet.datalog() == self.config.datalog {
-                //debug!("inverter {}: TX {:?}", self.config.datalog, packet);
-                let bytes = lxp::packet::TcpFrameFactory::build(&packet);
-                debug!("inverter {}: TX {:?}", self.config.datalog, bytes);
-                socket.write_all(&bytes).await?
+        use ChannelData::*;
+
+        loop {
+            match receiver.recv().await? {
+                Shutdown => break,
+                // this doesn't actually happen yet; Disconnect is never sent to this channel
+                Disconnect(_) => bail!("sender exiting due to ChannelData::Disconnect"),
+                Packet(packet) => {
+                    // this works, but needs more thought. because we only fix it here, immediately
+                    // before transmission, calls to wait_for_reply with the original serials will
+                    // never complete. ideally we need to pass the fixed packet back?
+                    //self.fix_outgoing_packet_serials(&mut packet);
+
+                    if packet.datalog() == self.serials.borrow().datalog {
+                        //debug!("inverter {}: TX {:?}", self.config.datalog, packet);
+                        let bytes = lxp::packet::TcpFrameFactory::build(&packet);
+                        debug!("inverter {}: TX {:?}", self.config.datalog, bytes);
+                        socket.write_all(&bytes).await?
+                    }
+                }
             }
         }
 
-        // this doesn't actually happen yet; Disconnect is never sent to this channel
-        Err(anyhow!("sender exiting due to ChannelData::Disconnect"))
+        info!("inverter {}: sender exiting", self.config.datalog);
+
+        Ok(())
+    }
+
+    /* TODO. need to solve wait_for_reply hanging when we fix the serials.. */
+    #[allow(dead_code)]
+    fn fix_outgoing_packet_serials(&self, packet: &mut Packet) {
+        let ob = self.serials.borrow();
+        if packet.datalog() != ob.datalog {
+            warn!(
+                "fixing datalog in outgoing packet from {} to {}",
+                packet.datalog(),
+                ob.datalog
+            );
+            packet.set_datalog(ob.datalog);
+        }
+
+        if let Some(inverter) = packet.inverter() {
+            if inverter != ob.inverter {
+                warn!(
+                    "fixing serial in outgoing packet from {} to {}",
+                    inverter, ob.inverter
+                );
+                packet.set_inverter(ob.inverter);
+            }
+        }
+    }
+
+    fn compare_datalog(&self, packet: Serial) {
+        let b_datalog = self.serials.borrow().datalog;
+
+        if packet != b_datalog {
+            warn!(
+                "datalog serial mismatch found; packet={}, config={} - please check config!",
+                packet, b_datalog
+            );
+            // uncomment this when I fix serials in outgoing packets?
+            //self.serials.borrow_mut().datalog = packet;
+        }
+    }
+
+    fn compare_inverter(&self, packet: Serial) {
+        let b_inverter = self.serials.borrow().inverter;
+
+        if packet != b_inverter {
+            warn!(
+                "inverter serial mismatch found; packet={}, config={} - please check config!",
+                packet, b_inverter
+            );
+            // uncomment this when I fix serials in outgoing packets?
+            self.serials.borrow_mut().inverter = packet;
+        }
     }
 }

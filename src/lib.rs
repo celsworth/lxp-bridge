@@ -58,13 +58,7 @@ async fn app() -> Result<()> {
     let inverters = config
         .enabled_inverters()
         .cloned()
-        .map(|inverter| {
-            Inverter::new(
-                inverter,
-                channels.to_inverter.clone(),
-                channels.from_inverter.clone(),
-            )
-        })
+        .map(|inverter| Inverter::new(inverter, channels.clone()))
         .collect();
 
     let databases = config

@@ -542,11 +542,12 @@ pub enum RegisterBit {
 #[enum_dispatch]
 pub trait PacketCommon {
     fn datalog(&self) -> Serial;
+    fn set_datalog(&mut self, datalog: Serial);
+    fn inverter(&self) -> Option<Serial>;
+    fn set_inverter(&mut self, serial: Serial);
     fn protocol(&self) -> u16;
     fn tcp_function(&self) -> TcpFunction;
-    fn bytes(&self) -> Vec<u8> {
-        Vec::new()
-    }
+    fn bytes(&self) -> Vec<u8>;
 
     fn register(&self) -> u16 {
         unimplemented!("register() not implemented");
@@ -634,9 +635,20 @@ impl PacketCommon for Heartbeat {
     fn datalog(&self) -> Serial {
         self.datalog
     }
+    fn set_datalog(&mut self, datalog: Serial) {
+        self.datalog = datalog;
+    }
+    fn inverter(&self) -> Option<Serial> {
+        None
+    }
+    fn set_inverter(&mut self, _datalog: Serial) {}
 
     fn tcp_function(&self) -> TcpFunction {
         TcpFunction::Heartbeat
+    }
+
+    fn bytes(&self) -> Vec<u8> {
+        Vec::new()
     }
 }
 
@@ -807,6 +819,16 @@ impl PacketCommon for TranslatedData {
     fn datalog(&self) -> Serial {
         self.datalog
     }
+    fn set_datalog(&mut self, datalog: Serial) {
+        self.datalog = datalog;
+    }
+
+    fn inverter(&self) -> Option<Serial> {
+        Some(self.inverter)
+    }
+    fn set_inverter(&mut self, serial: Serial) {
+        self.inverter = serial;
+    }
 
     fn tcp_function(&self) -> TcpFunction {
         TcpFunction::TranslatedData
@@ -929,6 +951,13 @@ impl PacketCommon for ReadParam {
     fn datalog(&self) -> Serial {
         self.datalog
     }
+    fn set_datalog(&mut self, datalog: Serial) {
+        self.datalog = datalog;
+    }
+    fn inverter(&self) -> Option<Serial> {
+        None
+    }
+    fn set_inverter(&mut self, _datalog: Serial) {}
 
     fn tcp_function(&self) -> TcpFunction {
         TcpFunction::ReadParam
