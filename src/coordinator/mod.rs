@@ -299,17 +299,17 @@ impl Coordinator {
 
                         entry.set_read_input_3(r3);
 
-                        let input = entry.to_input_all();
-
-                        if self.config.mqtt.enabled {
-                            let message = mqtt::Message::for_input_all(&input, datalog)?;
-                            let channel_data = mqtt::ChannelData::Message(message);
-                            if self.channels.to_mqtt.send(channel_data).is_err() {
-                                bail!("send(to_mqtt) failed - channel closed?");
+                        if let Some(input) = entry.to_input_all() {
+                            if self.config.mqtt.enabled {
+                                let message = mqtt::Message::for_input_all(&input, datalog)?;
+                                let channel_data = mqtt::ChannelData::Message(message);
+                                if self.channels.to_mqtt.send(channel_data).is_err() {
+                                    bail!("send(to_mqtt) failed - channel closed?");
+                                }
                             }
-                        }
 
-                        self.save_input_all(Box::new(input)).await?;
+                            self.save_input_all(Box::new(input)).await?;
+                        }
                     }
                 }
             }
