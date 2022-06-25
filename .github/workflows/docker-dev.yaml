@@ -9,7 +9,6 @@ jobs:
   docker:
     name: Docker Development Build
     runs-on: ubuntu-latest
-    needs: test
     steps:
       - uses: actions/checkout@v2
 
