@@ -10,6 +10,7 @@ on:
 
 jobs:
   coverage:
+    name: Coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v1
@@ -39,7 +40,7 @@ jobs:
           verbose: true # optional (default = false)
 
   clippy:
-    name: Run rust-clippy analyzing
+    name: Clippy
     runs-on: ubuntu-latest
     permissions:
       contents: read
