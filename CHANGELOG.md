@@ -7,6 +7,7 @@
 * Add internal WriteMulti packet support (not exposed to MQTT yet) (#68)
 * Add scheduled tasks framework; first one is synchronize inverter clock (disabled by default) (#70)
 * Log warning message when configured serial numbers don't match packets we receive from inverter (#78)
+* Fix rare startup crash if inverter is in the middle of sending inputs (#80)
 
 
 # 0.6.0 - 26th February 2022

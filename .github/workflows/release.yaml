@@ -78,7 +78,7 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            /usr/share/rust~/.cargo
+            /usr/share/rust
             ~/.cargo
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}

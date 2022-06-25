@@ -114,9 +114,7 @@ async fn handles_read_input_all() {
 async fn complete_path_read_hold_command() {
     common_setup();
 
-    // setup config with only mqtt enabled
-    let mut config = Factory::example_config();
-    let config = Rc::new(config);
+    let config = Rc::new(Factory::example_config());
 
     let inverter = &config.inverters[0];
 
