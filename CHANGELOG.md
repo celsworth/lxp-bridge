@@ -3,7 +3,7 @@
 * Add Postgres/MySQL/SQLite support (#44, #45, #47)
 * Use more meaningful labels for HomeAssistant autodiscovery (#55, @chriscn)
 * Allow enabling individual HomeAssistant discovery sensors (#56)
-* Support combined inputs data packet found in newer firmwares (#65)
+* Support combined inputs data packet found in newer firmwares (#65, #82)
 * Add internal WriteMulti packet support (not exposed to MQTT yet) (#68)
 * Add scheduled tasks framework; first one is synchronize inverter clock (disabled by default) (#70)
 * Log warning message when configured serial numbers don't match packets we receive from inverter (#78)
