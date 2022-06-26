@@ -14,29 +14,30 @@ pub enum ChannelData {
 pub type Sender = broadcast::Sender<ChannelData>;
 
 pub struct Influx {
-    config: Rc<Config>,
+    config: Rc<RefCell<Config>>,
     channels: Channels,
 }
 
 impl Influx {
-    pub fn new(config: Rc<Config>, channels: Channels) -> Self {
+    pub fn new(config: Rc<RefCell<Config>>, channels: Channels) -> Self {
         Self { config, channels }
     }
 
     pub async fn start(&self) -> Result<()> {
-        let config = &self.config.influx;
-
-        if !config.enabled {
+        if !self.config.borrow().influx.enabled {
             info!("influx disabled, skipping");
             return Ok(());
         }
 
-        info!("initializing influx at {}", config.url);
+        info!("initializing influx at {}", self.config.borrow().influx.url);
 
-        let url = reqwest::Url::parse(&config.url)?;
-        let credentials = match (&config.username, &config.password) {
-            (Some(u), Some(p)) => Some((u, p)),
-            _ => None,
+        let url = reqwest::Url::parse(&self.config.borrow().influx.url)?;
+        let credentials = {
+            let i = &self.config.borrow().influx;
+            match (i.username.clone(), i.password.clone()) {
+                (Some(u), Some(p)) => Some((u, p)),
+                _ => None,
+            }
         };
 
         let client = Client::new(url, credentials)?;
@@ -80,7 +81,8 @@ impl Influx {
 
                     let lines = vec![line.build()];
 
-                    while let Err(err) = client.send(&self.config.influx.database, &lines).await {
+                    let database = self.config.borrow().influx.database.clone();
+                    while let Err(err) = client.send(&database, &lines).await {
                         error!("push failed: {:?} - retrying in 10s", err);
                         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                     }

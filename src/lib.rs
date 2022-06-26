@@ -46,7 +46,7 @@ async fn app() -> Result<()> {
 
     info!("lxp-bridge {} starting", CARGO_PKG_VERSION);
 
-    let config = Rc::new(Config::new(options.config_file)?);
+    let config = Rc::new(RefCell::new(Config::new(options.config_file)?));
 
     let channels = Channels::new();
 
@@ -56,13 +56,17 @@ async fn app() -> Result<()> {
     let coordinator = Coordinator::new(Rc::clone(&config), channels.clone());
 
     let inverters = config
+        .borrow()
         .enabled_inverters()
+        .iter()
         .cloned()
         .map(|inverter| Inverter::new(inverter, channels.clone()))
         .collect();
 
     let databases = config
+        .borrow()
         .enabled_databases()
+        .iter()
         .cloned()
         .map(|database| Database::new(database, channels.clone()))
         .collect();

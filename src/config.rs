@@ -113,8 +113,12 @@ impl Config {
         Ok(serde_yaml::from_str(&content)?)
     }
 
-    pub fn enabled_inverters(&self) -> impl Iterator<Item = &Inverter> {
-        self.inverters.iter().filter(|inverter| inverter.enabled)
+    pub fn enabled_inverters(&self) -> Vec<Inverter> {
+        self.inverters
+            .iter()
+            .filter(|inverter| inverter.enabled)
+            .cloned()
+            .collect()
     }
 
     // find the inverter(s) in our config for the given message.
@@ -124,8 +128,9 @@ impl Config {
         let inverters = self.enabled_inverters();
 
         let r = match message.split_cmd_topic()? {
-            All => inverters.cloned().collect(),
+            All => inverters,
             Serial(datalog) => inverters
+                .iter()
                 .filter(|i| i.datalog == datalog)
                 .cloned()
                 .collect(),
@@ -161,7 +166,11 @@ impl Config {
         true
     }
 
-    pub fn enabled_databases(&self) -> impl Iterator<Item = &Database> {
-        self.databases.iter().filter(|database| database.enabled)
+    pub fn enabled_databases(&self) -> Vec<Database> {
+        self.databases
+            .iter()
+            .filter(|database| database.enabled)
+            .cloned()
+            .collect()
     }
 }

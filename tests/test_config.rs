@@ -80,8 +80,7 @@ fn enabled_inverters() {
         },
     ];
 
-    let r: Vec<&config::Inverter> = config.enabled_inverters().collect();
-    assert_eq!(r.len(), 1);
+    assert_eq!(config.enabled_inverters().len(), 1);
 }
 
 #[test]
@@ -145,6 +144,5 @@ fn enabled_databases() {
         },
     ];
 
-    let r: Vec<&config::Database> = config.enabled_databases().collect();
-    assert_eq!(r.len(), 1);
+    assert_eq!(config.enabled_databases().len(), 1);
 }

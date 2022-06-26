@@ -15,7 +15,7 @@ async fn sends_http_request() {
     config.influx.url = mockito::server_url();
     let channels = Channels::new();
 
-    let influx = Influx::new(Rc::new(config), channels.clone());
+    let influx = Influx::new(Rc::new(RefCell::new(config)), channels.clone());
 
     let tf = async {
         let json = json!({ "time": 1, "soc": 100, "v_bat": 52.4 });
