@@ -40,36 +40,39 @@ jobs:
             linux/arm/v7
 
   build:
-    name: Build ${{ matrix.target }}
+    name: Build ${{ matrix.build }}
     runs-on: ${{ matrix.os }}
     continue-on-error: true
-
     strategy:
       matrix:
         include:
-        - build: linux-x86_64
+        - build: linux-amd64
           os: ubuntu-latest
-          toolchain: stable
           target: x86_64-unknown-linux-gnu
-        - build: linux-aarch64
+        - build: linux-arm64
           os: ubuntu-latest
-          toolchain: stable
+          packages: gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
+          openssl: true
           target: aarch64-unknown-linux-gnu
-        - build: linux-arm
+          gcc: aarch64-linux-gnu-gcc
+          machine: aarch64
+          arch: aarch64
+        - build: linux-arm-v7
           os: ubuntu-latest
-          toolchain: stable
-          target: arm-unknown-linux-gnueabihf
-        - build: macos-x86_64
+          packages: gcc-arm-linux-gnueabihf libc6-dev-armel-cross
+          openssl: true
+          target: armv7-unknown-linux-gnueabihf
+          gcc: arm-linux-gnueabihf-gcc
+          machine: arm
+          arch: arm
+        - build: darwin-amd64
           os: macos-11
-          toolchain: stable
           target: x86_64-apple-darwin
-        - build: macos-aarch64
+        - build: darwin-arm64
           os: macos-11
-          toolchain: stable
           target: aarch64-apple-darwin
-        - build: win-msvc
+        - build: windows-amd64.exe
           os: windows-2019
-          toolchain: stable
           target: x86_64-pc-windows-msvc
 
     steps:
@@ -80,37 +83,25 @@ jobs:
           path: |
             /usr/share/rust
             ~/.cargo
+            ~/openssl-1.1.1l
             target
           key: ${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build OpenSSL
-        if: matrix.build == 'linux-arm'
+      - name: Install packages
+        if: matrix.packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabihf libc6-dev-armel-cross
-          echo CC_arm_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc >>$GITHUB_ENV
-          cd ~
-          wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-          tar xzf openssl-1.1.1l.tar.gz
-          export MACHINE=arm
-          export ARCH=arm
-          export CC=arm-linux-gnueabihf-gcc
-          cd openssl-1.1.1l && ./config shared && make
-          echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
-          echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
+          sudo apt-get install -y ${{ matrix.packages }}
 
       - name: Build OpenSSL
-        if: matrix.build == 'linux-aarch64'
+        if: matrix.openssl
         run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu libc6-dev-arm64-cross
-          echo CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc >>$GITHUB_ENV
           cd ~
           wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
           tar xzf openssl-1.1.1l.tar.gz
-          export MACHINE=aarch64
-          export ARCH=aarch64
-          export CC=aarch64-linux-gnu-gcc
+          export MACHINE=${{ matrix.machine }}
+          export ARCH=${{ matrix.arch }}
+          export CC=${{ matrix.gcc }}
           cd openssl-1.1.1l && ./config shared && make
           echo OPENSSL_LIB_DIR=~/openssl-1.1.1l >>$GITHUB_ENV
           echo OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include >>$GITHUB_ENV
@@ -118,7 +109,7 @@ jobs:
       - name: Install Rust
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: ${{ matrix.toolchain }}
+          toolchain: stable
           profile: minimal
           override: true
           target: ${{ matrix.target }}
@@ -129,11 +120,22 @@ jobs:
           command: build
           args: --release --target ${{ matrix.target }}
 
+      - name: Rename release binary
+        if: runner.os != 'Windows'
+        run: |
+          mv target/${{ matrix.target }}/release/lxp-bridge lxp-bridge.${{ matrix.build }}
+
+      - name: Rename release binary
+        if: runner.os == 'Windows'
+        run: |
+          mv target/${{ matrix.target }}/release/lxp-bridge.exe lxp-bridge.${{ matrix.build }}
+
       - name: Set release version
         shell: bash
         run: |
           echo "RELEASE_VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
           echo "release version: $RELEASE_VERSION"
+
       - name: Build archive
         shell: bash
         run: |
@@ -148,6 +150,7 @@ jobs:
           fi
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
+
       - name: Attach archive to release
         shell: bash
         env:
