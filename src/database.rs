@@ -137,7 +137,9 @@ impl Database {
                 bat_status_0, bat_status_1, bat_status_2, bat_status_3, bat_status_4,
                 bat_status_5, bat_status_6, bat_status_7, bat_status_8, bat_status_9,
                 bat_status_inv,
-                bat_count, bat_capacity,
+                bat_count, bat_capacity, bat_current, bms_event_1, bms_event_2,
+                max_cell_voltage, min_cell_voltage, max_cell_temp, min_cell_temp,
+                bms_fw_update_state, cycle_count, vbat_inv,
 
                 datalog, created_at
               )
@@ -239,6 +241,16 @@ impl Database {
             .bind(data.bat_status_inv as i32)
             .bind(data.bat_count as i32)
             .bind(data.bat_capacity as i32)
+            .bind(data.bat_current)
+            .bind(data.bms_event_1 as i32)
+            .bind(data.bms_event_2 as i32)
+            .bind(data.max_cell_voltage)
+            .bind(data.min_cell_voltage)
+            .bind(data.max_cell_temp)
+            .bind(data.min_cell_temp)
+            .bind(data.bms_fw_update_state as i32)
+            .bind(data.cycle_count as i32)
+            .bind(data.vbat_inv)
             .bind(data.datalog.to_string())
             .bind(data.time.0)
             .persistent(true)
@@ -251,7 +263,8 @@ impl Database {
     fn values_for_mysql() -> &'static str {
         r#"(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
     }
 
     fn values_for_not_mysql() -> &'static str {
@@ -260,6 +273,6 @@ impl Database {
             $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
             $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56,
             $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
-            $71, $72, $73, $74, $75)"#
+            $71, $72, $73, $74, $75, $76, $77, $78, $79, $80, $81, $82, $83, $84, $85)"#
     }
 }
