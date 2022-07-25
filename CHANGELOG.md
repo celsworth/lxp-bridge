@@ -1,3 +1,8 @@
+# 0.8.0 - Unreleased
+
+* Publish MQTT discovery packets with Retain bit set (#86)
+
+
 # 0.7.0 - 26th June 2022
 
 * Add Postgres/MySQL/SQLite support (#44, #45, #47)
