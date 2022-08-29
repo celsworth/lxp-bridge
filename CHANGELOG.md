@@ -2,6 +2,7 @@
 
 * Publish MQTT discovery packets with Retain bit set (#86)
 * Be more tolerant of unknown ReadInputs registers (#89)
+* Add a bit more logging around unhandled tcp_function packets (#90)
 
 
 # 0.7.0 - 26th June 2022

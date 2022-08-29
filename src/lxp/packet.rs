@@ -1010,7 +1010,7 @@ impl Parser {
                 Ok(Packet::TranslatedData(TranslatedData::decode(input)?))
             }
             TcpFunction::ReadParam => Ok(Packet::ReadParam(ReadParam::decode(input)?)),
-            _ => Err(anyhow!("not handled: tcp_function={}", input[7])),
+            _ => bail!("not handled: tcp_function={} input={:?}", input[7], input),
         }
     }
 }
