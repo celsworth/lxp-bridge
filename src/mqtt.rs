@@ -61,23 +61,26 @@ impl Message {
 
         let mut r = Vec::new();
 
-        match td.read_input()? {
-            ReadInput::ReadInputAll(r_all) => r.push(mqtt::Message {
+        match td.read_input() {
+            Ok(ReadInput::ReadInputAll(r_all)) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/all", td.datalog),
                 payload: serde_json::to_string(&r_all)?,
             }),
-            ReadInput::ReadInput1(r1) => r.push(mqtt::Message {
+            Ok(ReadInput::ReadInput1(r1)) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/1", td.datalog),
                 payload: serde_json::to_string(&r1)?,
             }),
-            ReadInput::ReadInput2(r2) => r.push(mqtt::Message {
+            Ok(ReadInput::ReadInput2(r2)) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/2", td.datalog),
                 payload: serde_json::to_string(&r2)?,
             }),
-            ReadInput::ReadInput3(r3) => r.push(mqtt::Message {
+            Ok(ReadInput::ReadInput3(r3)) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/3", td.datalog),
                 payload: serde_json::to_string(&r3)?,
             }),
+            Err(x) => {
+                warn!("ignoring {:?}", x);
+            }
         }
 
         Ok(r)
