@@ -682,10 +682,11 @@ impl TranslatedData {
         // note len() is of Vec<u8>, so not register count
         match (self.register, self.values.len()) {
             (0, 254) => Ok(ReadInput::ReadInputAll(Box::new(self.read_input_all()?))),
+            // (127, 254) has been seen but containing all zeroes, not sure what they are
             (0, 80) => Ok(ReadInput::ReadInput1(self.read_input1()?)),
             (40, 80) => Ok(ReadInput::ReadInput2(self.read_input2()?)),
             (80, 80) => Ok(ReadInput::ReadInput3(self.read_input3()?)),
-            (r1, r2) => Err(anyhow!("unhandled ReadInput register={} len={}", r1, r2)),
+            (r1, r2) => bail!("unhandled ReadInput register={} len={}", r1, r2),
         }
     }
 
