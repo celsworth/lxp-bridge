@@ -120,7 +120,7 @@ impl Database {
                 v_ac_r, v_ac_s, v_ac_t, f_ac,
                 p_inv, p_rec,
                 pf,
-                v_eps_r, v_eps_s, v_eps_t, f_eps,
+                v_eps_r, v_eps_s, v_eps_t, f_eps, p_eps, s_eps,
                 p_to_grid, p_to_user,
                 e_pv_day, e_pv_day_1, e_pv_day_2, e_pv_day_3,
                 e_inv_day, e_rec_day, e_chg_day, e_dischg_day,
@@ -193,6 +193,8 @@ impl Database {
             .bind(data.v_eps_s)
             .bind(data.v_eps_t)
             .bind(data.f_eps)
+            .bind(data.p_eps as i32)
+            .bind(data.s_eps as i32)
             .bind(data.p_to_grid as i32)
             .bind(data.p_to_user as i32)
             .bind(data.e_pv_day)
@@ -264,7 +266,7 @@ impl Database {
         r#"(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
     }
 
     fn values_for_not_mysql() -> &'static str {
@@ -273,6 +275,7 @@ impl Database {
             $29, $30, $31, $32, $33, $34, $35, $36, $37, $38, $39, $40, $41, $42,
             $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56,
             $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
-            $71, $72, $73, $74, $75, $76, $77, $78, $79, $80, $81, $82, $83, $84, $85)"#
+            $71, $72, $73, $74, $75, $76, $77, $78, $79, $80, $81, $82, $83, $84,
+            $85, $86, $87)"#
     }
 }
