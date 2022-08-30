@@ -1034,7 +1034,7 @@ impl WriteParam {
 
         if values.len() != value_len {
             bail!(
-                "ReadParam::decode mismatch: values.len()={}, value_length_byte={}",
+                "WriteParam::decode mismatch: values.len()={}, value_length_byte={}",
                 values.len(),
                 value_len
             );
@@ -1047,8 +1047,8 @@ impl WriteParam {
         })
     }
 
-    fn has_value_length_bytes(protocol: u16) -> bool {
-        protocol == 2
+    fn has_value_length_bytes(_protocol: u16) -> bool {
+        false
     }
 }
 
