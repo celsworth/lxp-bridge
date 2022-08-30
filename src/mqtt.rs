@@ -3,7 +3,7 @@ use crate::prelude::*;
 use rumqttc::{AsyncClient, Event, EventLoop, Incoming, MqttOptions, Publish, QoS};
 
 // Message {{{
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct Message {
     pub topic: String,
     pub payload: String,
@@ -160,7 +160,7 @@ impl Message {
     }
 } // }}}
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ChannelData {
     Message(Message),
     Shutdown,

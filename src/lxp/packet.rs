@@ -501,7 +501,7 @@ impl ReadInputs {
 } // }}}
 
 // {{{ TcpFunction
-#[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum TcpFunction {
     Heartbeat = 193,
@@ -511,7 +511,7 @@ pub enum TcpFunction {
 } // }}}
 
 // {{{ DeviceFunction
-#[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u8)]
 pub enum DeviceFunction {
     ReadHold = 3,
@@ -527,7 +527,7 @@ pub enum DeviceFunction {
     // WriteMultiError = 144
 } // }}}
 
-#[derive(Clone, Copy, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum Register {
     Register21 = 21,            // not sure of a better name for this one..
@@ -538,7 +538,7 @@ pub enum Register {
     DischgCutOffSocEod = 105,   // Discharge cut-off SOC (%)
 }
 
-#[derive(Clone, Debug, PartialEq, IntoPrimitive, TryFromPrimitive)]
+#[derive(Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
 pub enum RegisterBit {
     // Register 21
@@ -593,11 +593,12 @@ impl TcpFrameFactory {
 }
 
 #[enum_dispatch(PacketCommon)]
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Packet {
     Heartbeat(Heartbeat),
     TranslatedData(TranslatedData),
     ReadParam(ReadParam),
+    WriteParam(WriteParam),
 }
 
 #[derive(PartialEq)]
@@ -612,7 +613,7 @@ enum PacketSource {
 //
 /////////////
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Heartbeat {
     pub datalog: Serial,
 }
@@ -665,7 +666,7 @@ impl PacketCommon for Heartbeat {
 //
 /////////////
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct TranslatedData {
     pub datalog: Serial,
     pub device_function: DeviceFunction, // ReadHold or ReadInput etc..
@@ -894,7 +895,7 @@ impl PacketCommon for TranslatedData {
 //
 /////////////
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct ReadParam {
     pub datalog: Serial,
     pub register: u16,   // first register of values
@@ -988,6 +989,106 @@ impl PacketCommon for ReadParam {
     }
 }
 
+/////////////
+//
+// WRITE PARAM
+//
+/////////////
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct WriteParam {
+    pub datalog: Serial,
+    pub register: u16,   // first register of values
+    pub values: Vec<u8>, // undecoded, since can be u16 or u32s?
+}
+impl WriteParam {
+    pub fn pairs(&self) -> Vec<(u16, u16)> {
+        self.values
+            .chunks(2)
+            .enumerate()
+            .map(|(pos, value)| (self.register + pos as u16, Utils::u16ify(value, 0)))
+            .collect()
+    }
+
+    fn decode(input: &[u8]) -> Result<Self> {
+        let len = input.len();
+        if len < 24 {
+            bail!("packet too short");
+        }
+
+        let protocol = Utils::u16ify(input, 2);
+        let datalog = Serial::new(&input[8..18])?;
+
+        let data = &input[18..];
+        let register = Utils::u16ify(data, 0);
+
+        let mut value_len = 2;
+        let mut value_offset = 2;
+
+        if Self::has_value_length_bytes(protocol) {
+            value_len = Utils::u16ify(data, value_offset) as usize;
+            value_offset += 2;
+        }
+
+        let values = data[value_offset..].to_vec();
+
+        if values.len() != value_len {
+            bail!(
+                "ReadParam::decode mismatch: values.len()={}, value_length_byte={}",
+                values.len(),
+                value_len
+            );
+        }
+
+        Ok(Self {
+            datalog,
+            register,
+            values,
+        })
+    }
+
+    fn has_value_length_bytes(protocol: u16) -> bool {
+        protocol == 2
+    }
+}
+
+impl PacketCommon for WriteParam {
+    fn protocol(&self) -> u16 {
+        2
+    }
+
+    fn datalog(&self) -> Serial {
+        self.datalog
+    }
+    fn set_datalog(&mut self, datalog: Serial) {
+        self.datalog = datalog;
+    }
+    fn inverter(&self) -> Option<Serial> {
+        None
+    }
+    fn set_inverter(&mut self, _datalog: Serial) {}
+
+    fn tcp_function(&self) -> TcpFunction {
+        TcpFunction::WriteParam
+    }
+
+    fn bytes(&self) -> Vec<u8> {
+        let mut r = vec![0; 2];
+
+        r[0..2].copy_from_slice(&self.register.to_le_bytes());
+
+        r
+    }
+
+    fn register(&self) -> u16 {
+        self.register
+    }
+
+    fn value(&self) -> u16 {
+        Utils::u16ify(&self.values, 0)
+    }
+}
+
 pub struct Parser;
 impl Parser {
     pub fn parse(input: &[u8]) -> Result<Packet> {
@@ -1008,13 +1109,14 @@ impl Parser {
             );
         }
 
-        match TcpFunction::try_from(input[7])? {
-            TcpFunction::Heartbeat => Ok(Packet::Heartbeat(Heartbeat::decode(input)?)),
-            TcpFunction::TranslatedData => {
-                Ok(Packet::TranslatedData(TranslatedData::decode(input)?))
-            }
-            TcpFunction::ReadParam => Ok(Packet::ReadParam(ReadParam::decode(input)?)),
-            _ => bail!("unhandled: tcp_function={} input={:?}", input[7], input),
-        }
+        let r = match TcpFunction::try_from(input[7])? {
+            TcpFunction::Heartbeat => Packet::Heartbeat(Heartbeat::decode(input)?),
+            TcpFunction::TranslatedData => Packet::TranslatedData(TranslatedData::decode(input)?),
+            TcpFunction::ReadParam => Packet::ReadParam(ReadParam::decode(input)?),
+            TcpFunction::WriteParam => Packet::WriteParam(WriteParam::decode(input)?),
+            //_ => bail!("unhandled: tcp_function={} input={:?}", input[7], input),
+        };
+
+        Ok(r)
     }
 }
