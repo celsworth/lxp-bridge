@@ -1069,12 +1069,20 @@ impl PacketCommon for WriteParam {
     }
 
     fn bytes(&self) -> Vec<u8> {
-        let mut r = vec![0; 3];
+        let mut data = vec![0; 2];
 
-        r[0] = self.register() as u8;
-        r[1..3].copy_from_slice(&self.value().to_le_bytes());
+        data[0..2].copy_from_slice(&self.register.to_le_bytes());
 
-        r
+        let len = self.values.len() as u16;
+        data.extend_from_slice(&len.to_le_bytes());
+
+        let mut m = Vec::new();
+        for i in &self.values {
+            m.extend_from_slice(&i.to_le_bytes());
+        }
+        data.append(&mut m);
+
+        data
     }
 
     fn register(&self) -> u16 {
