@@ -63,7 +63,8 @@ pub struct ReadInputAll {
     pub v_eps_t: f64,
     #[nom(Parse = "Utils::le_u16_div100")]
     pub f_eps: f64,
-    #[nom(SkipBefore(4))] // peps and seps
+    pub p_eps: u16,
+    pub s_eps: u16,
     pub p_to_grid: u16,
     pub p_to_user: u16,
 
@@ -237,7 +238,8 @@ pub struct ReadInput1 {
     pub v_eps_t: f64,
     #[nom(Parse = "Utils::le_u16_div100")]
     pub f_eps: f64,
-    #[nom(SkipBefore(4))] // peps and seps
+    pub p_eps: u16,
+    pub s_eps: u16,
     pub p_to_grid: u16,
     pub p_to_user: u16,
 
@@ -430,6 +432,8 @@ impl ReadInputs {
                 v_eps_s: ri1.v_eps_s,
                 v_eps_t: ri1.v_eps_t,
                 f_eps: ri1.f_eps,
+                p_eps: ri1.p_eps,
+                s_eps: ri1.s_eps,
                 p_to_grid: ri1.p_to_grid,
                 p_to_user: ri1.p_to_user,
                 e_pv_day: ri1.e_pv_day,
