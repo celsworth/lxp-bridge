@@ -221,3 +221,19 @@ fn parse_write_multi_reply() {
         })
     );
 }
+
+#[test]
+fn parse_write_param_reply() {
+    let input = [
+        161, 26, 2, 0, 15, 0, 1, 196, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 7, 0, 3,
+    ];
+
+    assert_eq!(
+        lxp::packet::Parser::parse(&input).unwrap(),
+        Packet::WriteParam(lxp::packet::WriteParam {
+            datalog: datalog(),
+            register: 7,
+            values: vec![0, 3]
+        })
+    );
+}

@@ -1012,7 +1012,7 @@ impl WriteParam {
 
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
-        if len < 24 {
+        if len < 21 {
             bail!("packet too short");
         }
 
@@ -1020,10 +1020,10 @@ impl WriteParam {
         let datalog = Serial::new(&input[8..18])?;
 
         let data = &input[18..];
-        let register = Utils::u16ify(data, 0);
+        let register = u16::from(data[0]);
 
         let mut value_len = 2;
-        let mut value_offset = 2;
+        let mut value_offset = 1;
 
         if Self::has_value_length_bytes(protocol) {
             value_len = Utils::u16ify(data, value_offset) as usize;
