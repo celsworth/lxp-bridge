@@ -223,6 +223,21 @@ fn parse_write_multi_reply() {
 }
 
 #[test]
+fn build_write_param() {
+    // this isn't hooked up yet anyway, no way to make a WriteParam packet from MQTT
+    let packet = Packet::WriteParam(lxp::packet::WriteParam {
+        datalog: datalog(),
+        register: 7,
+        values: vec![0, 3],
+    });
+
+    assert_eq!(
+        lxp::packet::TcpFrameFactory::build(&packet),
+        vec![161, 26, 2, 0, 15, 0, 1, 196, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 7, 0, 3,]
+    );
+}
+
+#[test]
 fn parse_write_param_reply() {
     let input = [
         161, 26, 2, 0, 15, 0, 1, 196, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 7, 0, 3,

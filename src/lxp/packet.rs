@@ -973,11 +973,7 @@ impl PacketCommon for ReadParam {
     }
 
     fn bytes(&self) -> Vec<u8> {
-        let mut r = vec![0; 2];
-
-        r[0..2].copy_from_slice(&self.register.to_le_bytes());
-
-        r
+        vec![self.register() as u8, 0]
     }
 
     fn register(&self) -> u16 {
@@ -1073,9 +1069,10 @@ impl PacketCommon for WriteParam {
     }
 
     fn bytes(&self) -> Vec<u8> {
-        let mut r = vec![0; 2];
+        let mut r = vec![0; 3];
 
-        r[0..2].copy_from_slice(&self.register.to_le_bytes());
+        r[0] = self.register() as u8;
+        r[1..3].copy_from_slice(&self.value().to_le_bytes());
 
         r
     }
