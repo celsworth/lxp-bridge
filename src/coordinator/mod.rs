@@ -5,7 +5,7 @@ pub mod commands;
 use lxp::inverter::WaitForReply;
 use lxp::packet::{DeviceFunction, ReadParam, TcpFunction};
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ChannelData {
     Shutdown,
 }
@@ -367,6 +367,7 @@ impl Coordinator {
                 DeviceFunction::WriteMulti => Ok(Vec::new()), // TODO, for_hold might just work
             },
             Packet::ReadParam(rp) => mqtt::Message::for_param(rp),
+            Packet::WriteParam(_) => Ok(Vec::new()), // ignoring for now
         }
     }
 }

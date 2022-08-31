@@ -221,3 +221,69 @@ fn parse_write_multi_reply() {
         })
     );
 }
+
+#[test]
+fn build_read_param() {
+    let packet = Packet::ReadParam(lxp::packet::ReadParam {
+        datalog: datalog(),
+        register: 7,
+        values: vec![0, 0], // not used?
+    });
+
+    assert_eq!(
+        lxp::packet::TcpFrameFactory::build(&packet),
+        vec![161, 26, 2, 0, 14, 0, 1, 195, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 7, 0]
+    );
+}
+
+#[test]
+fn parse_read_param_reply() {
+    let input = [
+        161, 26, 2, 0, 18, 0, 1, 195, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 0, 0, 2, 0, 44, 1,
+    ];
+
+    assert_eq!(
+        lxp::packet::Parser::parse(&input).unwrap(),
+        Packet::ReadParam(lxp::packet::ReadParam {
+            datalog: datalog(),
+            register: 0,
+            values: vec![44, 1]
+        })
+    );
+}
+
+#[test]
+fn build_write_param() {
+    // this isn't hooked up yet anyway, no way to make a WriteParam packet from MQTT
+    // not even sure if this is right.. 2 bytes of register, 2 bytes len, then x bytes of values?
+    let packet = Packet::WriteParam(lxp::packet::WriteParam {
+        datalog: datalog(),
+        register: 7,
+        values: vec![0, 3],
+    });
+
+    assert_eq!(
+        lxp::packet::TcpFrameFactory::build(&packet),
+        vec![
+            161, 26, 2, 0, 18, 0, 1, 196, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 7, 0, 2, 0, 0, 3
+        ]
+    );
+}
+
+#[test]
+fn parse_write_param_reply() {
+    // I guess this means that the inverter wrote 3 registers starting at 7?
+    // not sure if it's register 7, 0 then 3,   or register 7, then 0, 3
+    let input = [
+        161, 26, 2, 0, 15, 0, 1, 196, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 7, 0, 3,
+    ];
+
+    assert_eq!(
+        lxp::packet::Parser::parse(&input).unwrap(),
+        Packet::WriteParam(lxp::packet::WriteParam {
+            datalog: datalog(),
+            register: 7,
+            values: vec![0, 3]
+        })
+    );
+}

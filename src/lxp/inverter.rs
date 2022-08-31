@@ -6,7 +6,7 @@ use {
     tokio::io::{AsyncReadExt, AsyncWriteExt},
 };
 
-#[derive(PartialEq, Debug, Clone)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ChannelData {
     Disconnect(Serial), // strictly speaking, only ever goes inverter->coordinator, but eh.
     Packet(Packet),     // this one goes both ways through the channel.
