@@ -1,4 +1,4 @@
-# 0.8.0 - Unreleased
+# 0.8.0 - 1st September 2022
 
 * Publish MQTT discovery packets with Retain bit set (#86)
 * Be more tolerant of unknown ReadInputs registers (#89)
