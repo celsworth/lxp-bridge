@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use serde::Deserialize;
-use serde_with::{rust::StringWithSeparator, serde_as, CommaSeparator}; //, OneOrMany;
+use serde_with::{formats::CommaSeparator, serde_as, StringWithSeparator}; //, OneOrMany;
 
 #[serde_as]
 #[derive(Debug, Deserialize)]
@@ -38,6 +38,7 @@ where
     raw.parse().map_err(serde::de::Error::custom)
 }
 
+#[serde_as]
 #[derive(Clone, Debug, Deserialize)]
 pub struct HomeAssistant {
     #[serde(default = "Config::default_enabled")]
@@ -47,7 +48,7 @@ pub struct HomeAssistant {
     pub prefix: String,
 
     #[serde(default = "Config::default_mqtt_homeassistant_sensors")]
-    #[serde(with = "StringWithSeparator::<CommaSeparator>")]
+    #[serde_as(as = "StringWithSeparator::<CommaSeparator, String>")]
     pub sensors: Vec<String>,
 }
 
