@@ -2,8 +2,7 @@ use crate::prelude::*;
 
 pub mod commands;
 
-use lxp::inverter::WaitForReply;
-use lxp::packet::{DeviceFunction, ReadParam, TcpFunction};
+use lxp::packet::{DeviceFunction, TcpFunction};
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ChannelData {
@@ -181,25 +180,9 @@ impl Coordinator {
     where
         U: Into<u16>,
     {
-        let register = register.into();
-        let packet = Packet::ReadParam(ReadParam {
-            datalog: inverter.datalog,
-            register,
-            values: vec![], // unused
-        });
-
-        let mut receiver = self.channels.from_inverter.subscribe();
-
-        if self
-            .channels
-            .to_inverter
-            .send(lxp::inverter::ChannelData::Packet(packet.clone()))
-            .is_err()
-        {
-            bail!("send(to_inverter) failed - channel closed?");
-        }
-
-        let _ = receiver.wait_for_reply(&packet).await?;
+        commands::read_param::ReadParam::new(self.channels.clone(), inverter.clone(), register)
+            .run()
+            .await?;
 
         Ok(())
     }
