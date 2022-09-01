@@ -1,3 +1,8 @@
+# 0.9.0 - Unreleased
+
+* Fix incorrect FAIL MQTT reply on ReadParam commands (#93)
+
+
 # 0.8.0 - 1st September 2022
 
 * Publish MQTT discovery packets with Retain bit set (#86)
