@@ -44,6 +44,11 @@ impl WaitForReply for Receiver {
                         return Ok(Packet::TranslatedData(reply));
                     }
                 }
+                (Packet::ReadParam(rp), Ok(ChannelData::Packet(Packet::ReadParam(reply)))) => {
+                    if rp.datalog == reply.datalog && rp.register == reply.register {
+                        return Ok(Packet::ReadParam(reply));
+                    }
+                }
                 (_, Ok(ChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
                 (_, Ok(ChannelData::Disconnect(inverter_datalog))) => {
                     if inverter_datalog == packet.datalog() {
