@@ -45,7 +45,7 @@ impl WaitForReply for Receiver {
                     }
                 }
                 (Packet::ReadParam(rp), Ok(ChannelData::Packet(Packet::ReadParam(reply)))) => {
-                    if (rp.datalog == reply.datalog && rp.register == reply.register) {
+                    if rp.datalog == reply.datalog && rp.register == reply.register {
                         return Ok(Packet::ReadParam(reply));
                     }
                 }
