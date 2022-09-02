@@ -269,15 +269,15 @@ impl Coordinator {
                     .entry(td.datalog)
                     .or_insert_with(ReadInputs::default);
 
-                match td.read_input()? {
-                    ReadInput::ReadInputAll(r_all) => {
+                match td.read_input() {
+                    Ok(ReadInput::ReadInputAll(r_all)) => {
                         // no need for MQTT here, done below
                         self.save_input_all(r_all).await?
                     }
 
-                    ReadInput::ReadInput1(r1) => entry.set_read_input_1(r1),
-                    ReadInput::ReadInput2(r2) => entry.set_read_input_2(r2),
-                    ReadInput::ReadInput3(r3) => {
+                    Ok(ReadInput::ReadInput1(r1)) => entry.set_read_input_1(r1),
+                    Ok(ReadInput::ReadInput2(r2)) => entry.set_read_input_2(r2),
+                    Ok(ReadInput::ReadInput3(r3)) => {
                         let datalog = r3.datalog;
 
                         entry.set_read_input_3(r3);
@@ -294,6 +294,7 @@ impl Coordinator {
                             self.save_input_all(Box::new(input)).await?;
                         }
                     }
+                    Err(x) => warn!("ignoring {:?}", x),
                 }
             }
         }

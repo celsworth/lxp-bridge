@@ -78,9 +78,7 @@ impl Message {
                 topic: format!("{}/inputs/3", td.datalog),
                 payload: serde_json::to_string(&r3)?,
             }),
-            Err(x) => {
-                warn!("ignoring {:?}", x);
-            }
+            Err(x) => warn!("ignoring {:?}", x),
         }
 
         Ok(r)
