@@ -2,6 +2,7 @@
 
 * Fix incorrect FAIL MQTT reply on ReadParam commands (#93)
 * Second attempt at ignoring unknown ReadInputs registers (#95)
+* Update HA discovery to use newer "all" MQTT message (#98, @excieve)
 
 
 # 0.8.0 - 1st September 2022
