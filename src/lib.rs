@@ -17,17 +17,7 @@ const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 use crate::prelude::*;
 
-pub fn main() {
-    let rt = tokio::runtime::Runtime::new().unwrap();
-    let future = app();
-
-    if let Err(err) = rt.block_on(future) {
-        error!("{:?}", err);
-        std::process::exit(255);
-    }
-}
-
-async fn app() -> Result<()> {
+pub async fn app() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .format(|buf, record| {
             writeln!(
