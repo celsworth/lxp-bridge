@@ -36,7 +36,7 @@ serde = { version = "~1 ", features = ["derive"] }
 serde_with = "~2"
 serde_json = "~1"
 serde_yaml = "~0.9"
-tokio = { version = "~1", features = ["net"] }
+tokio = { version = "~1", features = ["net", "macros", "signal"] }
 tokio-util = { version = "~0.7", features = ["codec"] }
 chrono = "~0.4"
 cron-parser = "~0.7"
