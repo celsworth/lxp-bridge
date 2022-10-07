@@ -71,9 +71,6 @@ jobs:
         - build: darwin-arm64
           os: macos-11
           target: aarch64-apple-darwin
-        - build: windows-amd64.exe
-          os: windows-2019
-          target: x86_64-pc-windows-msvc
 
     steps:
       - uses: actions/checkout@v2
@@ -121,14 +118,8 @@ jobs:
           args: --release --target ${{ matrix.target }}
 
       - name: Rename release binary
-        if: runner.os != 'Windows'
         run: |
           mv target/${{ matrix.target }}/release/lxp-bridge lxp-bridge.${{ matrix.build }}
-
-      - name: Rename release binary
-        if: runner.os == 'Windows'
-        run: |
-          mv target/${{ matrix.target }}/release/lxp-bridge.exe lxp-bridge.${{ matrix.build }}
 
       - name: Set release version
         shell: bash
@@ -142,12 +133,8 @@ jobs:
           staging="lxp-bridge-${{ env.RELEASE_VERSION }}-${{ matrix.target }}"
           mkdir -p "$staging"
           cp "config.yaml.example" "$staging/"
-          if [ "${{ matrix.os }}" = "windows-2019" ]; then
-            cp "target/${{ matrix.target }}/release/lxp-bridge.exe" "$staging/"
-          else
-            cp "target/${{ matrix.target }}/release/lxp-bridge" "$staging/"
-            strip "$staging/lxp-bridge" || true
-          fi
+          cp "target/${{ matrix.target }}/release/lxp-bridge" "$staging/"
+          strip "$staging/lxp-bridge" || true
           7z a "$staging.zip" "$staging"
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
 
