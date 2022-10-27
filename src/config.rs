@@ -95,8 +95,8 @@ pub struct Scheduler {
     #[serde(default = "Config::default_enabled")]
     pub enabled: bool,
 
-    pub timesync: Crontab,
-    pub read_inputs: Crontab,
+    pub timesync: Option<Crontab>,
+    pub read_inputs: Option<Crontab>,
 }
 
 #[derive(Clone, Debug, Deserialize)]

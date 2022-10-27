@@ -12,6 +12,40 @@ impl Scheduler {
         Self { config, channels }
     }
 
+    async fn start_timesync(&self, o_config: &Option<config::Crontab>) -> Result<()> {
+        if let Some(config) = o_config {
+            if config.enabled {
+                while let Ok(next) = parse(&config.cron, &Utils::localtime()) {
+                    let sleep = next - Utils::localtime();
+                    info!("next timesync at {}, sleeping for {}", next, sleep);
+                    tokio::time::sleep(sleep.to_std()?).await;
+                    self.timesync().await?;
+                }
+            } else {
+                info!("timesync disabled, skipping");
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn start_read_inputs(&self, o_config: &Option<config::Crontab>) -> Result<()> {
+        if let Some(config) = o_config {
+            if config.enabled {
+                while let Ok(next) = parse(&config.cron, &Utils::localtime()) {
+                    let sleep = next - Utils::localtime();
+                    info!("next read_inputs at {}, sleeping for {}", next, sleep);
+                    tokio::time::sleep(sleep.to_std()?).await;
+                    self.read_inputs().await?;
+                }
+            } else {
+                info!("read_inputs disabled, skipping");
+            }
+        }
+
+        Ok(())
+    }
+
     pub async fn start(&self) -> Result<()> {
         if let Some(config) = &self.config.scheduler {
             if !config.enabled {
@@ -21,35 +55,8 @@ impl Scheduler {
 
             info!("scheduler starting");
 
-            let timesync_future = async {
-                if config.timesync.enabled {
-                    let config = &config.timesync;
-
-                    while let Ok(next) = parse(&config.cron, &Utils::localtime()) {
-                        let sleep = next - Utils::localtime();
-                        info!("next timesync at {}, sleeping for {}", next, sleep);
-                        tokio::time::sleep(sleep.to_std()?).await;
-                        self.timesync().await?;
-                    }
-                }
-
-                Ok::<(), anyhow::Error>(())
-            };
-
-            let read_inputs_future = async {
-                if config.read_inputs.enabled {
-                    let config = &config.read_inputs;
-
-                    while let Ok(next) = parse(&config.cron, &Utils::localtime()) {
-                        let sleep = next - Utils::localtime();
-                        info!("next read_inputs at {}, sleeping for {}", next, sleep);
-                        tokio::time::sleep(sleep.to_std()?).await;
-                        self.read_inputs().await?;
-                    }
-                }
-
-                Ok::<(), anyhow::Error>(())
-            };
+            let timesync_future = self.start_timesync(&config.timesync);
+            let read_inputs_future = self.start_read_inputs(&config.read_inputs);
 
             futures::try_join!(timesync_future, read_inputs_future)?;
 
