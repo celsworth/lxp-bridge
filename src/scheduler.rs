@@ -52,4 +52,28 @@ impl Scheduler {
 
         Ok(())
     }
+
+    async fn read_inputs(&self) -> Result<()> {
+        info!("read_inputs starting");
+
+        let inverters = self.config.enabled_inverters().cloned();
+        let pairs = [(0, 40), (40, 40), (80, 40)];
+
+        for inverter in inverters {
+            for (register, count) in pairs {
+                coordinator::commands::read_inputs::ReadInputs::new(
+                    self.channels.clone(),
+                    inverter.clone(),
+                    register as u16,
+                    count,
+                )
+                .run()
+                .await?;
+            }
+        }
+
+        info!("read_inputs complete");
+
+        Ok(())
+    }
 }
