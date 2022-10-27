@@ -40,3 +40,6 @@ scheduler:
   timesync:
     enabled: false
     cron: "0 0 * * *"
+  read_inputs:
+    enabled: false
+    cron: "*/5 * * * *"

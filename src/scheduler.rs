@@ -21,16 +21,37 @@ impl Scheduler {
 
             info!("scheduler starting");
 
-            if config.timesync.enabled {
-                let timesync_config = &config.timesync;
+            let timesync_future = async {
+                if config.timesync.enabled {
+                    let config = &config.timesync;
 
-                while let Ok(next) = parse(&timesync_config.cron, &Utils::localtime()) {
-                    let sleep = next - Utils::localtime();
-                    info!("next timesync at {}, sleeping for {}", next, sleep);
-                    tokio::time::sleep(sleep.to_std()?).await;
-                    self.timesync().await?;
+                    while let Ok(next) = parse(&config.cron, &Utils::localtime()) {
+                        let sleep = next - Utils::localtime();
+                        info!("next timesync at {}, sleeping for {}", next, sleep);
+                        tokio::time::sleep(sleep.to_std()?).await;
+                        self.timesync().await?;
+                    }
                 }
-            }
+
+                Ok::<(), anyhow::Error>(())
+            };
+
+            let read_inputs_future = async {
+                if config.read_inputs.enabled {
+                    let config = &config.read_inputs;
+
+                    while let Ok(next) = parse(&config.cron, &Utils::localtime()) {
+                        let sleep = next - Utils::localtime();
+                        info!("next read_inputs at {}, sleeping for {}", next, sleep);
+                        tokio::time::sleep(sleep.to_std()?).await;
+                        self.read_inputs().await?;
+                    }
+                }
+
+                Ok::<(), anyhow::Error>(())
+            };
+
+            futures::try_join!(timesync_future, read_inputs_future)?;
 
             info!("scheduler exiting");
         }

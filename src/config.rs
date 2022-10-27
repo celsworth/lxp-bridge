@@ -96,6 +96,7 @@ pub struct Scheduler {
     pub enabled: bool,
 
     pub timesync: Crontab,
+    pub read_inputs: Crontab,
 }
 
 #[derive(Clone, Debug, Deserialize)]
