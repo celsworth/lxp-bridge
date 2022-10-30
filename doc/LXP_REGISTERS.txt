@@ -142,6 +142,8 @@ settings, apply your changes to individual bits, and set the new value back.
 113 SET_COMPOSED_PHASE
 116 P_TO_USER_START_DISCHG
 118 VBAT_START_DERATING
+119 this seems to be some sort of grid ct calibration offset to achieve true zero import/export.
+      only seems to work in recent firmwares
 122 MAINTENANCE_COUNT
 125 SOC_LOW_LIMIT_EPS_DISCHG
 137 SPEC_LOAD_COMPENSATE
