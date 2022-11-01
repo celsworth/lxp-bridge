@@ -28,6 +28,8 @@ pub struct Inverter {
     pub serial: Serial,
     #[serde(deserialize_with = "de_serial")]
     pub datalog: Serial,
+
+    pub heartbeats: Option<bool>,
 }
 
 fn de_serial<'de, D>(deserializer: D) -> Result<Serial, D::Error>
