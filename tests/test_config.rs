@@ -25,6 +25,17 @@ fn inverter_defaults() {
         json!({ "host": "host", "port": 8000, "serial": "TESTSERIAL", "datalog": "TESTDATALO" });
     let inverter: config::Inverter = serde_json::from_value(input).unwrap();
     assert!(inverter.enabled);
+    assert_eq!(inverter.heartbeats, None);
+}
+
+#[test]
+fn inverter_heartbeats() {
+    let input = json!({ "host": "host", "port": 8000, "serial": "TESTSERIAL", "datalog": "TESTDATALO", "heartbeats": false });
+    let inverter: config::Inverter = serde_json::from_value(input).unwrap();
+    assert_eq!(inverter.heartbeats, Some(false));
+    let input = json!({ "host": "host", "port": 8000, "serial": "TESTSERIAL", "datalog": "TESTDATALO", "heartbeats": true });
+    let inverter: config::Inverter = serde_json::from_value(input).unwrap();
+    assert_eq!(inverter.heartbeats, Some(true));
 }
 
 #[test]
