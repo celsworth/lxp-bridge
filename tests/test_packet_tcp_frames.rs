@@ -22,6 +22,16 @@ fn parse_heartbeat() {
 }
 
 #[test]
+fn build_heartbeat() {
+    let packet = Packet::Heartbeat(lxp::packet::Heartbeat { datalog: datalog() });
+
+    assert_eq!(
+        lxp::packet::TcpFrameFactory::build(&packet),
+        vec![161, 26, 2, 0, 13, 0, 1, 193, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 0]
+    );
+}
+
+#[test]
 fn build_read_hold() {
     let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
         datalog: datalog(),
