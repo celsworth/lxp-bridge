@@ -4,11 +4,13 @@ inverters:
   port: 8000
   serial: 5555555555
   datalog: 2222222222
+  heartbeats: false
 - enabled: false
   host: 192.168.0.163
   port: 8000
   serial: 9999999999
   datalog: 3333333333
+  heartbeats: false
 
 databases:
 - enabled: false

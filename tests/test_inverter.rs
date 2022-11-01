@@ -1,6 +1,8 @@
 mod common;
 use common::*;
 
+// these tests are shonky, I need to work on how to test the inverter code reliably
+
 #[allow(dead_code)]
 //#[tokio::test]
 async fn serials_fixed_in_outgoing_packets() {
@@ -16,6 +18,7 @@ async fn serials_fixed_in_outgoing_packets() {
         port: 1235,
         datalog: Serial::from_str("0000000000").unwrap(),
         serial: Serial::from_str("0000000000").unwrap(),
+        heartbeats: None,
     };
     let channels = Channels::new();
     let inverter = lxp::inverter::Inverter::new(config, channels.clone());
@@ -83,6 +86,57 @@ async fn serials_fixed_in_outgoing_packets() {
             ]
         );
 
+        inverter.stop();
+
+        Ok::<(), anyhow::Error>(())
+    };
+
+    futures::try_join!(tf, inverter.start()).unwrap();
+}
+
+#[allow(dead_code)]
+//#[tokio::test]
+async fn test_replies_to_heartbeats() {
+    common_setup();
+
+    let config = config::Inverter {
+        enabled: true,
+        host: "localhost".to_owned(),
+        port: 1235,
+        datalog: Serial::from_str("XXXXXXXXXX").unwrap(),
+        serial: Serial::from_str("0000000000").unwrap(),
+        heartbeats: Some(true),
+    };
+    let channels = Channels::new();
+    let inverter = lxp::inverter::Inverter::new(config, channels.clone());
+
+    let from_inverter = channels.from_inverter.subscribe();
+
+    let tf = async {
+        // pretend to be an inverter
+        let listener = tokio::net::TcpListener::bind("localhost:1235")
+            .await
+            .unwrap();
+
+        let (socket, _) = listener.accept().await?;
+
+        socket.writable().await?;
+        socket
+            .try_write(&[
+                161, 26, 2, 0, 13, 0, 1, 193, 88, 88, 88, 88, 88, 88, 88, 88, 88, 88, 0,
+            ])
+            .unwrap();
+
+        // wait for inverter to receive the ReadHold and verify the serials have been replaced
+        socket.readable().await?;
+        let mut buf = [0; 19];
+        assert_eq!(19, socket.try_read(&mut buf).unwrap());
+        assert_eq!(
+            buf.to_vec(),
+            &[161, 26, 2, 0, 13, 0, 1, 193, 88, 88, 88, 88, 88, 88, 88, 88, 88, 88, 0,]
+        );
+
+        debug!("stop");
         inverter.stop();
 
         Ok::<(), anyhow::Error>(())

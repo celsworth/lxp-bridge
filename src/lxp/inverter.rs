@@ -202,23 +202,13 @@ impl Inverter {
 
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
-                    // bytes received are logged in packet_decoder, no need here
-                    //debug!("inverter {}: RX {:?}", self.config.datalog, packet);
-
-                    self.channels
-                        .from_inverter
-                        .send(ChannelData::Packet(packet))?;
+                    self.handle_incoming_packet(packet)?;
                 }
                 break;
             }
 
             while let Some(packet) = decoder.decode(&mut buf)? {
-                // bytes received are logged in packet_decoder, no need here
-                //debug!("inverter {}: RX {:?}", self.config.datalog, packet);
-
-                self.channels
-                    .from_inverter
-                    .send(ChannelData::Packet(packet.clone()))?;
+                self.handle_incoming_packet(packet.clone())?;
 
                 self.compare_datalog(packet.datalog()); // all packets have datalog serial
                 if let Packet::TranslatedData(td) = packet {
@@ -229,6 +219,25 @@ impl Inverter {
         }
 
         Err(anyhow!("lost connection"))
+    }
+
+    fn handle_incoming_packet(&self, packet: Packet) -> Result<()> {
+        // bytes received are logged in packet_decoder, no need here
+        //debug!("inverter {}: RX {:?}", self.config.datalog, packet);
+
+        if self.config.heartbeats == Some(true)
+            && packet.tcp_function() == lxp::packet::TcpFunction::Heartbeat
+        {
+            self.channels
+                .to_inverter
+                .send(ChannelData::Packet(packet.clone()))?;
+        }
+
+        self.channels
+            .from_inverter
+            .send(ChannelData::Packet(packet))?;
+
+        Ok(())
     }
 
     // coordinator -> inverter

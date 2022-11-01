@@ -656,7 +656,7 @@ impl PacketCommon for Heartbeat {
     }
 
     fn bytes(&self) -> Vec<u8> {
-        Vec::new()
+        vec![0]
     }
 }
 

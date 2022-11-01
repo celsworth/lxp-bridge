@@ -4,6 +4,7 @@
 * Second attempt at ignoring unknown ReadInputs registers (#95)
 * Update HA discovery to use newer "all" MQTT message (#98, @excieve)
 * Exit on receipt of SIGTERM or SIGINT (#99, @kaitlinsm)
+* Add support for replying to inverter heartbeats (#106)
 
 
 # 0.8.0 - 1st September 2022

@@ -70,6 +70,7 @@ fn enabled_inverters() {
             host: "localhost".to_owned(),
             port: 8000,
             serial: example_serial(),
+            heartbeats: None,
         },
         config::Inverter {
             enabled: true,
@@ -77,6 +78,7 @@ fn enabled_inverters() {
             host: "localhost".to_owned(),
             port: 8000,
             serial: example_serial(),
+            heartbeats: None,
         },
     ];
 
@@ -95,6 +97,7 @@ fn inverters_for_message() {
             host: "localhost".to_owned(),
             port: 8000,
             serial: example_serial(),
+            heartbeats: None,
         },
         config::Inverter {
             enabled: false,
@@ -102,6 +105,7 @@ fn inverters_for_message() {
             host: "localhost".to_owned(),
             port: 8000,
             serial: example_serial(),
+            heartbeats: None,
         },
     ];
 
