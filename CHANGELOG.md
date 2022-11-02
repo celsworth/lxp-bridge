@@ -1,4 +1,4 @@
-# 0.9.0 - Unreleased
+# 0.9.0 - 2nd November 2022
 
 * Fix incorrect FAIL MQTT reply on ReadParam commands (#93)
 * Second attempt at ignoring unknown ReadInputs registers (#95)
