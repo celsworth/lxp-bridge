@@ -2,6 +2,8 @@ use crate::prelude::*;
 
 use cron_parser::parse;
 
+use chrono::{DateTime, Local};
+
 pub struct Scheduler {
     config: Rc<Config>,
     channels: Channels,
@@ -24,9 +26,14 @@ impl Scheduler {
             if config.timesync.enabled {
                 let timesync_config = &config.timesync;
 
-                while let Ok(next) = parse(&timesync_config.cron, &Utils::localtime()) {
-                    let sleep = next - Utils::localtime();
-                    info!("next timesync at {}, sleeping for {}", next, sleep);
+                // sticking to Utc here avoids some "invalid date" panics around DST changes
+                while let Ok(next) = parse(&timesync_config.cron, &Utils::utc()) {
+                    let sleep = next - Utils::utc();
+
+                    // localtime is only used for display
+                    let local_next: DateTime<Local> = DateTime::from(next);
+                    info!("next timesync at {}, sleeping for {}", local_next, sleep);
+
                     tokio::time::sleep(sleep.to_std()?).await;
                     self.timesync().await?;
                 }
