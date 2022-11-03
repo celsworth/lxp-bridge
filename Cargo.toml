@@ -39,7 +39,6 @@ serde_yaml = "~0.9"
 tokio = { version = "~1", features = ["net", "macros", "signal"] }
 tokio-util = { version = "~0.7", features = ["codec"] }
 chrono = "~0.4"
-chrono-tz = "*"
 cron-parser = "~0.7"
 enum_dispatch = "~0.3"
 async-trait = "~0.1"
