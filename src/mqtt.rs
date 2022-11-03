@@ -307,7 +307,7 @@ impl Mqtt {
                 Shutdown => break,
                 Message(message) => {
                     let topic = format!("{}/{}", self.config.mqtt.namespace, message.topic);
-                    debug!("publishing: {} = {}", topic, message.payload);
+                    info!("publishing: {} = {}", topic, message.payload);
                     let _ = client
                         .publish(&topic, QoS::AtLeastOnce, false, message.payload)
                         .await
