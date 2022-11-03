@@ -1,3 +1,8 @@
+# 0.10.0 - Unreleased
+
+* Fix crash in scheduler during DST transition times (#107)
+
+
 # 0.9.0 - 2nd November 2022
 
 * Fix incorrect FAIL MQTT reply on ReadParam commands (#93)
