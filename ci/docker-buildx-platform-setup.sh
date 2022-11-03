@@ -2,11 +2,11 @@
 
 install_openssl() {
   cd /
-  wget https://www.openssl.org/source/openssl-1.1.1l.tar.gz
-  tar xzf openssl-1.1.1l.tar.gz
-  cd openssl-1.1.1l && ./config shared && make
-  #export OPENSSL_LIB_DIR=~/openssl-1.1.1l
-  #export OPENSSL_INCLUDE_DIR=~/openssl-1.1.1l/include
+  wget https://www.openssl.org/source/openssl-1.1.1s.tar.gz
+  tar xzf openssl-1.1.1s.tar.gz
+  cd openssl-1.1.1s && ./config shared && make
+  #export OPENSSL_LIB_DIR=~/openssl-1.1.1s
+  #export OPENSSL_INCLUDE_DIR=~/openssl-1.1.1s/include
 }
 
 case "$1" in

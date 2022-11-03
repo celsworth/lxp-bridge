@@ -8,8 +8,8 @@ COPY src src
 COPY db db
 COPY ci ci
 RUN ./ci/docker-buildx-platform-setup.sh $TARGETPLATFORM
-ENV OPENSSL_LIB_DIR /openssl-1.1.1l
-ENV OPENSSL_INCLUDE_DIR /openssl-1.1.1l/include
+ENV OPENSSL_LIB_DIR /openssl-1.1.1s
+ENV OPENSSL_INCLUDE_DIR /openssl-1.1.1s/include
 RUN rustup target add $(cat /rust_target.txt)
 RUN cargo install --path . --target $(cat /rust_target.txt)
 
