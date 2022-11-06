@@ -1,5 +1,5 @@
 pub use std::{
-    cell::RefCell,
+    cell::{Ref, RefCell, RefMut},
     convert::{TryFrom, TryInto},
     io::Write,
     rc::Rc,
@@ -15,7 +15,7 @@ pub use {
 pub use crate::{
     channels::Channels,
     command::Command,
-    config::{self, Config},
+    config::{self, Config, ConfigWrapper},
     coordinator::{self, Coordinator},
     database::{self, Database},
     home_assistant,

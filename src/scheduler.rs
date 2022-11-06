@@ -5,42 +5,45 @@ use cron_parser::parse;
 use chrono::{DateTime, Local};
 
 pub struct Scheduler {
-    config: Rc<Config>,
+    config: ConfigWrapper,
     channels: Channels,
 }
 
 impl Scheduler {
-    pub fn new(config: Rc<Config>, channels: Channels) -> Self {
+    pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
         Self { config, channels }
     }
 
     pub async fn start(&self) -> Result<()> {
-        if let Some(config) = &self.config.scheduler {
-            if !config.enabled {
-                info!("scheduler disabled, skipping");
-                return Ok(());
-            }
-
-            info!("scheduler starting");
-
-            if config.timesync.enabled {
-                let timesync_config = &config.timesync;
-
-                // sticking to Utc here avoids some "invalid date" panics around DST changes
-                while let Ok(next) = parse(&timesync_config.cron, &Utils::utc()) {
-                    let sleep = next - Utils::utc();
-
-                    // localtime is only used for display
-                    let local_next: DateTime<Local> = DateTime::from(next);
-                    info!("next timesync at {}, sleeping for {}", local_next, sleep);
-
-                    tokio::time::sleep(sleep.to_std()?).await;
-                    self.timesync().await?;
-                }
-            }
-
-            info!("scheduler exiting");
+        let scheduler = self.config.scheduler().clone();
+        if scheduler.is_none() {
+            info!("scheduler config not found, skipping");
+            return Ok(());
         }
+
+        let scheduler = scheduler.unwrap();
+        if !scheduler.enabled {
+            info!("scheduler disabled, skipping");
+            return Ok(());
+        }
+
+        info!("scheduler starting");
+
+        if scheduler.timesync.enabled {
+            // sticking to Utc here avoids some "invalid date" panics around DST changes
+            while let Ok(next) = parse(&scheduler.timesync.cron, &Utils::utc()) {
+                let sleep = next - Utils::utc();
+
+                // localtime is only used for display
+                let local_next: DateTime<Local> = DateTime::from(next);
+                info!("next timesync at {}, sleeping for {}", local_next, sleep);
+
+                tokio::time::sleep(sleep.to_std()?).await;
+                self.timesync().await?;
+            }
+        }
+
+        info!("scheduler exiting");
 
         Ok(())
     }
@@ -48,8 +51,7 @@ impl Scheduler {
     async fn timesync(&self) -> Result<()> {
         info!("timesync starting");
 
-        let inverters = self.config.enabled_inverters().cloned();
-        for inverter in inverters {
+        for inverter in self.config.enabled_inverters() {
             coordinator::commands::timesync::TimeSync::new(self.channels.clone(), inverter)
                 .run()
                 .await?;

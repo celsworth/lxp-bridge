@@ -12,14 +12,14 @@ pub enum ChannelData {
 pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
 
 pub struct Coordinator {
-    config: Rc<Config>,
+    config: ConfigWrapper,
     have_enabled_databases: bool,
     channels: Channels,
 }
 
 impl Coordinator {
-    pub fn new(config: Rc<Config>, channels: Channels) -> Self {
-        let have_enabled_databases = config.enabled_databases().count() > 0;
+    pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
+        let have_enabled_databases = config.enabled_database_count() > 0;
 
         Self {
             config,
@@ -283,7 +283,7 @@ impl Coordinator {
                         entry.set_read_input_3(r3);
 
                         if let Some(input) = entry.to_input_all() {
-                            if self.config.mqtt.enabled {
+                            if self.config.mqtt().enabled {
                                 let message = mqtt::Message::for_input_all(&input, datalog)?;
                                 let channel_data = mqtt::ChannelData::Message(message);
                                 if self.channels.to_mqtt.send(channel_data).is_err() {
@@ -299,7 +299,7 @@ impl Coordinator {
             }
         }
 
-        if self.config.mqtt.enabled {
+        if self.config.mqtt().enabled {
             // returns a Vec of messages to send. could be none;
             // not every packet produces an MQ message (eg, heartbeats),
             // and some produce >1 (multi-register ReadHold)
@@ -324,7 +324,7 @@ impl Coordinator {
     }
 
     async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
-        if self.config.influx.enabled {
+        if self.config.influx().enabled {
             let channel_data = influx::ChannelData::InputData(serde_json::to_value(&input)?);
             if self.channels.to_influx.send(channel_data).is_err() {
                 bail!("send(to_influx) failed - channel closed?");

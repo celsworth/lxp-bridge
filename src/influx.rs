@@ -14,32 +14,33 @@ pub enum ChannelData {
 pub type Sender = broadcast::Sender<ChannelData>;
 
 pub struct Influx {
-    config: Rc<Config>,
+    config: ConfigWrapper,
     channels: Channels,
 }
 
 impl Influx {
-    pub fn new(config: Rc<Config>, channels: Channels) -> Self {
+    pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
         Self { config, channels }
     }
 
     pub async fn start(&self) -> Result<()> {
-        let config = &self.config.influx;
-
-        if !config.enabled {
+        if !&self.config.influx().enabled {
             info!("influx disabled, skipping");
             return Ok(());
         }
 
-        info!("initializing influx at {}", config.url);
+        info!("initializing influx at {}", self.config.influx().url);
 
-        let url = reqwest::Url::parse(&config.url)?;
-        let credentials = match (&config.username, &config.password) {
-            (Some(u), Some(p)) => Some((u, p)),
-            _ => None,
+        let client = {
+            let config = self.config.influx();
+            let url = reqwest::Url::parse(&config.url)?;
+            let credentials = match (&config.username, &config.password) {
+                (Some(u), Some(p)) => Some((u, p)),
+                _ => None,
+            };
+
+            Client::new(url, credentials)?
         };
-
-        let client = Client::new(url, credentials)?;
 
         futures::try_join!(self.sender(client))?;
 
@@ -80,7 +81,7 @@ impl Influx {
 
                     let lines = vec![line.build()];
 
-                    while let Err(err) = client.send(&self.config.influx.database, &lines).await {
+                    while let Err(err) = client.send(&self.database(), &lines).await {
                         error!("push failed: {:?} - retrying in 10s", err);
                         tokio::time::sleep(std::time::Duration::from_secs(10)).await;
                     }
@@ -91,5 +92,9 @@ impl Influx {
         info!("sender loop exiting");
 
         Ok(())
+    }
+
+    fn database(&self) -> String {
+        self.config.influx().database.clone()
     }
 }

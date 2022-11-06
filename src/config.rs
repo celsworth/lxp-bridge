@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_with::{formats::CommaSeparator, serde_as, StringWithSeparator}; //, OneOrMany;
 
 #[serde_as]
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     pub inverters: Vec<Inverter>,
     //#[serde_as(deserialize_as = "OneOrMany<_>")]
@@ -106,6 +106,98 @@ pub struct Crontab {
     pub enabled: bool,
 
     pub cron: String,
+}
+
+pub struct ConfigWrapper {
+    config: Rc<RefCell<Config>>,
+}
+
+impl Clone for ConfigWrapper {
+    fn clone(&self) -> Self {
+        Self {
+            config: Rc::clone(&self.config),
+        }
+    }
+}
+
+impl ConfigWrapper {
+    pub fn new(file: String) -> Result<Self> {
+        let config = Rc::new(RefCell::new(Config::new(file)?));
+
+        Ok(Self { config })
+    }
+
+    pub fn inverters(&self) -> Ref<Vec<Inverter>> {
+        Ref::map(self.config.borrow(), |b| &b.inverters)
+    }
+
+    pub fn enabled_inverters(&self) -> Vec<Inverter> {
+        self.inverters()
+            .iter()
+            .filter(|inverter| inverter.enabled)
+            .cloned()
+            .collect()
+    }
+
+    pub fn inverters_for_message(&self, message: &mqtt::Message) -> Result<Vec<Inverter>> {
+        use mqtt::SerialOrAll::*;
+
+        let inverters = self.enabled_inverters();
+
+        let r = match message.split_cmd_topic()? {
+            All => inverters,
+            Serial(datalog) => inverters
+                .iter()
+                .filter(|i| i.datalog == datalog)
+                .cloned()
+                .collect(),
+        };
+
+        Ok(r)
+    }
+
+    pub fn mqtt(&self) -> Ref<Mqtt> {
+        Ref::map(self.config.borrow(), |b| &b.mqtt)
+    }
+
+    pub fn influx(&self) -> Ref<Influx> {
+        Ref::map(self.config.borrow(), |b| &b.influx)
+    }
+
+    pub fn influx_mut(&self) -> RefMut<Influx> {
+        RefMut::map(self.config.borrow_mut(), |b: &mut Config| &mut b.influx)
+    }
+
+    pub fn databases(&self) -> Ref<Vec<Database>> {
+        Ref::map(self.config.borrow(), |b| &b.databases)
+    }
+
+    pub fn databases_ref(&self) -> Ref<Vec<Database>> {
+        Ref::map(self.config.borrow(), |b| &b.databases)
+    }
+
+    pub fn databases_mut(&self) -> RefMut<Vec<Database>> {
+        RefMut::map(self.config.borrow_mut(), |b: &mut Config| &mut b.databases)
+    }
+
+    pub fn enabled_database_count(&self) -> usize {
+        self.databases()
+            .iter()
+            .filter(|database| database.enabled)
+            .count()
+    }
+
+    pub fn enabled_databases(&self) -> Vec<Database> {
+        self.databases()
+            .iter()
+            .filter(|database| database.enabled)
+            .cloned()
+            .collect()
+    }
+
+    pub fn scheduler(&self) -> Ref<Option<Scheduler>> {
+        Ref::map(self.config.borrow(), |b| &b.scheduler)
+    }
 }
 
 impl Config {

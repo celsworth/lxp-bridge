@@ -36,24 +36,24 @@ pub async fn app() -> Result<()> {
 
     info!("lxp-bridge {} starting", CARGO_PKG_VERSION);
 
-    let config = Rc::new(Config::new(options.config_file)?);
+    let config = ConfigWrapper::new(options.config_file)?;
 
     let channels = Channels::new();
 
-    let scheduler = Scheduler::new(Rc::clone(&config), channels.clone());
-    let mqtt = Mqtt::new(Rc::clone(&config), channels.clone());
-    let influx = Influx::new(Rc::clone(&config), channels.clone());
-    let coordinator = Coordinator::new(Rc::clone(&config), channels.clone());
+    let scheduler = Scheduler::new(config.clone(), channels.clone());
+    let mqtt = Mqtt::new(config.clone(), channels.clone());
+    let influx = Influx::new(config.clone(), channels.clone());
+    let coordinator = Coordinator::new(config.clone(), channels.clone());
 
     let inverters = config
         .enabled_inverters()
-        .cloned()
+        .into_iter()
         .map(|inverter| Inverter::new(inverter, channels.clone()))
         .collect();
 
     let databases = config
         .enabled_databases()
-        .cloned()
+        .into_iter()
         .map(|database| Database::new(database, channels.clone()))
         .collect();
 

@@ -6,16 +6,15 @@ async fn publishes_read_hold_mqtt() {
     common_setup();
 
     // setup config with only mqtt enabled
-    let mut config = Factory::example_config();
-    config.influx.enabled = false;
-    config.databases[0].enabled = false;
-    let config = Rc::new(config);
+    let config = Factory::example_config_wrapped();
+    config.influx_mut().enabled = false;
+    config.databases_mut()[0].enabled = false;
 
-    let inverter = &config.inverters[0];
+    let inverter = &config.inverters()[0].clone();
 
     let channels = Channels::new();
 
-    let coordinator = Coordinator::new(Rc::clone(&config), channels.clone());
+    let coordinator = Coordinator::new(config, channels.clone());
 
     let tf = async {
         let mut to_influx = channels.to_influx.subscribe();
@@ -58,15 +57,14 @@ async fn publishes_read_hold_mqtt() {
 async fn handles_read_input_all() {
     common_setup();
 
-    let mut config = Factory::example_config();
-    config.influx.enabled = true;
-    config.databases[0].enabled = true;
-    let config = Rc::new(config);
-    let inverter = &config.inverters[0];
+    let config = Factory::example_config_wrapped();
+    config.influx_mut().enabled = true;
+    config.databases_mut()[0].enabled = true;
+    let inverter = config.inverters()[0].clone();
 
     let channels = Channels::new();
 
-    let coordinator = Coordinator::new(Rc::clone(&config), channels.clone());
+    let coordinator = Coordinator::new(config, channels.clone());
 
     let tf = async {
         let mut to_influx = channels.to_influx.subscribe();
@@ -114,13 +112,13 @@ async fn handles_read_input_all() {
 async fn complete_path_read_hold_command() {
     common_setup();
 
-    let config = Rc::new(Factory::example_config());
+    let config = Factory::example_config_wrapped();
 
-    let inverter = &config.inverters[0];
+    let inverter = config.inverters()[0].clone();
 
     let channels = Channels::new();
 
-    let coordinator = Coordinator::new(Rc::clone(&config), channels.clone());
+    let coordinator = Coordinator::new(config, channels.clone());
 
     let tf = async {
         let mut to_inverter = channels.to_inverter.subscribe();
