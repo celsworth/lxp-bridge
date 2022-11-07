@@ -24,6 +24,8 @@ pub struct Database {
 }
 
 impl Database {
+    // databases don't bother with a ConfigWrapper yet as they don't care about any
+    // changes once running; there's only enabled/url anyway and we'd use url to key off.
     pub fn new(config: config::Database, channels: Channels) -> Self {
         Self {
             config,

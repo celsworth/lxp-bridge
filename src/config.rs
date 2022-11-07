@@ -226,6 +226,7 @@ impl Crontab {
     }
 } // }}}
 
+#[derive(Debug)]
 pub struct ConfigWrapper {
     config: Rc<RefCell<Config>>,
 }
@@ -306,6 +307,7 @@ impl ConfigWrapper {
         let mut c = self.config.borrow_mut();
         c.databases = new;
     }
+
     pub fn databases_mut(&self) -> RefMut<Vec<Database>> {
         RefMut::map(self.config.borrow_mut(), |b: &mut Config| &mut b.databases)
     }
