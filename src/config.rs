@@ -45,12 +45,12 @@ impl Inverter {
         self.port
     }
 
-    pub fn serial(&self) -> &Serial {
-        &self.serial
+    pub fn serial(&self) -> Serial {
+        self.serial
     }
 
-    pub fn datalog(&self) -> &Serial {
-        &self.datalog
+    pub fn datalog(&self) -> Serial {
+        self.datalog
     }
 
     pub fn heartbeats(&self) -> bool {

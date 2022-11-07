@@ -151,7 +151,7 @@ impl Inverter {
             info!("inverter {}: reconnecting in 5s", self.config().datalog());
             self.channels
                 .from_inverter
-                .send(ChannelData::Disconnect(*self.config().datalog()))?; // kill any waiting readers
+                .send(ChannelData::Disconnect(self.config().datalog()))?; // kill any waiting readers
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
 
@@ -257,7 +257,7 @@ impl Inverter {
                     // never complete. ideally we need to pass the fixed packet back?
                     //self.fix_outgoing_packet_serials(&mut packet);
 
-                    if packet.datalog() == *self.config().datalog() {
+                    if packet.datalog() == self.config().datalog() {
                         //debug!("inverter {}: TX {:?}", self.config.datalog, packet);
                         let bytes = lxp::packet::TcpFrameFactory::build(&packet);
                         debug!("inverter {}: TX {:?}", self.config().datalog(), bytes);
@@ -299,7 +299,7 @@ impl Inverter {
     */
 
     fn compare_datalog(&self, packet: Serial) {
-        if packet != *self.config().datalog() {
+        if packet != self.config().datalog() {
             warn!(
                 "datalog serial mismatch found; packet={}, config={} - please check config!",
                 packet,
@@ -311,7 +311,7 @@ impl Inverter {
     }
 
     fn compare_inverter(&self, packet: Serial) {
-        if packet != *self.config().serial() {
+        if packet != self.config().serial() {
             warn!(
                 "inverter serial mismatch found; packet={}, config={} - please check config!",
                 packet,

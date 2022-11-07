@@ -23,9 +23,9 @@ async fn publishes_read_hold_mqtt() {
 
         // simulate ReadHold in from inverter
         let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: *inverter.datalog(),
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::ReadHold,
-            inverter: *inverter.serial(),
+            inverter: inverter.serial(),
             register: 12,
             values: vec![22, 6],
         });
@@ -73,9 +73,9 @@ async fn handles_read_input_all() {
 
         // simulate ReadHold in from inverter
         let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: *inverter.datalog(),
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::ReadInput,
-            inverter: *inverter.serial(),
+            inverter: inverter.serial(),
             register: 0,
             values: vec![1; 254],
         });
@@ -137,9 +137,9 @@ async fn complete_path_read_hold_command() {
 
         //   wait for inverter to receive the right packet
         let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: *inverter.datalog(),
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::ReadHold,
-            inverter: *inverter.serial(),
+            inverter: inverter.serial(),
             register: 12,
             values: vec![1, 0],
         });
@@ -150,9 +150,9 @@ async fn complete_path_read_hold_command() {
 
         //   send the packet back from the inverter
         let reply = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: *inverter.datalog(),
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::ReadHold,
-            inverter: *inverter.serial(),
+            inverter: inverter.serial(),
             register: 12,
             values: vec![22, 6],
         });
