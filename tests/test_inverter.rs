@@ -12,7 +12,8 @@ async fn serials_fixed_in_outgoing_packets() {
 
     common_setup();
 
-    let config = config::Inverter {
+    let config = Factory::example_config_wrapped();
+    let inverter = config::Inverter {
         enabled: true,
         host: "localhost".to_owned(),
         port: 1235,
@@ -21,7 +22,7 @@ async fn serials_fixed_in_outgoing_packets() {
         heartbeats: None,
     };
     let channels = Channels::new();
-    let inverter = lxp::inverter::Inverter::new(config, channels.clone());
+    let inverter = lxp::inverter::Inverter::new(config, &inverter, channels.clone());
 
     let mut from_inverter = channels.from_inverter.subscribe();
 
@@ -99,7 +100,8 @@ async fn serials_fixed_in_outgoing_packets() {
 async fn test_replies_to_heartbeats() {
     common_setup();
 
-    let config = config::Inverter {
+    let config = Factory::example_config_wrapped();
+    let inverter = config::Inverter {
         enabled: true,
         host: "localhost".to_owned(),
         port: 1235,
@@ -108,7 +110,7 @@ async fn test_replies_to_heartbeats() {
         heartbeats: Some(true),
     };
     let channels = Channels::new();
-    let inverter = lxp::inverter::Inverter::new(config, channels.clone());
+    let inverter = lxp::inverter::Inverter::new(config, &inverter, channels.clone());
 
     let from_inverter = channels.from_inverter.subscribe();
 

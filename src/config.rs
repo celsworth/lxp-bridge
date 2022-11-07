@@ -17,6 +17,7 @@ pub struct Config {
     pub scheduler: Option<Scheduler>,
 }
 
+// Inverter {{{
 #[derive(Clone, Debug, Deserialize)]
 pub struct Inverter {
     #[serde(default = "Config::default_enabled")]
@@ -31,15 +32,33 @@ pub struct Inverter {
 
     pub heartbeats: Option<bool>,
 }
+impl Inverter {
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
 
-fn de_serial<'de, D>(deserializer: D) -> Result<Serial, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    let raw = String::deserialize(deserializer)?;
-    raw.parse().map_err(serde::de::Error::custom)
-}
+    pub fn host(&self) -> &str {
+        &self.host
+    }
 
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    pub fn serial(&self) -> &Serial {
+        &self.serial
+    }
+
+    pub fn datalog(&self) -> &Serial {
+        &self.datalog
+    }
+
+    pub fn heartbeats(&self) -> bool {
+        self.heartbeats == Some(true)
+    }
+} // }}}
+
+// HomeAssistant {{{
 #[serde_as]
 #[derive(Clone, Debug, Deserialize)]
 pub struct HomeAssistant {
@@ -53,7 +72,20 @@ pub struct HomeAssistant {
     #[serde_as(as = "StringWithSeparator::<CommaSeparator, String>")]
     pub sensors: Vec<String>,
 }
+impl HomeAssistant {
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
 
+    pub fn prefix(&self) -> &str {
+        &self.prefix
+    }
+    pub fn sensors(&self) -> &Vec<String> {
+        &self.sensors
+    }
+} // }}}
+
+// Mqtt {{{
 #[derive(Clone, Debug, Deserialize)]
 pub struct Mqtt {
     #[serde(default = "Config::default_enabled")]
@@ -71,7 +103,37 @@ pub struct Mqtt {
     #[serde(default = "Config::default_mqtt_homeassistant")]
     pub homeassistant: HomeAssistant,
 }
+impl Mqtt {
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
 
+    pub fn host(&self) -> &str {
+        &self.host
+    }
+
+    pub fn port(&self) -> u16 {
+        self.port
+    }
+
+    pub fn username(&self) -> &Option<String> {
+        &self.username
+    }
+
+    pub fn password(&self) -> &Option<String> {
+        &self.password
+    }
+
+    pub fn namespace(&self) -> &str {
+        &self.namespace
+    }
+
+    pub fn homeassistant(&self) -> &HomeAssistant {
+        &self.homeassistant
+    }
+} // }}}
+
+// Influx {{{
 #[derive(Clone, Debug, Deserialize)]
 pub struct Influx {
     #[serde(default = "Config::default_enabled")]
@@ -83,7 +145,29 @@ pub struct Influx {
 
     pub database: String,
 }
+impl Influx {
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
 
+    pub fn url(&self) -> &str {
+        &self.url
+    }
+
+    pub fn username(&self) -> &Option<String> {
+        &self.username
+    }
+
+    pub fn password(&self) -> &Option<String> {
+        &self.password
+    }
+
+    pub fn database(&self) -> &str {
+        &self.database
+    }
+} // }}}
+
+// Database {{{
 #[derive(Clone, Debug, Deserialize)]
 pub struct Database {
     #[serde(default = "Config::default_enabled")]
@@ -91,7 +175,22 @@ pub struct Database {
 
     pub url: String,
 }
+impl Database {
+    pub fn new(enabled: bool, url: String) -> Self {
+        // used in tests
+        Self { enabled, url }
+    }
 
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn url(&self) -> &str {
+        &self.url
+    }
+} // }}}
+
+// Scheduler {{{
 #[derive(Clone, Debug, Deserialize)]
 pub struct Scheduler {
     #[serde(default = "Config::default_enabled")]
@@ -99,7 +198,17 @@ pub struct Scheduler {
 
     pub timesync: Crontab,
 }
+impl Scheduler {
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
 
+    pub fn timesync(&self) -> &Crontab {
+        &self.timesync
+    }
+} // }}}
+
+// Crontab {{{
 #[derive(Clone, Debug, Deserialize)]
 pub struct Crontab {
     #[serde(default = "Config::default_enabled")]
@@ -107,6 +216,15 @@ pub struct Crontab {
 
     pub cron: String,
 }
+impl Crontab {
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
+
+    pub fn cron(&self) -> &str {
+        &self.cron
+    }
+} // }}}
 
 pub struct ConfigWrapper {
     config: Rc<RefCell<Config>>,
@@ -131,12 +249,24 @@ impl ConfigWrapper {
         Ref::map(self.config.borrow(), |b| &b.inverters)
     }
 
+    pub fn set_inverters(&self, new: Vec<Inverter>) {
+        let mut c = self.config.borrow_mut();
+        c.inverters = new;
+    }
+
     pub fn enabled_inverters(&self) -> Vec<Inverter> {
         self.inverters()
             .iter()
             .filter(|inverter| inverter.enabled)
             .cloned()
             .collect()
+    }
+
+    pub fn inverter_with_host(&self, host: &str) -> Option<Inverter> {
+        self.inverters()
+            .iter()
+            .find(|inverter| inverter.host == host)
+            .cloned()
     }
 
     pub fn inverters_for_message(&self, message: &mqtt::Message) -> Result<Vec<Inverter>> {
@@ -172,10 +302,10 @@ impl ConfigWrapper {
         Ref::map(self.config.borrow(), |b| &b.databases)
     }
 
-    pub fn databases_ref(&self) -> Ref<Vec<Database>> {
-        Ref::map(self.config.borrow(), |b| &b.databases)
+    pub fn set_databases(&self, new: Vec<Database>) {
+        let mut c = self.config.borrow_mut();
+        c.databases = new;
     }
-
     pub fn databases_mut(&self) -> RefMut<Vec<Database>> {
         RefMut::map(self.config.borrow_mut(), |b: &mut Config| &mut b.databases)
     }
@@ -205,27 +335,6 @@ impl Config {
         Ok(serde_yaml::from_str(&content)?)
     }
 
-    pub fn enabled_inverters(&self) -> impl Iterator<Item = &Inverter> {
-        self.inverters.iter().filter(|inverter| inverter.enabled)
-    }
-
-    // find the inverter(s) in our config for the given message.
-    pub fn inverters_for_message(&self, message: &mqtt::Message) -> Result<Vec<Inverter>> {
-        use mqtt::SerialOrAll::*;
-
-        let inverters = self.enabled_inverters();
-
-        let r = match message.split_cmd_topic()? {
-            All => inverters.cloned().collect(),
-            Serial(datalog) => inverters
-                .filter(|i| i.datalog == datalog)
-                .cloned()
-                .collect(),
-        };
-
-        Ok(r)
-    }
-
     fn default_mqtt_port() -> u16 {
         1883
     }
@@ -252,8 +361,12 @@ impl Config {
     fn default_enabled() -> bool {
         true
     }
+}
 
-    pub fn enabled_databases(&self) -> impl Iterator<Item = &Database> {
-        self.databases.iter().filter(|database| database.enabled)
-    }
+fn de_serial<'de, D>(deserializer: D) -> Result<Serial, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let raw = String::deserialize(deserializer)?;
+    raw.parse().map_err(serde::de::Error::custom)
 }

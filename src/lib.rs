@@ -48,7 +48,7 @@ pub async fn app() -> Result<()> {
     let inverters = config
         .enabled_inverters()
         .into_iter()
-        .map(|inverter| Inverter::new(inverter, channels.clone()))
+        .map(|inverter| Inverter::new(config.clone(), &inverter, channels.clone()))
         .collect();
 
     let databases = config

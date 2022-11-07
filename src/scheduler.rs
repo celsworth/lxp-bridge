@@ -22,16 +22,16 @@ impl Scheduler {
         }
 
         let scheduler = scheduler.unwrap();
-        if !scheduler.enabled {
+        if !scheduler.enabled() {
             info!("scheduler disabled, skipping");
             return Ok(());
         }
 
         info!("scheduler starting");
 
-        if scheduler.timesync.enabled {
+        if scheduler.timesync().enabled() {
             // sticking to Utc here avoids some "invalid date" panics around DST changes
-            while let Ok(next) = parse(&scheduler.timesync.cron, &Utils::utc()) {
+            while let Ok(next) = parse(scheduler.timesync().cron(), &Utils::utc()) {
                 let sleep = next - Utils::utc();
 
                 // localtime is only used for display

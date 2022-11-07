@@ -122,22 +122,36 @@ impl std::fmt::Debug for Serial {
 } // }}}
 
 pub struct Inverter {
-    config: config::Inverter,
+    config: ConfigWrapper,
+    host: String,
     channels: Channels,
 }
 
 impl Inverter {
-    pub fn new(config: config::Inverter, channels: Channels) -> Self {
-        Self { config, channels }
+    pub fn new(config: ConfigWrapper, inverter: &config::Inverter, channels: Channels) -> Self {
+        // remember which inverter this instance is for
+        let host = inverter.host().to_string();
+
+        Self {
+            config,
+            host,
+            channels,
+        }
+    }
+
+    pub fn config(&self) -> config::Inverter {
+        self.config
+            .inverter_with_host(&self.host)
+            .expect("can't find my inverter")
     }
 
     pub async fn start(&self) -> Result<()> {
         while let Err(e) = self.connect().await {
-            error!("inverter {}: {}", self.config.datalog, e);
-            info!("inverter {}: reconnecting in 5s", self.config.datalog);
+            error!("inverter {}: {}", self.config().datalog(), e);
+            info!("inverter {}: reconnecting in 5s", self.config().datalog());
             self.channels
                 .from_inverter
-                .send(ChannelData::Disconnect(self.config.datalog))?; // kill any waiting readers
+                .send(ChannelData::Disconnect(*self.config().datalog()))?; // kill any waiting readers
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
         }
 
@@ -153,17 +167,19 @@ impl Inverter {
 
         info!(
             "connecting to inverter {} at {}:{}",
-            &self.config.datalog, &self.config.host, self.config.port
+            self.config().datalog(),
+            self.config().host(),
+            self.config().port()
         );
 
-        let inverter_hp = (self.config.host.to_string(), self.config.port);
+        let inverter_hp = (self.config().host().to_owned(), self.config().port());
 
         let stream = tokio::net::TcpStream::connect(inverter_hp).await?;
         let std_stream = stream.into_std()?;
         std_stream.set_keepalive(Some(std::time::Duration::new(60, 0)))?;
         let (reader, writer) = tokio::net::TcpStream::from_std(std_stream)?.into_split();
 
-        info!("inverter {}: connected!", self.config.datalog);
+        info!("inverter {}: connected!", self.config().datalog());
 
         futures::try_join!(self.sender(writer), self.receiver(reader))?;
 
@@ -209,7 +225,7 @@ impl Inverter {
         // bytes received are logged in packet_decoder, no need here
         //debug!("inverter {}: RX {:?}", self.config.datalog, packet);
 
-        if self.config.heartbeats == Some(true)
+        if self.config().heartbeats()
             && packet.tcp_function() == lxp::packet::TcpFunction::Heartbeat
         {
             self.channels
@@ -241,17 +257,17 @@ impl Inverter {
                     // never complete. ideally we need to pass the fixed packet back?
                     //self.fix_outgoing_packet_serials(&mut packet);
 
-                    if packet.datalog() == self.config.datalog {
+                    if packet.datalog() == *self.config().datalog() {
                         //debug!("inverter {}: TX {:?}", self.config.datalog, packet);
                         let bytes = lxp::packet::TcpFrameFactory::build(&packet);
-                        debug!("inverter {}: TX {:?}", self.config.datalog, bytes);
+                        debug!("inverter {}: TX {:?}", self.config().datalog(), bytes);
                         socket.write_all(&bytes).await?
                     }
                 }
             }
         }
 
-        info!("inverter {}: sender exiting", self.config.datalog);
+        info!("inverter {}: sender exiting", self.config().datalog());
 
         Ok(())
     }
@@ -283,10 +299,11 @@ impl Inverter {
     */
 
     fn compare_datalog(&self, packet: Serial) {
-        if packet != self.config.datalog {
+        if packet != *self.config().datalog() {
             warn!(
                 "datalog serial mismatch found; packet={}, config={} - please check config!",
-                packet, self.config.datalog
+                packet,
+                self.config().datalog()
             );
             // uncomment this when I fix serials in outgoing packets?
             //self.config.datalog = packet;
@@ -294,10 +311,11 @@ impl Inverter {
     }
 
     fn compare_inverter(&self, packet: Serial) {
-        if packet != self.config.serial {
+        if packet != *self.config().serial() {
             warn!(
                 "inverter serial mismatch found; packet={}, config={} - please check config!",
-                packet, self.config.serial
+                packet,
+                self.config().serial()
             );
             // uncomment this when I fix serials in outgoing packets?
             //self.config.serial = packet;

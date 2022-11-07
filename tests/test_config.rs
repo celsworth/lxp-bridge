@@ -72,9 +72,9 @@ fn homeassistant_sensors_parsing() {
 
 #[test]
 fn enabled_inverters() {
-    let mut config = Factory::example_config();
+    let config = Factory::example_config_wrapped();
 
-    config.inverters = vec![
+    config.set_inverters(vec![
         config::Inverter {
             enabled: false,
             datalog: example_serial(),
@@ -91,17 +91,16 @@ fn enabled_inverters() {
             serial: example_serial(),
             heartbeats: None,
         },
-    ];
+    ]);
 
-    let r: Vec<&config::Inverter> = config.enabled_inverters().collect();
-    assert_eq!(r.len(), 1);
+    assert_eq!(config.enabled_inverters().len(), 1);
 }
 
 #[test]
 fn inverters_for_message() {
-    let mut config = Factory::example_config();
+    let config = Factory::example_config_wrapped();
 
-    config.inverters = vec![
+    config.set_inverters(vec![
         config::Inverter {
             enabled: true,
             datalog: example_serial(),
@@ -118,7 +117,7 @@ fn inverters_for_message() {
             serial: example_serial(),
             heartbeats: None,
         },
-    ];
+    ]);
 
     let message = mqtt::Message {
         topic: "cmd/all/foo".to_string(),
@@ -147,9 +146,9 @@ fn inverters_for_message() {
 
 #[test]
 fn enabled_databases() {
-    let mut config = Factory::example_config();
+    let config = Factory::example_config_wrapped();
 
-    config.databases = vec![
+    config.set_databases(vec![
         config::Database {
             enabled: false,
             url: "sqlite://test.db".to_owned(),
@@ -158,8 +157,7 @@ fn enabled_databases() {
             enabled: true,
             url: "sqlite://test.db".to_owned(),
         },
-    ];
+    ]);
 
-    let r: Vec<&config::Database> = config.enabled_databases().collect();
-    assert_eq!(r.len(), 1);
+    assert_eq!(config.enabled_databases().len(), 1);
 }

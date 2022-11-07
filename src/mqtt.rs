@@ -184,19 +184,23 @@ impl Mqtt {
     pub async fn start(&self) -> Result<()> {
         let c = &self.config;
 
-        if !c.mqtt().enabled {
+        if !c.mqtt().enabled() {
             info!("mqtt disabled, skipping");
             return Ok(());
         }
 
-        let mut options = MqttOptions::new("lxp-bridge", &c.mqtt().host, c.mqtt().port);
+        let mut options = MqttOptions::new("lxp-bridge", c.mqtt().host(), c.mqtt().port());
 
         options.set_keep_alive(std::time::Duration::from_secs(60));
-        if let (Some(u), Some(p)) = (&c.mqtt().username, &c.mqtt().password) {
+        if let (Some(u), Some(p)) = (c.mqtt().username(), c.mqtt().password()) {
             options.set_credentials(u, p);
         }
 
-        info!("initializing mqtt at {}:{}", &c.mqtt().host, c.mqtt().port);
+        info!(
+            "initializing mqtt at {}:{}",
+            c.mqtt().host(),
+            c.mqtt().port()
+        );
 
         let (client, eventloop) = AsyncClient::new(options, 10);
 
@@ -218,7 +222,7 @@ impl Mqtt {
     async fn setup(&self, client: AsyncClient) -> Result<()> {
         client
             .subscribe(
-                format!("{}/cmd/all/#", self.config.mqtt().namespace),
+                format!("{}/cmd/all/#", self.config.mqtt().namespace()),
                 QoS::AtMostOnce,
             )
             .await?;
@@ -228,14 +232,14 @@ impl Mqtt {
                 .subscribe(
                     format!(
                         "{}/cmd/{}/#",
-                        self.config.mqtt().namespace,
-                        inverter.datalog
+                        self.config.mqtt().namespace(),
+                        inverter.datalog()
                     ),
                     QoS::AtMostOnce,
                 )
                 .await?;
 
-            if self.config.mqtt().homeassistant.enabled {
+            if self.config.mqtt().homeassistant().enabled() {
                 let msgs = home_assistant::Config::all(&inverter, &self.config.mqtt())?;
                 for msg in msgs.into_iter() {
                     let _ = client
@@ -281,7 +285,7 @@ impl Mqtt {
     fn handle_message(&self, publish: Publish) -> Result<()> {
         // remove the namespace, including the first /
         // doing it this way means we don't break if namespace happens to contain a /
-        let topic = publish.topic[self.config.mqtt().namespace.len() + 1..].to_owned();
+        let topic = publish.topic[self.config.mqtt().namespace().len() + 1..].to_owned();
 
         let message = Message {
             topic,
@@ -310,7 +314,7 @@ impl Mqtt {
             match receiver.recv().await? {
                 Shutdown => break,
                 Message(message) => {
-                    let topic = format!("{}/{}", self.config.mqtt().namespace, message.topic);
+                    let topic = format!("{}/{}", self.config.mqtt().namespace(), message.topic);
                     info!("publishing: {} = {}", topic, message.payload);
                     let _ = client
                         .publish(&topic, QoS::AtLeastOnce, false, message.payload)

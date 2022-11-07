@@ -24,17 +24,17 @@ impl Influx {
     }
 
     pub async fn start(&self) -> Result<()> {
-        if !&self.config.influx().enabled {
+        if !self.config.influx().enabled() {
             info!("influx disabled, skipping");
             return Ok(());
         }
 
-        info!("initializing influx at {}", self.config.influx().url);
+        info!("initializing influx at {}", self.config.influx().url());
 
         let client = {
             let config = self.config.influx();
-            let url = reqwest::Url::parse(&config.url)?;
-            let credentials = match (&config.username, &config.password) {
+            let url = reqwest::Url::parse(config.url())?;
+            let credentials = match (config.username(), config.password()) {
                 (Some(u), Some(p)) => Some((u, p)),
                 _ => None,
             };
@@ -95,6 +95,6 @@ impl Influx {
     }
 
     fn database(&self) -> String {
-        self.config.influx().database.clone()
+        self.config.influx().database().to_string()
     }
 }

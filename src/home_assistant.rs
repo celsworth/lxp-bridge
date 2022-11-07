@@ -82,18 +82,8 @@ impl Config {
                 "Energy to Grid (All time)",
             )?,
             Self::temperature(inverter, mqtt_config, "t_inner", "Inverter Temperature")?,
-            Self::temperature(
-                inverter,
-                mqtt_config,
-                "t_rad_1",
-                "Radiator 1 Temperature",
-            )?,
-            Self::temperature(
-                inverter,
-                mqtt_config,
-                "t_rad_2",
-                "Radiator 2 Temperature",
-            )?,
+            Self::temperature(inverter, mqtt_config, "t_rad_1", "Radiator 1 Temperature")?,
+            Self::temperature(inverter, mqtt_config, "t_rad_2", "Radiator 2 Temperature")?,
         ];
 
         // drop all None
@@ -106,7 +96,7 @@ impl Config {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -117,16 +107,19 @@ impl Config {
             value_template: format!("{{{{ value_json.{} }}}}", name),
             state_topic: format!(
                 "{}/{}/inputs/all",
-                mqtt_config.namespace, inverter.datalog
+                mqtt_config.namespace(),
+                inverter.datalog()
             ),
-            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
-                mqtt_config.homeassistant.prefix, inverter.datalog, name
+                mqtt_config.homeassistant().prefix(),
+                inverter.datalog(),
+                name
             ),
             payload: serde_json::to_string(&config)?,
         }))
@@ -138,7 +131,7 @@ impl Config {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -149,16 +142,19 @@ impl Config {
             value_template: format!("{{{{ value_json.{} }}}}", name),
             state_topic: format!(
                 "{}/{}/inputs/all",
-                mqtt_config.namespace, inverter.datalog
+                mqtt_config.namespace(),
+                inverter.datalog()
             ),
-            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
-                mqtt_config.homeassistant.prefix, inverter.datalog, name
+                mqtt_config.homeassistant().prefix(),
+                inverter.datalog(),
+                name
             ),
             payload: serde_json::to_string(&config)?,
         }))
@@ -170,7 +166,7 @@ impl Config {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -181,16 +177,19 @@ impl Config {
             value_template: format!("{{{{ value_json.{} }}}}", name),
             state_topic: format!(
                 "{}/{}/inputs/all",
-                mqtt_config.namespace, inverter.datalog
+                mqtt_config.namespace(),
+                inverter.datalog()
             ),
-            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
-                mqtt_config.homeassistant.prefix, inverter.datalog, name
+                mqtt_config.homeassistant().prefix(),
+                inverter.datalog(),
+                name
             ),
             payload: serde_json::to_string(&config)?,
         }))
@@ -202,7 +201,7 @@ impl Config {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -213,16 +212,19 @@ impl Config {
             value_template: format!("{{{{ value_json.{} }}}}", name),
             state_topic: format!(
                 "{}/{}/inputs/all",
-                mqtt_config.namespace, inverter.datalog
+                mqtt_config.namespace(),
+                inverter.datalog()
             ),
-            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
-                mqtt_config.homeassistant.prefix, inverter.datalog, name
+                mqtt_config.homeassistant().prefix(),
+                inverter.datalog(),
+                name
             ),
 
             payload: serde_json::to_string(&config)?,
@@ -235,7 +237,7 @@ impl Config {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(&mqtt_config.homeassistant.sensors, name) {
+        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -246,16 +248,19 @@ impl Config {
             value_template: format!("{{{{ value_json.{} }}}}", name),
             state_topic: format!(
                 "{}/{}/inputs/all",
-                mqtt_config.namespace, inverter.datalog
+                mqtt_config.namespace(),
+                inverter.datalog()
             ),
-            unique_id: format!("lxp_{}_{}", inverter.datalog, name),
+            unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
                 "{}/sensor/{}_{}/config",
-                mqtt_config.homeassistant.prefix, inverter.datalog, name
+                mqtt_config.homeassistant().prefix(),
+                inverter.datalog(),
+                name
             ),
             payload: serde_json::to_string(&config)?,
         }))
