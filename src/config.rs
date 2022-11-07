@@ -180,11 +180,8 @@ impl ConfigWrapper {
         RefMut::map(self.config.borrow_mut(), |b: &mut Config| &mut b.databases)
     }
 
-    pub fn enabled_database_count(&self) -> usize {
-        self.databases()
-            .iter()
-            .filter(|database| database.enabled)
-            .count()
+    pub fn have_enabled_database(&self) -> bool {
+        self.databases().iter().any(|database| database.enabled)
     }
 
     pub fn enabled_databases(&self) -> Vec<Database> {

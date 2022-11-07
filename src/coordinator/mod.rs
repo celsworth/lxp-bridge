@@ -13,19 +13,12 @@ pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs
 
 pub struct Coordinator {
     config: ConfigWrapper,
-    have_enabled_databases: bool,
     channels: Channels,
 }
 
 impl Coordinator {
     pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
-        let have_enabled_databases = config.enabled_database_count() > 0;
-
-        Self {
-            config,
-            have_enabled_databases,
-            channels,
-        }
+        Self { config, channels }
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -331,7 +324,7 @@ impl Coordinator {
             }
         }
 
-        if self.have_enabled_databases {
+        if self.config.have_enabled_database() {
             let channel_data = database::ChannelData::ReadInputAll(input);
             if self.channels.to_database.send(channel_data).is_err() {
                 bail!("send(to_database) failed - channel closed?");
