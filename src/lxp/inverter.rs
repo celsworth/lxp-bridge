@@ -121,30 +121,14 @@ impl std::fmt::Debug for Serial {
     }
 } // }}}
 
-// these are kept separately because we learn what the correct ones are from the inverter
-struct Serials {
-    pub datalog: Serial,
-    pub inverter: Serial,
-}
-
 pub struct Inverter {
     config: config::Inverter,
     channels: Channels,
-    serials: RefCell<Serials>,
 }
 
 impl Inverter {
     pub fn new(config: config::Inverter, channels: Channels) -> Self {
-        let serials = RefCell::new(Serials {
-            datalog: config.datalog,
-            inverter: config.serial,
-        });
-
-        Self {
-            config,
-            channels,
-            serials,
-        }
+        Self { config, channels }
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -257,7 +241,7 @@ impl Inverter {
                     // never complete. ideally we need to pass the fixed packet back?
                     //self.fix_outgoing_packet_serials(&mut packet);
 
-                    if packet.datalog() == self.serials.borrow().datalog {
+                    if packet.datalog() == self.config.datalog {
                         //debug!("inverter {}: TX {:?}", self.config.datalog, packet);
                         let bytes = lxp::packet::TcpFrameFactory::build(&packet);
                         debug!("inverter {}: TX {:?}", self.config.datalog, bytes);
@@ -273,6 +257,7 @@ impl Inverter {
     }
 
     /* TODO. need to solve wait_for_reply hanging when we fix the serials.. */
+    /*
     #[allow(dead_code)]
     fn fix_outgoing_packet_serials(&self, packet: &mut Packet) {
         let ob = self.serials.borrow();
@@ -295,30 +280,27 @@ impl Inverter {
             }
         }
     }
+    */
 
     fn compare_datalog(&self, packet: Serial) {
-        let b_datalog = self.serials.borrow().datalog;
-
-        if packet != b_datalog {
+        if packet != self.config.datalog {
             warn!(
                 "datalog serial mismatch found; packet={}, config={} - please check config!",
-                packet, b_datalog
+                packet, self.config.datalog
             );
             // uncomment this when I fix serials in outgoing packets?
-            //self.serials.borrow_mut().datalog = packet;
+            //self.config.datalog = packet;
         }
     }
 
     fn compare_inverter(&self, packet: Serial) {
-        let b_inverter = self.serials.borrow().inverter;
-
-        if packet != b_inverter {
+        if packet != self.config.serial {
             warn!(
                 "inverter serial mismatch found; packet={}, config={} - please check config!",
-                packet, b_inverter
+                packet, self.config.serial
             );
             // uncomment this when I fix serials in outgoing packets?
-            self.serials.borrow_mut().inverter = packet;
+            //self.config.serial = packet;
         }
     }
 }
