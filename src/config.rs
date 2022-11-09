@@ -80,6 +80,7 @@ impl HomeAssistant {
     pub fn prefix(&self) -> &str {
         &self.prefix
     }
+
     pub fn sensors(&self) -> &Vec<String> {
         &self.sensors
     }
@@ -176,11 +177,6 @@ pub struct Database {
     pub url: String,
 }
 impl Database {
-    pub fn new(enabled: bool, url: String) -> Self {
-        // used in tests
-        Self { enabled, url }
-    }
-
     pub fn enabled(&self) -> bool {
         self.enabled
     }
