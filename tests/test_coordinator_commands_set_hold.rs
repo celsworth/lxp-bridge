@@ -19,9 +19,9 @@ async fn happy_path() {
     );
 
     let reply = Packet::TranslatedData(lxp::packet::TranslatedData {
-        datalog: inverter.datalog,
+        datalog: inverter.datalog(),
         device_function: lxp::packet::DeviceFunction::WriteSingle,
-        inverter: inverter.serial,
+        inverter: inverter.serial(),
         register: 5,
         values: vec![10, 0],
     });
@@ -61,9 +61,9 @@ async fn bad_reply() {
     );
 
     let reply = Packet::TranslatedData(lxp::packet::TranslatedData {
-        datalog: inverter.datalog,
+        datalog: inverter.datalog(),
         device_function: lxp::packet::DeviceFunction::WriteSingle,
-        inverter: inverter.serial,
+        inverter: inverter.serial(),
         register: 5,
         values: vec![200, 0], // reply has wrong value
     });

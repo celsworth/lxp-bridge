@@ -10,6 +10,10 @@ impl Factory {
         Config::new("config.yaml.example".to_owned()).unwrap()
     }
 
+    pub fn example_config_wrapped() -> config::ConfigWrapper {
+        ConfigWrapper::new("config.yaml.example".to_owned()).unwrap()
+    }
+
     pub fn inverter() -> config::Inverter {
         config::Inverter {
             enabled: true,

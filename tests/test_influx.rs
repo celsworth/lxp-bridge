@@ -11,11 +11,12 @@ fn mock_influxdb() -> Mock {
 async fn sends_http_request() {
     common_setup();
 
-    let mut config = Factory::example_config();
-    config.influx.url = mockito::server_url();
+    let config = Factory::example_config_wrapped();
+    //config.set_influx_url(mockito::server_url());
+    config.influx_mut().url = mockito::server_url();
     let channels = Channels::new();
 
-    let influx = Influx::new(Rc::new(config), channels.clone());
+    let influx = Influx::new(config, channels.clone());
 
     let tf = async {
         let json = json!({ "time": 1, "soc": 100, "v_bat": 52.4 });

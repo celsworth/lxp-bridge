@@ -24,6 +24,8 @@ pub struct Database {
 }
 
 impl Database {
+    // databases don't bother with a ConfigWrapper yet as they don't care about any
+    // changes once running; there's only enabled/url anyway and we'd use url to key off.
     pub fn new(config: config::Database, channels: Channels) -> Self {
         Self {
             config,
@@ -48,17 +50,17 @@ impl Database {
     }
 
     fn database(&self) -> Result<DatabaseType> {
-        let prefix: Vec<&str> = self.config.url.splitn(2, ':').collect();
+        let prefix: Vec<&str> = self.config.url().splitn(2, ':').collect();
         match prefix[0] {
             "sqlite" => Ok(DatabaseType::SQLite),
             "mysql" => Ok(DatabaseType::MySQL),
             "postgres" => Ok(DatabaseType::Postgres),
-            _ => Err(anyhow!("unsupported database {}", self.config.url)),
+            _ => Err(anyhow!("unsupported database {}", self.config.url())),
         }
     }
 
     async fn connect(&self) -> Result<()> {
-        let mut options = AnyConnectOptions::from_str(&self.config.url)?;
+        let mut options = AnyConnectOptions::from_str(self.config.url())?;
         options.disable_statement_logging();
         let pool = sqlx::any::AnyPool::connect_with(options).await?;
 

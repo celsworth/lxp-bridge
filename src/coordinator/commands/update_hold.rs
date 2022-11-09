@@ -38,9 +38,9 @@ impl UpdateHold {
 
         // get register from inverter
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: self.inverter.datalog,
+            datalog: self.inverter.datalog(),
             device_function: DeviceFunction::ReadHold,
-            inverter: self.inverter.serial,
+            inverter: self.inverter.serial(),
             register: self.register,
             values: vec![1, 0],
         });
@@ -65,9 +65,9 @@ impl UpdateHold {
         // new packet to set register with a new value
         let values = value.to_le_bytes().to_vec();
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: self.inverter.datalog,
+            datalog: self.inverter.datalog(),
             device_function: DeviceFunction::WriteSingle,
-            inverter: self.inverter.serial,
+            inverter: self.inverter.serial(),
             register: self.register,
             values,
         });

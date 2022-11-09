@@ -24,57 +24,57 @@ fn inverter_defaults() {
     let input =
         json!({ "host": "host", "port": 8000, "serial": "TESTSERIAL", "datalog": "TESTDATALO" });
     let inverter: config::Inverter = serde_json::from_value(input).unwrap();
-    assert!(inverter.enabled);
-    assert_eq!(inverter.heartbeats, None);
+    assert!(inverter.enabled());
+    assert_eq!(inverter.heartbeats(), false);
 }
 
 #[test]
 fn inverter_heartbeats() {
     let input = json!({ "host": "host", "port": 8000, "serial": "TESTSERIAL", "datalog": "TESTDATALO", "heartbeats": false });
     let inverter: config::Inverter = serde_json::from_value(input).unwrap();
-    assert_eq!(inverter.heartbeats, Some(false));
+    assert_eq!(inverter.heartbeats(), false);
     let input = json!({ "host": "host", "port": 8000, "serial": "TESTSERIAL", "datalog": "TESTDATALO", "heartbeats": true });
     let inverter: config::Inverter = serde_json::from_value(input).unwrap();
-    assert_eq!(inverter.heartbeats, Some(true));
+    assert_eq!(inverter.heartbeats(), true);
 }
 
 #[test]
 fn database_defaults() {
     let input = json!({ "url": "url" });
     let database: config::Database = serde_json::from_value(input).unwrap();
-    assert!(database.enabled);
+    assert!(database.enabled());
 }
 
 #[test]
 fn mqtt_defaults() {
     let input = json!({ "host": "host" });
     let mqtt: config::Mqtt = serde_json::from_value(input).unwrap();
-    assert!(mqtt.enabled);
-    assert_eq!(mqtt.port, 1883);
-    assert_eq!(mqtt.namespace, "lxp");
+    assert!(mqtt.enabled());
+    assert_eq!(mqtt.port(), 1883);
+    assert_eq!(mqtt.namespace(), "lxp");
 }
 
 #[test]
 fn homeassistant_defaults() {
     let input = json!({});
     let ha: config::HomeAssistant = serde_json::from_value(input).unwrap();
-    assert!(ha.enabled);
-    assert_eq!(ha.prefix, "homeassistant");
-    assert_eq!(ha.sensors, ["all"]);
+    assert!(ha.enabled());
+    assert_eq!(ha.prefix(), "homeassistant");
+    assert_eq!(ha.sensors(), &["all"]);
 }
 
 #[test]
 fn homeassistant_sensors_parsing() {
     let input = json!({ "sensors": "foo,bar" });
     let ha: config::HomeAssistant = serde_json::from_value(input).unwrap();
-    assert_eq!(ha.sensors, ["foo", "bar"]);
+    assert_eq!(ha.sensors(), &["foo", "bar"]);
 }
 
 #[test]
 fn enabled_inverters() {
-    let mut config = Factory::example_config();
+    let config = Factory::example_config_wrapped();
 
-    config.inverters = vec![
+    config.set_inverters(vec![
         config::Inverter {
             enabled: false,
             datalog: example_serial(),
@@ -91,17 +91,16 @@ fn enabled_inverters() {
             serial: example_serial(),
             heartbeats: None,
         },
-    ];
+    ]);
 
-    let r: Vec<&config::Inverter> = config.enabled_inverters().collect();
-    assert_eq!(r.len(), 1);
+    assert_eq!(config.enabled_inverters().len(), 1);
 }
 
 #[test]
 fn inverters_for_message() {
-    let mut config = Factory::example_config();
+    let config = Factory::example_config_wrapped();
 
-    config.inverters = vec![
+    config.set_inverters(vec![
         config::Inverter {
             enabled: true,
             datalog: example_serial(),
@@ -118,7 +117,7 @@ fn inverters_for_message() {
             serial: example_serial(),
             heartbeats: None,
         },
-    ];
+    ]);
 
     let message = mqtt::Message {
         topic: "cmd/all/foo".to_string(),
@@ -147,9 +146,9 @@ fn inverters_for_message() {
 
 #[test]
 fn enabled_databases() {
-    let mut config = Factory::example_config();
+    let config = Factory::example_config_wrapped();
 
-    config.databases = vec![
+    config.set_databases(vec![
         config::Database {
             enabled: false,
             url: "sqlite://test.db".to_owned(),
@@ -158,8 +157,7 @@ fn enabled_databases() {
             enabled: true,
             url: "sqlite://test.db".to_owned(),
         },
-    ];
+    ]);
 
-    let r: Vec<&config::Database> = config.enabled_databases().collect();
-    assert_eq!(r.len(), 1);
+    assert_eq!(config.enabled_databases().len(), 1);
 }

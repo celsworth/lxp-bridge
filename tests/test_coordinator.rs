@@ -6,16 +6,15 @@ async fn publishes_read_hold_mqtt() {
     common_setup();
 
     // setup config with only mqtt enabled
-    let mut config = Factory::example_config();
-    config.influx.enabled = false;
-    config.databases[0].enabled = false;
-    let config = Rc::new(config);
+    let config = Factory::example_config_wrapped();
+    config.influx_mut().enabled = false;
+    config.databases_mut()[0].enabled = false;
 
-    let inverter = &config.inverters[0];
+    let inverter = &config.inverters()[0].clone();
 
     let channels = Channels::new();
 
-    let coordinator = Coordinator::new(Rc::clone(&config), channels.clone());
+    let coordinator = Coordinator::new(config, channels.clone());
 
     let tf = async {
         let mut to_influx = channels.to_influx.subscribe();
@@ -24,9 +23,9 @@ async fn publishes_read_hold_mqtt() {
 
         // simulate ReadHold in from inverter
         let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: inverter.datalog,
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::ReadHold,
-            inverter: inverter.serial,
+            inverter: inverter.serial(),
             register: 12,
             values: vec![22, 6],
         });
@@ -38,7 +37,7 @@ async fn publishes_read_hold_mqtt() {
         assert_eq!(
             to_mqtt.recv().await?,
             mqtt::ChannelData::Message(mqtt::Message {
-                topic: format!("{}/hold/12", inverter.datalog),
+                topic: format!("{}/hold/12", inverter.datalog()),
                 payload: "1558".to_owned()
             })
         );
@@ -58,15 +57,14 @@ async fn publishes_read_hold_mqtt() {
 async fn handles_read_input_all() {
     common_setup();
 
-    let mut config = Factory::example_config();
-    config.influx.enabled = true;
-    config.databases[0].enabled = true;
-    let config = Rc::new(config);
-    let inverter = &config.inverters[0];
+    let config = Factory::example_config_wrapped();
+    config.influx_mut().enabled = true;
+    config.databases_mut()[0].enabled = true;
+    let inverter = config.inverters()[0].clone();
 
     let channels = Channels::new();
 
-    let coordinator = Coordinator::new(Rc::clone(&config), channels.clone());
+    let coordinator = Coordinator::new(config, channels.clone());
 
     let tf = async {
         let mut to_influx = channels.to_influx.subscribe();
@@ -75,9 +73,9 @@ async fn handles_read_input_all() {
 
         // simulate ReadHold in from inverter
         let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: inverter.datalog,
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::ReadInput,
-            inverter: inverter.serial,
+            inverter: inverter.serial(),
             register: 0,
             values: vec![1; 254],
         });
@@ -89,7 +87,7 @@ async fn handles_read_input_all() {
         assert_eq!(
             to_mqtt.recv().await?,
             mqtt::ChannelData::Message(mqtt::Message {
-                topic: format!("{}/inputs/all", inverter.datalog),
+                topic: format!("{}/inputs/all", inverter.datalog()),
                 payload: "{\"status\":257,\"v_pv\":77.1,\"v_pv_1\":25.7,\"v_pv_2\":25.7,\"v_pv_3\":25.7,\"v_bat\":25.7,\"soc\":1,\"soh\":1,\"p_pv\":771,\"p_pv_1\":257,\"p_pv_2\":257,\"p_pv_3\":257,\"p_charge\":257,\"p_discharge\":257,\"v_ac_r\":25.7,\"v_ac_s\":25.7,\"v_ac_t\":25.7,\"f_ac\":2.57,\"p_inv\":257,\"p_rec\":257,\"pf\":0.257,\"v_eps_r\":25.7,\"v_eps_s\":25.7,\"v_eps_t\":25.7,\"f_eps\":2.57,\"p_eps\":257,\"s_eps\":257,\"p_to_grid\":257,\"p_to_user\":257,\"e_pv_day\":77.1,\"e_pv_day_1\":25.7,\"e_pv_day_2\":25.7,\"e_pv_day_3\":25.7,\"e_inv_day\":25.7,\"e_rec_day\":25.7,\"e_chg_day\":25.7,\"e_dischg_day\":25.7,\"e_eps_day\":25.7,\"e_to_grid_day\":25.7,\"e_to_user_day\":25.7,\"v_bus_1\":25.7,\"v_bus_2\":25.7,\"e_pv_all\":5052902.699999999,\"e_pv_all_1\":1684300.9,\"e_pv_all_2\":1684300.9,\"e_pv_all_3\":1684300.9,\"e_inv_all\":1684300.9,\"e_rec_all\":1684300.9,\"e_chg_all\":1684300.9,\"e_dischg_all\":1684300.9,\"e_eps_all\":1684300.9,\"e_to_grid_all\":1684300.9,\"e_to_user_all\":1684300.9,\"t_inner\":257,\"t_rad_1\":257,\"t_rad_2\":257,\"t_bat\":257,\"runtime\":16843009,\"max_chg_curr\":2.57,\"max_dischg_curr\":2.57,\"charge_volt_ref\":25.7,\"dischg_cut_volt\":25.7,\"bat_status_0\":257,\"bat_status_1\":257,\"bat_status_2\":257,\"bat_status_3\":257,\"bat_status_4\":257,\"bat_status_5\":257,\"bat_status_6\":257,\"bat_status_7\":257,\"bat_status_8\":257,\"bat_status_9\":257,\"bat_status_inv\":257,\"bat_count\":257,\"bat_capacity\":257,\"bat_current\":2.57,\"bms_event_1\":257,\"bms_event_2\":257,\"max_cell_voltage\":2.57,\"min_cell_voltage\":2.57,\"max_cell_temp\":2.57,\"min_cell_temp\":2.57,\"bms_fw_update_state\":257,\"cycle_count\":257,\"vbat_inv\":25.7,\"time\":1646370367,\"datalog\":\"2222222222\"}".to_owned()
             })
         );
@@ -114,13 +112,13 @@ async fn handles_read_input_all() {
 async fn complete_path_read_hold_command() {
     common_setup();
 
-    let config = Rc::new(Factory::example_config());
+    let config = Factory::example_config_wrapped();
 
-    let inverter = &config.inverters[0];
+    let inverter = config.inverters()[0].clone();
 
     let channels = Channels::new();
 
-    let coordinator = Coordinator::new(Rc::clone(&config), channels.clone());
+    let coordinator = Coordinator::new(config, channels.clone());
 
     let tf = async {
         let mut to_inverter = channels.to_inverter.subscribe();
@@ -139,9 +137,9 @@ async fn complete_path_read_hold_command() {
 
         //   wait for inverter to receive the right packet
         let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: inverter.datalog,
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::ReadHold,
-            inverter: inverter.serial,
+            inverter: inverter.serial(),
             register: 12,
             values: vec![1, 0],
         });
@@ -152,9 +150,9 @@ async fn complete_path_read_hold_command() {
 
         //   send the packet back from the inverter
         let reply = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: inverter.datalog,
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::ReadHold,
-            inverter: inverter.serial,
+            inverter: inverter.serial(),
             register: 12,
             values: vec![22, 6],
         });

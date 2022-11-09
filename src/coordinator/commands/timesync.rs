@@ -19,9 +19,9 @@ impl TimeSync {
 
     pub async fn run(&self) -> Result<()> {
         let packet = Packet::TranslatedData(TranslatedData {
-            datalog: self.inverter.datalog,
+            datalog: self.inverter.datalog(),
             device_function: DeviceFunction::ReadHold,
-            inverter: self.inverter.serial,
+            inverter: self.inverter.serial(),
             register: 12,
             values: vec![3, 0],
         });
@@ -53,7 +53,7 @@ impl TimeSync {
 
             debug!(
                 "inverter {} time difference is {}",
-                self.inverter.datalog,
+                self.inverter.datalog(),
                 dt - now
             );
 
@@ -87,9 +87,9 @@ impl TimeSync {
         let now = Utils::localtime();
 
         Packet::TranslatedData(TranslatedData {
-            datalog: self.inverter.datalog,
+            datalog: self.inverter.datalog(),
             device_function: DeviceFunction::WriteMulti,
-            inverter: self.inverter.serial,
+            inverter: self.inverter.serial(),
             register: 12,
             values: vec![
                 (now.year() - 2000) as u8,

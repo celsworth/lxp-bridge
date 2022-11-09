@@ -8,7 +8,7 @@ async fn for_param() {
     let inverter = Factory::inverter();
 
     let packet = lxp::packet::ReadParam {
-        datalog: inverter.datalog,
+        datalog: inverter.datalog(),
         register: 0,
         values: vec![1, 0],
     };
@@ -29,9 +29,9 @@ async fn for_hold_single() {
     let inverter = Factory::inverter();
 
     let packet = lxp::packet::TranslatedData {
-        datalog: inverter.datalog,
+        datalog: inverter.datalog(),
         device_function: lxp::packet::DeviceFunction::ReadHold,
-        inverter: inverter.serial,
+        inverter: inverter.serial(),
         register: 0,
         values: vec![1, 0],
     };
@@ -108,9 +108,9 @@ async fn for_input_ignore_127_254() {
     let inverter = Factory::inverter();
 
     let packet = lxp::packet::TranslatedData {
-        datalog: inverter.datalog,
+        datalog: inverter.datalog(),
         device_function: lxp::packet::DeviceFunction::ReadInput,
-        inverter: inverter.serial,
+        inverter: inverter.serial(),
         register: 127,
         values: [0; 254].to_vec(),
     };

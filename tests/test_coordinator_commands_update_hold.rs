@@ -25,9 +25,9 @@ async fn happy_path() {
         assert_eq!(
             result?,
             Packet::TranslatedData(lxp::packet::TranslatedData {
-                datalog: inverter.datalog,
+                datalog: inverter.datalog(),
                 device_function: lxp::packet::DeviceFunction::WriteSingle,
-                inverter: inverter.serial,
+                inverter: inverter.serial(),
                 register: 21,
                 values: vec![130, 0],
             })
@@ -43,9 +43,9 @@ async fn happy_path() {
         assert_eq!(
             unwrap_inverter_channeldata_packet(to_inverter.recv().await?),
             Packet::TranslatedData(lxp::packet::TranslatedData {
-                datalog: inverter.datalog,
+                datalog: inverter.datalog(),
                 device_function: lxp::packet::DeviceFunction::ReadHold,
-                inverter: inverter.serial,
+                inverter: inverter.serial(),
                 register: 21,
                 values: vec![1, 0]
             })
@@ -53,9 +53,9 @@ async fn happy_path() {
 
         // send reply with current values
         let reply = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: inverter.datalog,
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::ReadHold,
-            inverter: inverter.serial,
+            inverter: inverter.serial(),
             register: 21,
             values: vec![2, 0],
         });
@@ -67,9 +67,9 @@ async fn happy_path() {
         assert_eq!(
             unwrap_inverter_channeldata_packet(to_inverter.recv().await?),
             Packet::TranslatedData(lxp::packet::TranslatedData {
-                datalog: inverter.datalog,
+                datalog: inverter.datalog(),
                 device_function: lxp::packet::DeviceFunction::WriteSingle,
-                inverter: inverter.serial,
+                inverter: inverter.serial(),
                 register: 21,
                 values: vec![130, 0] // 128 + 2
             })
@@ -77,9 +77,9 @@ async fn happy_path() {
 
         // send reply with new value
         let reply = Packet::TranslatedData(lxp::packet::TranslatedData {
-            datalog: inverter.datalog,
+            datalog: inverter.datalog(),
             device_function: lxp::packet::DeviceFunction::WriteSingle,
-            inverter: inverter.serial,
+            inverter: inverter.serial(),
             register: 21,
             values: vec![130, 0],
         });
@@ -126,9 +126,9 @@ async fn no_reply() {
         assert_eq!(
             unwrap_inverter_channeldata_packet(channels.to_inverter.subscribe().recv().await?),
             Packet::TranslatedData(lxp::packet::TranslatedData {
-                datalog: inverter.datalog,
+                datalog: inverter.datalog(),
                 device_function: lxp::packet::DeviceFunction::ReadHold,
-                inverter: inverter.serial,
+                inverter: inverter.serial(),
                 register: 21,
                 values: vec![1, 0]
             })

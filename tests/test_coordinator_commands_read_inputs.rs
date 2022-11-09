@@ -19,9 +19,9 @@ async fn happy_path() {
     );
 
     let reply = Packet::TranslatedData(lxp::packet::TranslatedData {
-        datalog: inverter.datalog,
+        datalog: inverter.datalog(),
         device_function: lxp::packet::DeviceFunction::ReadInput,
-        inverter: inverter.serial,
+        inverter: inverter.serial(),
         register: 0,
         values: vec![0, 0],
     });
