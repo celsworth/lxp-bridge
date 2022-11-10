@@ -103,6 +103,8 @@ pub struct Mqtt {
 
     #[serde(default = "Config::default_mqtt_homeassistant")]
     pub homeassistant: HomeAssistant,
+
+    pub publish_individual_input: Option<bool>,
 }
 impl Mqtt {
     pub fn enabled(&self) -> bool {
@@ -131,6 +133,10 @@ impl Mqtt {
 
     pub fn homeassistant(&self) -> &HomeAssistant {
         &self.homeassistant
+    }
+
+    pub fn publish_individual_input(&self) -> bool {
+        self.publish_individual_input == Some(true)
     }
 } // }}}
 

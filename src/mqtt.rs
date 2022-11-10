@@ -56,10 +56,22 @@ impl Message {
         })
     }
 
-    pub fn for_input(td: lxp::packet::TranslatedData) -> Result<Vec<Message>> {
+    pub fn for_input(
+        td: lxp::packet::TranslatedData,
+        publish_individual: bool,
+    ) -> Result<Vec<Message>> {
         use lxp::packet::ReadInput;
 
         let mut r = Vec::new();
+
+        if publish_individual {
+            for (register, value) in td.pairs() {
+                r.push(mqtt::Message {
+                    topic: format!("{}/input/{}", td.datalog, register),
+                    payload: serde_json::to_string(&value)?,
+                });
+            }
+        }
 
         match td.read_input() {
             Ok(ReadInput::ReadInputAll(r_all)) => r.push(mqtt::Message {
@@ -95,6 +107,9 @@ impl Message {
             ["read", "inputs", "1"] => ReadInputs1(inverter),
             ["read", "inputs", "2"] => ReadInputs2(inverter),
             ["read", "inputs", "3"] => ReadInputs3(inverter),
+            ["read", "input", register] => {
+                ReadInput(inverter, register.parse()?, self.payload_int_or_1()?)
+            }
             ["read", "hold", register] => {
                 ReadHold(inverter, register.parse()?, self.payload_int_or_1()?)
             }
@@ -189,7 +204,7 @@ impl Mqtt {
             return Ok(());
         }
 
-        let mut options = MqttOptions::new("lxp-bridge", c.mqtt().host(), c.mqtt().port());
+        let mut options = MqttOptions::new("lxp-bridge2", c.mqtt().host(), c.mqtt().port());
 
         options.set_keep_alive(std::time::Duration::from_secs(60));
         if let (Some(u), Some(p)) = (c.mqtt().username(), c.mqtt().password()) {
