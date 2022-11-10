@@ -9,11 +9,6 @@ pub struct Message {
     pub payload: String,
 }
 
-pub struct MessageTopicParts {
-    pub datalog: Serial,
-    pub parts: Vec<String>,
-}
-
 pub enum SerialOrAll {
     Serial(Serial),
     All,
