@@ -9,7 +9,7 @@ pub struct Message {
     pub payload: String,
 }
 
-pub enum SerialOrAll {
+pub enum TargetInverter {
     Serial(Serial),
     All,
 }
@@ -94,11 +94,9 @@ impl Message {
     pub fn to_command(&self, inverter: config::Inverter) -> Result<Command> {
         use Command::*;
 
-        let parts: Vec<&str> = self.topic.split('/').collect();
-        let _datalog = parts[1];
-        let parts = &parts[2..];
+        let (_datalog, parts) = self.split_cmd_topic()?;
 
-        let r = match parts {
+        let r = match parts[..] {
             ["read", "inputs", "1"] => ReadInputs1(inverter),
             ["read", "inputs", "2"] => ReadInputs2(inverter),
             ["read", "inputs", "3"] => ReadInputs3(inverter),
@@ -129,12 +127,12 @@ impl Message {
 
         Ok(r)
     }
+
     // given a cmd Message, return the datalog it is intended for.
     //
-    // eg cmd/AB12345678/ac_charge => AB12345678
-    pub fn split_cmd_topic(&self) -> Result<SerialOrAll> {
-        // this starts at cmd/{datalog}/..
-        let parts: Vec<String> = self.topic.split('/').map(|x| x.to_string()).collect();
+    // eg cmd/AB12345678/set/ac_charge => (AB12345678, ['set', 'ac_charge'])
+    pub fn split_cmd_topic(&self) -> Result<(TargetInverter, Vec<&str>)> {
+        let parts: Vec<&str> = self.topic.split('/').collect();
 
         // bail if the topic is too short to handle.
         // this *shouldn't* happen as our subscribe is for lxp/cmd/{datalog}/#
@@ -142,12 +140,16 @@ impl Message {
             bail!("ignoring badly formed MQTT topic: {}", self.topic);
         }
 
-        if parts[1] == "all" {
-            return Ok(SerialOrAll::All);
-        }
+        // parts[0] should be cmd
+        let datalog = parts[1];
+        let rest = parts[2..].to_vec();
 
-        let serial = Serial::from_str(&parts[1])?;
-        Ok(SerialOrAll::Serial(serial))
+        if datalog == "all" {
+            Ok((TargetInverter::All, rest))
+        } else {
+            let serial = Serial::from_str(&datalog)?;
+            Ok((TargetInverter::Serial(serial), rest))
+        }
     }
 
     pub fn payload_int_or_1(&self) -> Result<u16> {
