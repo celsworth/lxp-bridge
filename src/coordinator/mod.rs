@@ -85,7 +85,7 @@ impl Coordinator {
             ReadInputs(inverter, 1) => self.read_inputs(inverter, 0_u16, 40).await,
             ReadInputs(inverter, 2) => self.read_inputs(inverter, 40_u16, 40).await,
             ReadInputs(inverter, 3) => self.read_inputs(inverter, 80_u16, 40).await,
-            ReadInputs(_, _) => bail!("cmd/read/inputs/n must be 1-3"),
+            ReadInputs(_, _) => unreachable!(),
             ReadInput(inverter, register, count) => {
                 self.read_inputs(inverter, register, count).await
             }
