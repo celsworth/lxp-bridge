@@ -97,9 +97,9 @@ impl Message {
         let (_datalog, parts) = self.split_cmd_topic()?;
 
         let r = match parts[..] {
-            ["read", "inputs", "1"] => ReadInputs1(inverter),
-            ["read", "inputs", "2"] => ReadInputs2(inverter),
-            ["read", "inputs", "3"] => ReadInputs3(inverter),
+            ["read", "inputs", "1"] => ReadInputs(inverter, 1),
+            ["read", "inputs", "2"] => ReadInputs(inverter, 2),
+            ["read", "inputs", "3"] => ReadInputs(inverter, 3),
             ["read", "input", register] => {
                 ReadInput(inverter, register.parse()?, self.payload_int_or_1()?)
             }

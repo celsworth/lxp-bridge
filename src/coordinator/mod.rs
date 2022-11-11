@@ -82,9 +82,10 @@ impl Coordinator {
         use Command::*;
 
         match command {
-            ReadInputs1(inverter) => self.read_inputs(inverter, 0_u16, 40).await,
-            ReadInputs2(inverter) => self.read_inputs(inverter, 40_u16, 40).await,
-            ReadInputs3(inverter) => self.read_inputs(inverter, 80_u16, 40).await,
+            ReadInputs(inverter, 1) => self.read_inputs(inverter, 0_u16, 40).await,
+            ReadInputs(inverter, 2) => self.read_inputs(inverter, 40_u16, 40).await,
+            ReadInputs(inverter, 3) => self.read_inputs(inverter, 80_u16, 40).await,
+            ReadInputs(_, _) => bail!("cmd/read/inputs/n must be 1-3"),
             ReadInput(inverter, register, count) => {
                 self.read_inputs(inverter, register, count).await
             }
