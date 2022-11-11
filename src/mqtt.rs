@@ -147,7 +147,7 @@ impl Message {
         if datalog == "all" {
             Ok((TargetInverter::All, rest))
         } else {
-            let serial = Serial::from_str(&datalog)?;
+            let serial = Serial::from_str(datalog)?;
             Ok((TargetInverter::Serial(serial), rest))
         }
     }
