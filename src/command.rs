@@ -2,9 +2,8 @@ use crate::prelude::*;
 
 #[derive(Debug)]
 pub enum Command {
-    ReadInputs1(config::Inverter),
-    ReadInputs2(config::Inverter),
-    ReadInputs3(config::Inverter),
+    ReadInputs(config::Inverter, u16),
+    ReadInput(config::Inverter, u16, u16),
     ReadHold(config::Inverter, u16, u16),
     ReadParam(config::Inverter, u16),
     SetHold(config::Inverter, u16, u16),
@@ -22,9 +21,10 @@ impl Command {
         use Command::*;
 
         let rest = match self {
-            ReadInputs1(inverter) => format!("{}/read/inputs/1", inverter.datalog()),
-            ReadInputs2(inverter) => format!("{}/read/inputs/2", inverter.datalog()),
-            ReadInputs3(inverter) => format!("{}/read/inputs/3", inverter.datalog()),
+            ReadInputs(inverter, c) => format!("{}/read/inputs/{}", inverter.datalog(), c),
+            ReadInput(inverter, register, _) => {
+                format!("{}/read/input/{}", inverter.datalog(), register)
+            }
             ReadHold(inverter, register, _) => {
                 format!("{}/read/hold/{}", inverter.datalog(), register)
             }

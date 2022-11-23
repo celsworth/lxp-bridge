@@ -82,9 +82,13 @@ impl Coordinator {
         use Command::*;
 
         match command {
-            ReadInputs1(inverter) => self.read_inputs(inverter, 0_u16, 40).await,
-            ReadInputs2(inverter) => self.read_inputs(inverter, 40_u16, 40).await,
-            ReadInputs3(inverter) => self.read_inputs(inverter, 80_u16, 40).await,
+            ReadInputs(inverter, 1) => self.read_inputs(inverter, 0_u16, 40).await,
+            ReadInputs(inverter, 2) => self.read_inputs(inverter, 40_u16, 40).await,
+            ReadInputs(inverter, 3) => self.read_inputs(inverter, 80_u16, 40).await,
+            ReadInputs(_, _) => unreachable!(),
+            ReadInput(inverter, register, count) => {
+                self.read_inputs(inverter, register, count).await
+            }
             ReadHold(inverter, register, count) => self.read_hold(inverter, register, count).await,
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
             SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,
@@ -296,7 +300,7 @@ impl Coordinator {
             // returns a Vec of messages to send. could be none;
             // not every packet produces an MQ message (eg, heartbeats),
             // and some produce >1 (multi-register ReadHold)
-            match Self::packet_to_messages(packet) {
+            match Self::packet_to_messages(packet, self.config.mqtt().publish_individual_input()) {
                 Ok(messages) => {
                     for message in messages {
                         let message = mqtt::ChannelData::Message(message);
@@ -334,12 +338,15 @@ impl Coordinator {
         Ok(())
     }
 
-    fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
+    fn packet_to_messages(
+        packet: Packet,
+        publish_individual_input: bool,
+    ) -> Result<Vec<mqtt::Message>> {
         match packet {
             Packet::Heartbeat(_) => Ok(Vec::new()), // always no message
             Packet::TranslatedData(td) => match td.device_function {
                 DeviceFunction::ReadHold => mqtt::Message::for_hold(td),
-                DeviceFunction::ReadInput => mqtt::Message::for_input(td),
+                DeviceFunction::ReadInput => mqtt::Message::for_input(td, publish_individual_input),
                 DeviceFunction::WriteSingle => mqtt::Message::for_hold(td),
                 DeviceFunction::WriteMulti => Ok(Vec::new()), // TODO, for_hold might just work
             },
