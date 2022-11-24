@@ -131,52 +131,52 @@ pub struct ReadInputAll {
     // 18 bytes of auto_test stuff here I'm not doing yet
     #[nom(SkipBefore(18))] // auto_test stuff, TODO..
     #[nom(SkipBefore(2))] // bat_brand, bat_com_type
-    #[nom(Parse = "Utils::le_i16_div100")]
-    pub max_chg_curr: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
-    pub max_dischg_curr: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
-    pub charge_volt_ref: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
-    pub dischg_cut_volt: f64,
+    #[nom(Parse = "Utils::opt_le_i16_div100")]
+    pub max_chg_curr: Option<f64>,
+    #[nom(Parse = "Utils::opt_le_i16_div100")]
+    pub max_dischg_curr: Option<f64>,
+    #[nom(Parse = "Utils::opt_le_i16_div10")]
+    pub charge_volt_ref: Option<f64>,
+    #[nom(Parse = "Utils::opt_le_i16_div10")]
+    pub dischg_cut_volt: Option<f64>,
 
-    pub bat_status_0: i16,
-    pub bat_status_1: i16,
-    pub bat_status_2: i16,
-    pub bat_status_3: i16,
-    pub bat_status_4: i16,
-    pub bat_status_5: i16,
-    pub bat_status_6: i16,
-    pub bat_status_7: i16,
-    pub bat_status_8: i16,
-    pub bat_status_9: i16,
-    pub bat_status_inv: i16,
+    pub bat_status_0: Option<i16>,
+    pub bat_status_1: Option<i16>,
+    pub bat_status_2: Option<i16>,
+    pub bat_status_3: Option<i16>,
+    pub bat_status_4: Option<i16>,
+    pub bat_status_5: Option<i16>,
+    pub bat_status_6: Option<i16>,
+    pub bat_status_7: Option<i16>,
+    pub bat_status_8: Option<i16>,
+    pub bat_status_9: Option<i16>,
+    pub bat_status_inv: Option<i16>,
 
-    pub bat_count: i16,
-    pub bat_capacity: i16,
+    pub bat_count: Option<i16>,
+    pub bat_capacity: Option<i16>,
 
-    #[nom(Parse = "Utils::le_i16_div100")]
-    pub bat_current: f64,
+    #[nom(Parse = "Utils::opt_le_i16_div100")]
+    pub bat_current: Option<f64>,
 
-    pub bms_event_1: i16,
-    pub bms_event_2: i16,
+    pub bms_event_1: Option<i16>,
+    pub bms_event_2: Option<i16>,
 
     // TODO: probably floats but need non-zero sample data to check. just guessing at the div100.
-    #[nom(Parse = "Utils::le_i16_div100")]
-    pub max_cell_voltage: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
-    pub min_cell_voltage: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
-    pub max_cell_temp: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
-    pub min_cell_temp: f64,
+    #[nom(Parse = "Utils::opt_le_i16_div100")]
+    pub max_cell_voltage: Option<f64>,
+    #[nom(Parse = "Utils::opt_le_i16_div100")]
+    pub min_cell_voltage: Option<f64>,
+    #[nom(Parse = "Utils::opt_le_i16_div100")]
+    pub max_cell_temp: Option<f64>,
+    #[nom(Parse = "Utils::opt_le_i16_div100")]
+    pub min_cell_temp: Option<f64>,
 
-    pub bms_fw_update_state: i16,
+    pub bms_fw_update_state: Option<i16>,
 
-    pub cycle_count: i16,
+    pub cycle_count: Option<i16>,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
-    pub vbat_inv: f64,
+    #[nom(Parse = "Utils::opt_le_i16_div10")]
+    pub vbat_inv: Option<f64>,
 
     // 14 bytes I'm not sure what they are; possibly generator stuff
     #[nom(SkipBefore(14))]
@@ -465,33 +465,33 @@ impl ReadInputs {
                 t_rad_2: ri2.t_rad_2,
                 t_bat: ri2.t_bat,
                 runtime: ri2.runtime,
-                max_chg_curr: ri3.max_chg_curr,
-                max_dischg_curr: ri3.max_dischg_curr,
-                charge_volt_ref: ri3.charge_volt_ref,
-                dischg_cut_volt: ri3.dischg_cut_volt,
-                bat_status_0: ri3.bat_status_0,
-                bat_status_1: ri3.bat_status_1,
-                bat_status_2: ri3.bat_status_2,
-                bat_status_3: ri3.bat_status_3,
-                bat_status_4: ri3.bat_status_4,
-                bat_status_5: ri3.bat_status_5,
-                bat_status_6: ri3.bat_status_6,
-                bat_status_7: ri3.bat_status_7,
-                bat_status_8: ri3.bat_status_8,
-                bat_status_9: ri3.bat_status_9,
-                bat_status_inv: ri3.bat_status_inv,
-                bat_count: ri3.bat_count,
-                bat_capacity: ri3.bat_capacity,
-                bat_current: ri3.bat_current,
-                bms_event_1: ri3.bms_event_1,
-                bms_event_2: ri3.bms_event_2,
-                max_cell_voltage: ri3.max_cell_voltage,
-                min_cell_voltage: ri3.min_cell_voltage,
-                max_cell_temp: ri3.max_cell_temp,
-                min_cell_temp: ri3.min_cell_temp,
-                bms_fw_update_state: ri3.bms_fw_update_state,
-                cycle_count: ri3.cycle_count,
-                vbat_inv: ri3.vbat_inv,
+                max_chg_curr: Some(ri3.max_chg_curr),
+                max_dischg_curr: Some(ri3.max_dischg_curr),
+                charge_volt_ref: Some(ri3.charge_volt_ref),
+                dischg_cut_volt: Some(ri3.dischg_cut_volt),
+                bat_status_0: Some(ri3.bat_status_0),
+                bat_status_1: Some(ri3.bat_status_1),
+                bat_status_2: Some(ri3.bat_status_2),
+                bat_status_3: Some(ri3.bat_status_3),
+                bat_status_4: Some(ri3.bat_status_4),
+                bat_status_5: Some(ri3.bat_status_5),
+                bat_status_6: Some(ri3.bat_status_6),
+                bat_status_7: Some(ri3.bat_status_7),
+                bat_status_8: Some(ri3.bat_status_8),
+                bat_status_9: Some(ri3.bat_status_9),
+                bat_status_inv: Some(ri3.bat_status_inv),
+                bat_count: Some(ri3.bat_count),
+                bat_capacity: Some(ri3.bat_capacity),
+                bat_current: Some(ri3.bat_current),
+                bms_event_1: Some(ri3.bms_event_1),
+                bms_event_2: Some(ri3.bms_event_2),
+                max_cell_voltage: Some(ri3.max_cell_voltage),
+                min_cell_voltage: Some(ri3.min_cell_voltage),
+                max_cell_temp: Some(ri3.max_cell_temp),
+                min_cell_temp: Some(ri3.min_cell_temp),
+                bms_fw_update_state: Some(ri3.bms_fw_update_state),
+                cycle_count: Some(ri3.cycle_count),
+                vbat_inv: Some(ri3.vbat_inv),
                 datalog: ri1.datalog,
                 time: ri1.time.clone(),
             }),
