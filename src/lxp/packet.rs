@@ -901,7 +901,7 @@ impl PacketCommon for TranslatedData {
 pub struct ReadParam {
     pub datalog: Serial,
     pub register: i16,   // first register of values
-    pub values: Vec<u8>, // undecoded, since can be i16 or u32s?
+    pub values: Vec<u8>, // undecoded, since can be i16 or i32s?
 }
 impl ReadParam {
     pub fn pairs(&self) -> Vec<(i16, i16)> {
@@ -997,7 +997,7 @@ impl PacketCommon for ReadParam {
 pub struct WriteParam {
     pub datalog: Serial,
     pub register: i16,   // first register of values
-    pub values: Vec<u8>, // undecoded, since can be i16 or u32s?
+    pub values: Vec<u8>, // undecoded, since can be i16 or i32s?
 }
 impl WriteParam {
     pub fn pairs(&self) -> Vec<(i16, i16)> {
