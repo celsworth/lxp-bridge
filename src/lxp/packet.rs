@@ -392,6 +392,8 @@ pub struct ReadInputs {
 impl ReadInputs {
     pub fn set_read_input_1(&mut self, i: ReadInput1) {
         self.read_input_1 = Some(i);
+        self.read_input_2 = None;
+        self.read_input_3 = None;
     }
     pub fn set_read_input_2(&mut self, i: ReadInput2) {
         self.read_input_2 = Some(i);
@@ -401,12 +403,8 @@ impl ReadInputs {
     }
 
     pub fn to_input_all(&self) -> Option<ReadInputAll> {
-        match (
-            self.read_input_1.as_ref(),
-            self.read_input_2.as_ref(),
-            self.read_input_3.as_ref(),
-        ) {
-            (Some(ri1), Some(ri2), Some(ri3)) => Some(ReadInputAll {
+        if let (Some(ri1), Some(ri2)) = (self.read_input_1.as_ref(), self.read_input_2.as_ref()) {
+            let mut ria = ReadInputAll {
                 status: ri1.status,
                 v_pv: ri1.v_pv,
                 v_pv_1: ri1.v_pv_1,
@@ -465,37 +463,74 @@ impl ReadInputs {
                 t_rad_2: ri2.t_rad_2,
                 t_bat: ri2.t_bat,
                 runtime: ri2.runtime,
-                max_chg_curr: Some(ri3.max_chg_curr),
-                max_dischg_curr: Some(ri3.max_dischg_curr),
-                charge_volt_ref: Some(ri3.charge_volt_ref),
-                dischg_cut_volt: Some(ri3.dischg_cut_volt),
-                bat_status_0: Some(ri3.bat_status_0),
-                bat_status_1: Some(ri3.bat_status_1),
-                bat_status_2: Some(ri3.bat_status_2),
-                bat_status_3: Some(ri3.bat_status_3),
-                bat_status_4: Some(ri3.bat_status_4),
-                bat_status_5: Some(ri3.bat_status_5),
-                bat_status_6: Some(ri3.bat_status_6),
-                bat_status_7: Some(ri3.bat_status_7),
-                bat_status_8: Some(ri3.bat_status_8),
-                bat_status_9: Some(ri3.bat_status_9),
-                bat_status_inv: Some(ri3.bat_status_inv),
-                bat_count: Some(ri3.bat_count),
-                bat_capacity: Some(ri3.bat_capacity),
-                bat_current: Some(ri3.bat_current),
-                bms_event_1: Some(ri3.bms_event_1),
-                bms_event_2: Some(ri3.bms_event_2),
-                max_cell_voltage: Some(ri3.max_cell_voltage),
-                min_cell_voltage: Some(ri3.min_cell_voltage),
-                max_cell_temp: Some(ri3.max_cell_temp),
-                min_cell_temp: Some(ri3.min_cell_temp),
-                bms_fw_update_state: Some(ri3.bms_fw_update_state),
-                cycle_count: Some(ri3.cycle_count),
-                vbat_inv: Some(ri3.vbat_inv),
                 datalog: ri1.datalog,
                 time: ri1.time.clone(),
-            }),
-            _ => None,
+                max_chg_curr: None,
+                max_dischg_curr: None,
+                charge_volt_ref: None,
+                dischg_cut_volt: None,
+                bat_status_0: None,
+                bat_status_1: None,
+                bat_status_2: None,
+                bat_status_3: None,
+                bat_status_4: None,
+                bat_status_5: None,
+                bat_status_6: None,
+                bat_status_7: None,
+                bat_status_8: None,
+                bat_status_9: None,
+                bat_status_inv: None,
+                bat_count: None,
+                bat_capacity: None,
+                bat_current: None,
+                bms_event_1: None,
+                bms_event_2: None,
+                max_cell_voltage: None,
+                min_cell_voltage: None,
+                max_cell_temp: None,
+                min_cell_temp: None,
+                bms_fw_update_state: None,
+                cycle_count: None,
+                vbat_inv: None,
+            };
+
+            if let Some(ri3) = self.read_input_3.as_ref() {
+                ria = ReadInputAll {
+                    max_chg_curr: Some(ri3.max_chg_curr),
+                    max_dischg_curr: Some(ri3.max_dischg_curr),
+                    charge_volt_ref: Some(ri3.charge_volt_ref),
+                    dischg_cut_volt: Some(ri3.dischg_cut_volt),
+                    bat_status_0: Some(ri3.bat_status_0),
+                    bat_status_1: Some(ri3.bat_status_1),
+                    bat_status_2: Some(ri3.bat_status_2),
+                    bat_status_3: Some(ri3.bat_status_3),
+                    bat_status_4: Some(ri3.bat_status_4),
+                    bat_status_5: Some(ri3.bat_status_5),
+                    bat_status_6: Some(ri3.bat_status_6),
+                    bat_status_7: Some(ri3.bat_status_7),
+                    bat_status_8: Some(ri3.bat_status_8),
+                    bat_status_9: Some(ri3.bat_status_9),
+                    bat_status_inv: Some(ri3.bat_status_inv),
+                    bat_count: Some(ri3.bat_count),
+                    bat_capacity: Some(ri3.bat_capacity),
+                    bat_current: Some(ri3.bat_current),
+                    bms_event_1: Some(ri3.bms_event_1),
+                    bms_event_2: Some(ri3.bms_event_2),
+                    max_cell_voltage: Some(ri3.max_cell_voltage),
+                    min_cell_voltage: Some(ri3.min_cell_voltage),
+                    max_cell_temp: Some(ri3.max_cell_temp),
+                    min_cell_temp: Some(ri3.min_cell_temp),
+                    bms_fw_update_state: Some(ri3.bms_fw_update_state),
+                    cycle_count: Some(ri3.cycle_count),
+                    vbat_inv: Some(ri3.vbat_inv),
+
+                    ..ria
+                };
+            }
+
+            Some(ria)
+        } else {
+            None
         }
     }
 } // }}}
