@@ -28,8 +28,8 @@ pub struct ReadInputAll {
     #[nom(Parse = "Utils::le_i16_div10")]
     pub v_bat: f64,
 
-    pub soc: u8,
-    pub soh: u8,
+    pub soc: i8,
+    pub soh: i8,
     #[nom(SkipBefore(2))]
     #[nom(Ignore)]
     pub p_pv: i16,
@@ -203,8 +203,8 @@ pub struct ReadInput1 {
     #[nom(Parse = "Utils::le_i16_div10")]
     pub v_bat: f64,
 
-    pub soc: u8,
-    pub soh: u8,
+    pub soc: i8,
+    pub soh: i8,
     #[nom(SkipBefore(2))]
     #[nom(Ignore)]
     pub p_pv: i16,
