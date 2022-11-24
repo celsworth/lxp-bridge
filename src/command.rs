@@ -2,18 +2,18 @@ use crate::prelude::*;
 
 #[derive(Debug)]
 pub enum Command {
-    ReadInputs(config::Inverter, u16),
-    ReadInput(config::Inverter, u16, u16),
-    ReadHold(config::Inverter, u16, u16),
-    ReadParam(config::Inverter, u16),
-    SetHold(config::Inverter, u16, u16),
-    ChargeRate(config::Inverter, u16),
-    DischargeRate(config::Inverter, u16),
+    ReadInputs(config::Inverter, i16),
+    ReadInput(config::Inverter, i16, i16),
+    ReadHold(config::Inverter, i16, i16),
+    ReadParam(config::Inverter, i16),
+    SetHold(config::Inverter, i16, i16),
+    ChargeRate(config::Inverter, i16),
+    DischargeRate(config::Inverter, i16),
     AcCharge(config::Inverter, bool),
     ForcedDischarge(config::Inverter, bool),
-    AcChargeRate(config::Inverter, u16),
-    AcChargeSocLimit(config::Inverter, u16),
-    DischargeCutoffSocLimit(config::Inverter, u16),
+    AcChargeRate(config::Inverter, i16),
+    AcChargeSocLimit(config::Inverter, i16),
+    DischargeCutoffSocLimit(config::Inverter, i16),
 }
 
 impl Command {
