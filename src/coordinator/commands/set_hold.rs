@@ -8,14 +8,14 @@ use lxp::{
 pub struct SetHold {
     channels: Channels,
     inverter: config::Inverter,
-    register: u16,
-    value: u16,
+    register: i16,
+    value: i16,
 }
 
 impl SetHold {
-    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, value: u16) -> Self
+    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, value: i16) -> Self
     where
-        U: Into<u16>,
+        U: Into<i16>,
     {
         Self {
             channels,
