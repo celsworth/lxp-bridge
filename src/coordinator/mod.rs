@@ -82,9 +82,9 @@ impl Coordinator {
         use Command::*;
 
         match command {
-            ReadInputs(inverter, 1) => self.read_inputs(inverter, 0_u16, 40).await,
-            ReadInputs(inverter, 2) => self.read_inputs(inverter, 40_u16, 40).await,
-            ReadInputs(inverter, 3) => self.read_inputs(inverter, 80_u16, 40).await,
+            ReadInputs(inverter, 1) => self.read_inputs(inverter, 0_i16, 40).await,
+            ReadInputs(inverter, 2) => self.read_inputs(inverter, 40_i16, 40).await,
+            ReadInputs(inverter, 3) => self.read_inputs(inverter, 80_i16, 40).await,
             ReadInputs(_, _) => unreachable!(),
             ReadInput(inverter, register, count) => {
                 self.read_inputs(inverter, register, count).await
@@ -140,10 +140,10 @@ impl Coordinator {
         &self,
         inverter: config::Inverter,
         register: U,
-        count: u16,
+        count: i16,
     ) -> Result<()>
     where
-        U: Into<u16>,
+        U: Into<i16>,
     {
         commands::read_inputs::ReadInputs::new(
             self.channels.clone(),
@@ -157,9 +157,9 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn read_hold<U>(&self, inverter: config::Inverter, register: U, count: u16) -> Result<()>
+    async fn read_hold<U>(&self, inverter: config::Inverter, register: U, count: i16) -> Result<()>
     where
-        U: Into<u16>,
+        U: Into<i16>,
     {
         commands::read_hold::ReadHold::new(
             self.channels.clone(),
@@ -175,7 +175,7 @@ impl Coordinator {
 
     async fn read_param<U>(&self, inverter: config::Inverter, register: U) -> Result<()>
     where
-        U: Into<u16>,
+        U: Into<i16>,
     {
         commands::read_param::ReadParam::new(self.channels.clone(), inverter.clone(), register)
             .run()
@@ -184,9 +184,9 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn set_hold<U>(&self, inverter: config::Inverter, register: U, value: u16) -> Result<()>
+    async fn set_hold<U>(&self, inverter: config::Inverter, register: U, value: i16) -> Result<()>
     where
-        U: Into<u16>,
+        U: Into<i16>,
     {
         commands::set_hold::SetHold::new(self.channels.clone(), inverter.clone(), register, value)
             .run()
@@ -203,7 +203,7 @@ impl Coordinator {
         enable: bool,
     ) -> Result<()>
     where
-        U: Into<u16>,
+        U: Into<i16>,
     {
         commands::update_hold::UpdateHold::new(
             self.channels.clone(),
