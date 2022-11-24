@@ -54,11 +54,14 @@ async fn sqlite_insertion() {
                 assert_f64_eq(row.get("e_to_user_day"), ria.e_to_user_day);
                 assert_f64_eq(row.get("e_pv_all"), ria.e_pv_all);
                 assert_i16_eq(row.get("t_rad_2"), ria.t_rad_2);
-                assert_i16_eq(row.get("bms_event_1"), ria.bms_event_1);
-                assert_i16_eq(row.get("bms_event_2"), ria.bms_event_2);
-                assert_i16_eq(row.get("bms_fw_update_state"), ria.bms_fw_update_state);
-                assert_i16_eq(row.get("cycle_count"), ria.cycle_count);
-                assert_f64_eq(row.get("vbat_inv"), ria.vbat_inv);
+                assert_i16_eq(row.get("bms_event_1"), ria.bms_event_1.unwrap());
+                assert_i16_eq(row.get("bms_event_2"), ria.bms_event_2.unwrap());
+                assert_i16_eq(
+                    row.get("bms_fw_update_state"),
+                    ria.bms_fw_update_state.unwrap(),
+                );
+                assert_i16_eq(row.get("cycle_count"), ria.cycle_count.unwrap());
+                assert_f64_eq(row.get("vbat_inv"), ria.vbat_inv.unwrap());
                 assert_str_eq(row.get("datalog"), "1234567890");
                 break;
             }
