@@ -92,6 +92,9 @@ impl Coordinator {
             ReadHold(inverter, register, count) => self.read_hold(inverter, register, count).await,
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
             SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,
+            WriteParam(inverter, register, value) => {
+                self.write_param(inverter, register, value).await
+            }
             AcCharge(inverter, enable) => {
                 self.update_hold(
                     inverter,
@@ -180,6 +183,27 @@ impl Coordinator {
         commands::read_param::ReadParam::new(self.channels.clone(), inverter.clone(), register)
             .run()
             .await?;
+
+        Ok(())
+    }
+
+    async fn write_param<U>(
+        &self,
+        inverter: config::Inverter,
+        register: U,
+        value: i16,
+    ) -> Result<()>
+    where
+        U: Into<i16>,
+    {
+        commands::write_param::WriteParam::new(
+            self.channels.clone(),
+            inverter.clone(),
+            register,
+            value,
+        )
+        .run()
+        .await?;
 
         Ok(())
     }
