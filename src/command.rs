@@ -7,6 +7,7 @@ pub enum Command {
     ReadHold(config::Inverter, i16, i16),
     ReadParam(config::Inverter, i16),
     SetHold(config::Inverter, i16, i16),
+    WriteParam(config::Inverter, i16, i16),
     ChargeRate(config::Inverter, i16),
     DischargeRate(config::Inverter, i16),
     AcCharge(config::Inverter, bool),
@@ -33,6 +34,9 @@ impl Command {
             }
             SetHold(inverter, register, _) => {
                 format!("{}/set/hold/{}", inverter.datalog(), register)
+            }
+            WriteParam(inverter, register, _) => {
+                format!("{}/set/param/{}", inverter.datalog(), register)
             }
             AcCharge(inverter, _) => format!("{}/set/ac_charge", inverter.datalog()),
             ForcedDischarge(inverter, _) => format!("{}/set/forced_discharge", inverter.datalog()),

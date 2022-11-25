@@ -108,7 +108,9 @@ impl Message {
             }
             ["read", "param", register] => ReadParam(inverter, register.parse()?),
             ["set", "hold", register] => SetHold(inverter, register.parse()?, self.payload_int()?),
-            // TODO: set param
+            ["set", "param", register] => {
+                WriteParam(inverter, register.parse()?, self.payload_int()?)
+            }
             ["set", "ac_charge"] => AcCharge(inverter, self.payload_bool()),
 
             ["set", "forced_discharge"] => ForcedDischarge(inverter, self.payload_bool()),
