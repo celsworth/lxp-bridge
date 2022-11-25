@@ -1,63 +1,11 @@
 # lxp-bridge
 
-> **warning: this is under development and while reasonably stable, may still contain sharp edges. please monitor your inverter carefully if you use this!**
-
 lxp-bridge is a tool to communicate with a LuxPower inverter (commonly used with home-battery and solar setups), written in Rust.
 
 It allows you to monitor and control your inverter locally without any dependence on the manufacturer's own servers in China.
 
-This builds on my earlier project [Octolux](https://github.com/celsworth/octolux), but where that attempted to be an all-in-one solution, this is a bit more tightly defined and doesn't attempt any control or intelligence of its own. This is simply a bridge from the inverter to commonly-used technologies (see below). You get to do all the control on your own, from node-red or your own scripts or whatever.
+Full documentation is being moved to the [Wiki](https://github.com/celsworth/lxp-bridge/wiki).
 
-Currently, lxp-bridge bridges to:
-
-* mqtt (publish data for monitoring, subscribe to control commands)
-* InfluxDB (push power data for graphing etc)
-* Postgres, MySQL, and SQLite (save power data for long term storage)
-
-There's also support for publishing Home Assistant MQTT discovery packets, which is enabled by default. Home Assistant should automatically detect your inverter as a bunch of sensors (power/energy flows only for now) the first time you start lxp-bridge.
-
-In future, it might possibly run a HTTP server with endpoints to fetch power data or control the inverter via REST.
-
-
-## Installation
-
-A range of binaries are provided on the [Releases](https://github.com/celsworth/lxp-bridge/releases) page (if you're unsure which you need, check the [faq](doc/faq.md)), otherwise you can compile it yourself.
-
-Installation is not trivial but hopefully these steps will get you going:
-
-  1. [Install Rust](https://www.rust-lang.org/tools/install)
-  1. `git clone https://github.com/celsworth/lxp-bridge.git`
-  1. `cd lxp-bridge`
-  1. `sudo apt-get install pkg-config libssl-dev` - or equivalent for your distribution
-  1. `cargo build`
-  1. `sudo cp target/debug/lxp-bridge /usr/local/bin/lxp-bridge`
-  1. `sudo mkdir /etc/lxp-bridge`
-  1. `sudo cp config.yaml.example /etc/lxp-bridge/config.yaml`
-  1. Edit /etc/lxp-bridge/config.yaml to suit your configuration
-  1. Use [systemd/lxp-bridge.service](systemd/lxp-bridge.service) to get it running:
-     1. `sudo cp systemd/lxp-bridge.service /etc/systemd/system`
-     1. `sudo systemctl daemon-reload`
-     1. `sudo systemctl start lxp-bridge`
-
-Alternatively you can try running it in Docker:
-
-  1. You'll need Docker
-  1. Create a `config.yaml` by copying the example from this repo and editing.
-  1. Start the container, using one of the following:
-     1. Either run docker directly with something like:
-        `docker run --init --rm --mount type=bind,source=${PWD}/config.yaml,target=/etc/config.yaml celsworth/lxp-bridge`
-     1. Or there's a [docker-compose.yaml.example](docker-compose.yaml.example) if you prefer that.
-
-The final step should leave you with a running lxp-bridge that maps the config in the current directory into the Docker image.
-
-
-## Configuration
-
-All configuration is done in a YAML config file; see [config.yaml.example](config.yaml.example).
-
-Multiple inverters are supported via an array under the `inverters` key. Each one can be separately disabled if you want to temporarily stop connecting to one. Similarly, MQTT and InfluxDB can have `enabled = false` set to disable either output method.
-
-See [inverter_setup.md](doc/inverter_setup.md) for first-time setup of the inverter; it needs to listen on a port so lxp-bridge can connect to it.
 
 ## Basics
 
@@ -69,17 +17,6 @@ First thing to note is there are three types of registers:
 
 Second thing is whenever the inverter receives a packet, it broadcasts the reply out to *all* connected clients. So you may see unprompted messages for holding 12/13/14 for instance; this is LuxPower in China occasionally requesting the time from your inverter (presumably so they can correct it if needs be).
 
-## InfluxDB
-
-lxp-bridge can publish power data (the contents of the `input` registers) to InfluxDB as they are received. Currently only InfluxDB v1 is supported.
-
-The database can be set in the configuration; the measurement table used is `inputs`. Note you need to create the database yourself, lxp-bridge does not currently do it. The table will be automatically created though.
-
-There will be a single tag of the inverter's datalog, and then fields which correspond with the same as the JSON data sent via MQTT - see [inputs.md](doc/inputs.md) for details.
-
-## Databases
-
-See [database.md](doc/database.md).
 
 ## MQTT
 
