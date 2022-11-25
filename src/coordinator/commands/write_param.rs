@@ -41,13 +41,9 @@ impl WriteParam {
         }
 
         let packet = receiver.wait_for_reply(&packet).await?;
-        if packet.value() != self.value {
-            bail!(
-                "failed to set register {}, got back value {} (wanted {})",
-                self.register,
-                packet.value(),
-                self.value
-            );
+        // WriteParam packets seem to reply with 0 on success, very odd
+        if packet.value() != 0 {
+            bail!("failed to set register {}", self.register,);
         }
 
         Ok(packet)
