@@ -289,14 +289,12 @@ impl Config {
     }
 
     fn device(inverter: &config::Inverter) -> ConfigDevice {
-        let device = ConfigDevice {
+        ConfigDevice {
             identifiers: [
                 format!("lxp_{}", inverter.datalog()),
             ],
             manufacturer: "LuxPower".to_owned(),
             name: format!("lxp_{}", inverter.datalog()),
-        };
-
-        return device;
+        }
     }
 }
