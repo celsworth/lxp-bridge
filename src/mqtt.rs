@@ -36,6 +36,21 @@ impl Message {
                 topic: format!("{}/hold/{}", td.datalog, register),
                 payload: serde_json::to_string(&value)?,
             });
+            if register == 21 {
+                let bits = lxp::packet::Register21Bits::new(value);
+                r.push(mqtt::Message {
+                    topic: format!("{}/hold/{}/bits", td.datalog, register),
+                    payload: serde_json::to_string(&bits)?,
+                });
+            }
+
+            if register == 110 {
+                let bits = lxp::packet::Register110Bits::new(value);
+                r.push(mqtt::Message {
+                    topic: format!("{}/hold/{}/bits", td.datalog, register),
+                    payload: serde_json::to_string(&bits)?,
+                });
+            }
         }
 
         Ok(r)
