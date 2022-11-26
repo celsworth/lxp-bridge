@@ -6,11 +6,11 @@ pub struct WriteParam {
     channels: Channels,
     inverter: config::Inverter,
     register: i16,
-    value: i16,
+    value: u16,
 }
 
 impl WriteParam {
-    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, value: i16) -> Self
+    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, value: u16) -> Self
     where
         U: Into<i16>,
     {
@@ -43,7 +43,7 @@ impl WriteParam {
         let packet = receiver.wait_for_reply(&packet).await?;
         // WriteParam packets seem to reply with 0 on success, very odd
         if packet.value() != 0 {
-            bail!("failed to set register {}", self.register,);
+            bail!("failed to set register {}", self.register);
         }
 
         Ok(packet)

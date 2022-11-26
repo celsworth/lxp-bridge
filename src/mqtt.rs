@@ -154,11 +154,11 @@ impl Message {
         }
     }
 
-    pub fn payload_int_or_1(&self) -> Result<i16> {
+    pub fn payload_int_or_1(&self) -> Result<u16> {
         self.payload_int().or(Ok(1))
     }
 
-    pub fn payload_int(&self) -> Result<i16> {
+    pub fn payload_int(&self) -> Result<u16> {
         self.payload
             .parse()
             .map_err(|err| anyhow!("payload_int: {}", err))

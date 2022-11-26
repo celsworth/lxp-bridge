@@ -9,11 +9,11 @@ pub struct SetHold {
     channels: Channels,
     inverter: config::Inverter,
     register: i16,
-    value: i16,
+    value: u16,
 }
 
 impl SetHold {
-    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, value: i16) -> Self
+    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, value: u16) -> Self
     where
         U: Into<i16>,
     {

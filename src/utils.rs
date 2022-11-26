@@ -9,6 +9,9 @@ impl Utils {
     pub fn i16ify(array: &[u8], offset: usize) -> i16 {
         i16::from_le_bytes([array[offset], array[offset + 1]])
     }
+    pub fn u16ify(array: &[u8], offset: usize) -> u16 {
+        u16::from_le_bytes([array[offset], array[offset + 1]])
+    }
 
     pub fn le_i16_div10(input: &[u8]) -> nom::IResult<&[u8], f64> {
         let (input, num) = nom::number::complete::le_i16(input)?;

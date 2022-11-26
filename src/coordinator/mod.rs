@@ -143,7 +143,7 @@ impl Coordinator {
         &self,
         inverter: config::Inverter,
         register: U,
-        count: i16,
+        count: u16,
     ) -> Result<()>
     where
         U: Into<i16>,
@@ -160,7 +160,7 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn read_hold<U>(&self, inverter: config::Inverter, register: U, count: i16) -> Result<()>
+    async fn read_hold<U>(&self, inverter: config::Inverter, register: U, count: u16) -> Result<()>
     where
         U: Into<i16>,
     {
@@ -191,7 +191,7 @@ impl Coordinator {
         &self,
         inverter: config::Inverter,
         register: U,
-        value: i16,
+        value: u16,
     ) -> Result<()>
     where
         U: Into<i16>,
@@ -208,7 +208,7 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn set_hold<U>(&self, inverter: config::Inverter, register: U, value: i16) -> Result<()>
+    async fn set_hold<U>(&self, inverter: config::Inverter, register: U, value: u16) -> Result<()>
     where
         U: Into<i16>,
     {

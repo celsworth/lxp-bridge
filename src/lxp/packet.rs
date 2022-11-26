@@ -559,7 +559,7 @@ pub trait PacketCommon {
     fn register(&self) -> i16 {
         unimplemented!("register() not implemented");
     }
-    fn value(&self) -> i16 {
+    fn value(&self) -> u16 {
         unimplemented!("value() not implemented");
     }
 }
@@ -675,11 +675,11 @@ pub struct TranslatedData {
     pub values: Vec<u8>,                 // undecoded, since can be i16 or u32s?
 }
 impl TranslatedData {
-    pub fn pairs(&self) -> Vec<(i16, i16)> {
+    pub fn pairs(&self) -> Vec<(i16, u16)> {
         self.values
             .chunks(2)
             .enumerate()
-            .map(|(pos, value)| (self.register + pos as i16, Utils::i16ify(value, 0)))
+            .map(|(pos, value)| (self.register + pos as i16, Utils::u16ify(value, 0)))
             .collect()
     }
 
@@ -886,8 +886,8 @@ impl PacketCommon for TranslatedData {
         self.register
     }
 
-    fn value(&self) -> i16 {
-        Utils::i16ify(&self.values, 0)
+    fn value(&self) -> u16 {
+        Utils::u16ify(&self.values, 0)
     }
 }
 
@@ -982,8 +982,8 @@ impl PacketCommon for ReadParam {
         self.register
     }
 
-    fn value(&self) -> i16 {
-        Utils::i16ify(&self.values, 0)
+    fn value(&self) -> u16 {
+        Utils::u16ify(&self.values, 0)
     }
 }
 
@@ -1091,8 +1091,8 @@ impl PacketCommon for WriteParam {
         self.register
     }
 
-    fn value(&self) -> i16 {
-        Utils::i16ify(&self.values, 0)
+    fn value(&self) -> u16 {
+        Utils::u16ify(&self.values, 0)
     }
 }
 
