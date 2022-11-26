@@ -9,7 +9,7 @@ async fn happy_path() {
     let channels = Channels::new();
 
     let register = 5 as i16;
-    let value = 10 as i16;
+    let value = 10 as u16;
 
     let subject = coordinator::commands::set_hold::SetHold::new(
         channels.clone(),
@@ -51,7 +51,7 @@ async fn bad_reply() {
     let channels = Channels::new();
 
     let register = 5 as i16;
-    let value = 10 as i16;
+    let value = 10 as u16;
 
     let subject = coordinator::commands::set_hold::SetHold::new(
         channels.clone(),
@@ -96,7 +96,7 @@ async fn no_reply() {
     let channels = Channels::new();
 
     let register = 5 as i16;
-    let value = 10 as i16;
+    let value = 10 as u16;
 
     let subject = coordinator::commands::set_hold::SetHold::new(
         channels.clone(),
@@ -130,7 +130,7 @@ async fn inverter_not_receiving() {
     let channels = Channels::new();
 
     let register = 5 as i16;
-    let value = 10 as i16;
+    let value = 10 as u16;
 
     let subject = coordinator::commands::set_hold::SetHold::new(
         channels.clone(),

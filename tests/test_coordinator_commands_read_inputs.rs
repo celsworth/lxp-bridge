@@ -9,7 +9,7 @@ async fn happy_path() {
     let channels = Channels::new();
 
     let register = 0 as i16;
-    let count = 40 as i16;
+    let count = 40 as u16;
 
     let subject = coordinator::commands::read_inputs::ReadInputs::new(
         channels.clone(),

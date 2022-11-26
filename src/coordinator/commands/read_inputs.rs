@@ -9,11 +9,11 @@ pub struct ReadInputs {
     channels: Channels,
     inverter: config::Inverter,
     register: i16,
-    count: i16,
+    count: u16,
 }
 
 impl ReadInputs {
-    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, count: i16) -> Self
+    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, count: u16) -> Self
     where
         U: Into<i16>,
     {
