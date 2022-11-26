@@ -546,6 +546,75 @@ pub enum RegisterBit {
     ForcedDischargeEnable = 1 << 10,
 }
 
+// Register21Bits {{{
+#[derive(Clone, Debug, Serialize)]
+pub struct Register21Bits {
+    pub eps_en: bool,
+    pub ovf_load_derate_en: bool,
+    pub drms_en: bool,
+    pub lvrt_en: bool,
+    pub anti_island_en: bool,
+    pub neutral_detect_en: bool,
+    pub grid_on_power_ss_en: bool,
+    pub ac_charge_en: bool,
+    pub sw_seamless_en: bool,
+    pub set_to_standby: bool,
+    pub forced_discharge_en: bool,
+    pub forced_charge_en: bool,
+    pub iso_en: bool,
+    pub gfci_en: bool,
+    pub dci_en: bool,
+    pub feed_in_grid_en: bool,
+}
+
+impl Register21Bits {
+    fn is_bit_set(data: u16, bit: u16) -> bool {
+        (data & bit) == bit
+    }
+
+    pub fn new(data: u16) -> Self {
+        Self {
+            eps_en: Self::is_bit_set(data, 1 << 0),
+            ovf_load_derate_en: Self::is_bit_set(data, 1 << 1),
+            drms_en: Self::is_bit_set(data, 1 << 2),
+            lvrt_en: Self::is_bit_set(data, 1 << 3),
+            anti_island_en: Self::is_bit_set(data, 1 << 4),
+            neutral_detect_en: Self::is_bit_set(data, 1 << 5),
+            grid_on_power_ss_en: Self::is_bit_set(data, 1 << 6),
+            ac_charge_en: Self::is_bit_set(data, 1 << 7),
+            sw_seamless_en: Self::is_bit_set(data, 1 << 8),
+            set_to_standby: Self::is_bit_set(data, 1 << 9),
+            forced_discharge_en: Self::is_bit_set(data, 1 << 10),
+            forced_charge_en: Self::is_bit_set(data, 1 << 1),
+            iso_en: Self::is_bit_set(data, 1 << 12),
+            gfci_en: Self::is_bit_set(data, 1 << 13),
+            dci_en: Self::is_bit_set(data, 1 << 14),
+            feed_in_grid_en: Self::is_bit_set(data, 1 << 15),
+        }
+    }
+} // }}}
+
+// Register110Bits {{{
+#[derive(Clone, Debug, Serialize)]
+pub struct Register110Bits {
+    pub ub_pv_grid_off_en: bool,
+    pub ub_run_without_grid: bool,
+    pub ub_micro_grid_en: bool,
+}
+impl Register110Bits {
+    fn is_bit_set(data: u16, bit: u16) -> bool {
+        (data & bit) == bit
+    }
+
+    pub fn new(data: u16) -> Self {
+        Self {
+            ub_pv_grid_off_en: Self::is_bit_set(data, 1 << 0),
+            ub_run_without_grid: Self::is_bit_set(data, 1 << 1),
+            ub_micro_grid_en: Self::is_bit_set(data, 1 << 2),
+        }
+    }
+} // }}}
+
 #[enum_dispatch]
 pub trait PacketCommon {
     fn datalog(&self) -> Serial;
