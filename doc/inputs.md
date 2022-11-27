@@ -1,5 +1,7 @@
 # Inputs
 
+**This document is deprecated and slated for removal, please use the Wiki**
+
 This document details the hash structure of "inputs" messages sent out by lxp-bridge. These correspond with transient read-only input registers on the inverter.
 
 The inverter sends these across 3 packets, which are directly mapped into JSON and published in `lxp/{datalog}/inputs/1`, `../2` and `../3`. From lxp-bridge v0.6.0, there is also an `../all` message which combines all three into a single hash of data.
