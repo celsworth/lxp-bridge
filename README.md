@@ -7,18 +7,9 @@ It allows you to monitor and control your inverter locally without any dependenc
 Full documentation is being moved to the [Wiki](https://github.com/celsworth/lxp-bridge/wiki).
 
 
-## Basics
-
-First thing to note is there are three types of registers:
-
-  * holdings - read/write, storing settings. MQTT topics use `hold` for these.
-  * inputs - read-only, storing transient power data, temperatures, counters etc.
-  * params - read/write, these are actually on the datalog (the WiFi bit that plugs in) and currently all I think it does is set the interval at which inputs are broadcast.
-
-Second thing is whenever the inverter receives a packet, it broadcasts the reply out to *all* connected clients. So you may see unprompted messages for holding 12/13/14 for instance; this is LuxPower in China occasionally requesting the time from your inverter (presumably so they can correct it if needs be).
-
-
 ## MQTT
+
+> this section is still being moved to the Wiki so remains here for now
 
 As we receive packets from the inverter, we translate the interesting ones (ie not heartbeats) into MQTT messages, as follows.
 
