@@ -5,6 +5,7 @@
 * [Internal Cleanup] Use signed integers for inverter registers/values (#115)
 * Add WriteParam functionality (lxp/cmd/all/set/param/X) (#117)
 * Decode bits in holding registers 21 and 110 and publish to lxp/$datalog/hold/21/bits (#119)
+* Better HomeAssistant discovery message structure (#120, @unreadablename)
 
 
 # 0.9.0 - 2nd November 2022
