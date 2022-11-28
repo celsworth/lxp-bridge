@@ -87,6 +87,7 @@ async fn all_has_e_pv_all() {
     assert_eq!(r.unwrap(), vec![
         mqtt::Message {
             topic: "homeassistant/sensor/lxp_2222222222/e_pv_all/config".to_string(),
-            payload: "{\"device_class\":\"energy\",\"name\":\"PV Generation (All time)\",\"state_topic\":\"lxp/2222222222/inputs/all\",\"state_class\":\"total_increasing\",\"value_template\":\"{{ value_json.e_pv_all }}\",\"unit_of_measurement\":\"kWh\",\"unique_id\":\"lxp_2222222222_e_pv_all\",\"device\":{\"manufacturer\":\"LuxPower\",\"name\":\"lxp_2222222222\",\"identifiers\":[\"lxp_2222222222\"]}}".to_string() }
+            payload: "{\"device_class\":\"energy\",\"name\":\"PV Generation (All time)\",\"state_topic\":\"lxp/2222222222/inputs/all\",\"state_class\":\"total_increasing\",\"value_template\":\"{{ value_json.e_pv_all }}\",\"unit_of_measurement\":\"kWh\",\"unique_id\":\"lxp_2222222222_e_pv_all\",\"device\":{\"manufacturer\":\"LuxPower\",\"name\":\"lxp_2222222222\",\"identifiers\":[\"lxp_2222222222\"]}}".to_string()
+        }
     ]);
 }
