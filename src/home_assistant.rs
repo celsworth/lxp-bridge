@@ -3,6 +3,14 @@ use crate::prelude::*;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
+pub struct ConfigDevice {
+    manufacturer: String,
+    name: String,
+    identifiers: [String; 1],
+    // model: String, // TODO: provide inverter model
+}
+
+#[derive(Debug, Serialize)]
 pub struct Config {
     device_class: String,
     name: String,
@@ -11,6 +19,7 @@ pub struct Config {
     value_template: String,
     unit_of_measurement: String,
     unique_id: String,
+    device: ConfigDevice,
 }
 
 impl Config {
@@ -112,11 +121,12 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
+            device: Self::device(inverter),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
-                "{}/sensor/{}_{}/config",
+                "{}/sensor/lxp_{}/{}/config",
                 mqtt_config.homeassistant().prefix(),
                 inverter.datalog(),
                 name
@@ -147,11 +157,12 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
+            device: Self::device(inverter),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
-                "{}/sensor/{}_{}/config",
+                "{}/sensor/lxp_{}/{}/config",
                 mqtt_config.homeassistant().prefix(),
                 inverter.datalog(),
                 name
@@ -182,11 +193,12 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
+            device: Self::device(inverter),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
-                "{}/sensor/{}_{}/config",
+                "{}/sensor/lxp_{}/{}/config",
                 mqtt_config.homeassistant().prefix(),
                 inverter.datalog(),
                 name
@@ -217,11 +229,12 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
+            device: Self::device(inverter),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
-                "{}/sensor/{}_{}/config",
+                "{}/sensor/lxp_{}/{}/config",
                 mqtt_config.homeassistant().prefix(),
                 inverter.datalog(),
                 name
@@ -253,11 +266,12 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
+            device: Self::device(inverter),
         };
 
         Ok(Some(mqtt::Message {
             topic: format!(
-                "{}/sensor/{}_{}/config",
+                "{}/sensor/lxp_{}/{}/config",
                 mqtt_config.homeassistant().prefix(),
                 inverter.datalog(),
                 name
@@ -272,5 +286,15 @@ impl Config {
             .iter()
             .map(|s| s.replace(' ', ""))
             .any(|s| s == "all" || s == name)
+    }
+
+    fn device(inverter: &config::Inverter) -> ConfigDevice {
+        ConfigDevice {
+            identifiers: [
+                format!("lxp_{}", inverter.datalog()),
+            ],
+            manufacturer: "LuxPower".to_owned(),
+            name: format!("lxp_{}", inverter.datalog()),
+        }
     }
 }
