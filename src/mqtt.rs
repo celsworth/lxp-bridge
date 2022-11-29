@@ -36,6 +36,7 @@ impl Message {
                 topic: format!("{}/hold/{}", td.datalog, register),
                 payload: serde_json::to_string(&value)?,
             });
+
             if register == 21 {
                 let bits = lxp::packet::Register21Bits::new(value);
                 r.push(mqtt::Message {
@@ -122,6 +123,7 @@ impl Message {
                 ReadHold(inverter, register.parse()?, self.payload_int_or_1()?)
             }
             ["read", "param", register] => ReadParam(inverter, register.parse()?),
+            ["read", "ac_charge", num] => ReadAcChargeTime(inverter, num.parse()?),
             ["set", "hold", register] => SetHold(inverter, register.parse()?, self.payload_int()?),
             ["set", "param", register] => {
                 WriteParam(inverter, register.parse()?, self.payload_int()?)

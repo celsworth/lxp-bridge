@@ -78,6 +78,7 @@ impl Coordinator {
     }
 
     async fn process_command(&self, command: Command) -> Result<()> {
+        use commands::read_time_register::Action;
         use lxp::packet::{Register, RegisterBit};
         use Command::*;
 
@@ -91,6 +92,18 @@ impl Coordinator {
             }
             ReadHold(inverter, register, count) => self.read_hold(inverter, register, count).await,
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
+            ReadAcChargeTime(inverter, num) => {
+                self.read_time_register(inverter, Action::AcCharge(num))
+                    .await
+            }
+            ReadForcedChargeTime(inverter, num) => {
+                self.read_time_register(inverter, Action::ForcedCharge(num))
+                    .await
+            }
+            ReadForcedDischargeTime(inverter, num) => {
+                self.read_time_register(inverter, Action::ForcedDischarge(num))
+                    .await
+            }
             SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,
             WriteParam(inverter, register, value) => {
                 self.write_param(inverter, register, value).await
@@ -187,6 +200,19 @@ impl Coordinator {
         Ok(())
     }
 
+    async fn read_time_register(
+        &self,
+        inverter: config::Inverter,
+        action: commands::read_time_register::Action,
+    ) -> Result<()> {
+        commands::read_time_register::ReadTimeRegister::new(
+            self.channels.clone(),
+            inverter.clone(),
+            action,
+        )
+        .run()
+        .await
+    }
     async fn write_param<U>(
         &self,
         inverter: config::Inverter,
