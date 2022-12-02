@@ -129,6 +129,9 @@ impl Message {
                 WriteParam(inverter, register.parse()?, self.payload_int()?)
             }
             ["set", "ac_charge"] => AcCharge(inverter, self.payload_bool()),
+            ["set", "ac_charge", num] => {
+                SetAcChargeTime(inverter, num.parse()?, self.payload_start_end_time()?)
+            }
 
             ["set", "forced_discharge"] => ForcedDischarge(inverter, self.payload_bool()),
             ["set", "charge_rate_pct"] => ChargeRate(inverter, self.payload_int()?),
@@ -169,6 +172,32 @@ impl Message {
             let serial = Serial::from_str(datalog)?;
             Ok((TargetInverter::Serial(serial), rest))
         }
+    }
+
+    // not entirely happy with this return type but it avoids needing to expose a struct for now
+    // and they slot directly into WriteMulti packet values.
+    pub fn payload_start_end_time(&self) -> Result<[u8; 4]> {
+        use serde::Deserialize;
+        #[derive(Deserialize)]
+        struct StartEndTime {
+            start: String,
+            end: String,
+        }
+
+        // {"start":"20:00", "end":"21:00"} -> [20, 0, 21, 0]
+        let t = serde_json::from_str::<StartEndTime>(&self.payload)?;
+        // split on : then make u8s to return in an array
+        let start: Vec<&str> = t.start.split(':').collect();
+        let end: Vec<&str> = t.end.split(':').collect();
+        if start.len() != 2 || end.len() != 2 {
+            bail!("badly formatted time, use HH:MM")
+        }
+        Ok([
+            start[0].parse()?,
+            start[1].parse()?,
+            end[0].parse()?,
+            end[1].parse()?,
+        ])
     }
 
     pub fn payload_int_or_1(&self) -> Result<u16> {

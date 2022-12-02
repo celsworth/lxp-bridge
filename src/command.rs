@@ -11,6 +11,7 @@ pub enum Command {
     ReadForcedDischargeTime(config::Inverter, i16),
     SetHold(config::Inverter, i16, u16),
     WriteParam(config::Inverter, i16, u16),
+    SetAcChargeTime(config::Inverter, i16, [u8; 4]),
     ChargeRate(config::Inverter, u16),
     DischargeRate(config::Inverter, u16),
     AcCharge(config::Inverter, bool),
@@ -49,6 +50,9 @@ impl Command {
             }
             WriteParam(inverter, register, _) => {
                 format!("{}/set/param/{}", inverter.datalog(), register)
+            }
+            SetAcChargeTime(inverter, num, _) => {
+                format!("{}/set/ac_charge/{}", inverter.datalog(), num)
             }
             AcCharge(inverter, _) => format!("{}/set/ac_charge", inverter.datalog()),
             ForcedDischarge(inverter, _) => format!("{}/set/forced_discharge", inverter.datalog()),
