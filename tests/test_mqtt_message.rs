@@ -46,6 +46,50 @@ async fn for_hold_single() {
 }
 
 #[tokio::test]
+async fn for_hold_21() {
+    common_setup();
+
+    let inverter = Factory::inverter();
+
+    let packet = lxp::packet::TranslatedData {
+        datalog: inverter.datalog(),
+        device_function: lxp::packet::DeviceFunction::ReadHold,
+        inverter: inverter.serial(),
+        register: 21,
+        values: vec![12, 34],
+    };
+
+    assert_eq!(
+        mqtt::Message::for_hold(packet).unwrap(),
+        vec![mqtt::Message { topic: "2222222222/hold/21".to_owned(), payload: "8716".to_owned() },
+             mqtt::Message { topic: "2222222222/hold/21/bits".to_owned(), payload: "{\"eps_en\":false,\"ovf_load_derate_en\":false,\"drms_en\":true,\"lvrt_en\":true,\"anti_island_en\":false,\"neutral_detect_en\":false,\"grid_on_power_ss_en\":false,\"ac_charge_en\":false,\"sw_seamless_en\":false,\"set_to_standby\":true,\"forced_discharge_en\":false,\"forced_charge_en\":false,\"iso_en\":false,\"gfci_en\":true,\"dci_en\":false,\"feed_in_grid_en\":false}".to_owned() }
+        ]
+    );
+}
+
+#[tokio::test]
+async fn for_hold_110() {
+    common_setup();
+
+    let inverter = Factory::inverter();
+
+    let packet = lxp::packet::TranslatedData {
+        datalog: inverter.datalog(),
+        device_function: lxp::packet::DeviceFunction::ReadHold,
+        inverter: inverter.serial(),
+        register: 110,
+        values: vec![9, 4],
+    };
+
+    assert_eq!(
+        mqtt::Message::for_hold(packet).unwrap(),
+        vec![mqtt::Message { topic: "2222222222/hold/110".to_owned(), payload: "1033".to_owned() },
+             mqtt::Message { topic: "2222222222/hold/110/bits".to_owned(), payload: "{\"ub_pv_grid_off_en\":true,\"ub_run_without_grid\":false,\"ub_micro_grid_en\":false}".to_owned() }
+        ]
+    );
+}
+
+#[tokio::test]
 async fn for_hold_multi() {
     common_setup();
 
