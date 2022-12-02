@@ -129,16 +129,22 @@ impl SetTimeRegister {
     }
 
     pub async fn run(&self) -> Result<()> {
+        self.set_register(self.action.register()?, &self.values[0..2])
+            .await?;
+        self.set_register(self.action.register()? + 1, &self.values[2..4])
+            .await?;
+
+        Ok(())
+    }
+
+    async fn set_register(&self, register: i16, values: &[u8]) -> Result<()> {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: self.inverter.datalog(),
-            device_function: DeviceFunction::WriteMulti,
+            device_function: DeviceFunction::WriteSingle,
             inverter: self.inverter.serial(),
-            register: self.action.register()?,
-            values: self.values.to_vec(),
+            values: values.to_vec(),
+            register,
         });
-
-        debug!("{:?}", packet);
-        todo!();
 
         let mut receiver = self.channels.from_inverter.subscribe();
 
@@ -153,7 +159,7 @@ impl SetTimeRegister {
 
         let reply = receiver.wait_for_reply(&packet).await?;
         if let Packet::TranslatedData(td) = reply {
-            if td.values != [21, 0] {
+            if td.values != values {
                 bail!("failed");
             }
         } else {
