@@ -182,7 +182,6 @@ impl Message {
     }
 
     // not entirely happy with this return type but it avoids needing to expose a struct for now
-    // and they slot directly into WriteMulti packet values.
     pub fn payload_start_end_time(&self) -> Result<[u8; 4]> {
         use serde::Deserialize;
         #[derive(Deserialize)]
