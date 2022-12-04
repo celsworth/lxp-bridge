@@ -112,7 +112,14 @@ impl Coordinator {
                 self.set_time_register(inverter, Action::AcCharge(num), values)
                     .await
             }
-
+            SetForcedChargeTime(inverter, num, values) => {
+                self.set_time_register(inverter, Action::ForcedCharge(num), values)
+                    .await
+            }
+            SetForcedDischargeTime(inverter, num, values) => {
+                self.set_time_register(inverter, Action::ForcedDischarge(num), values)
+                    .await
+            }
             AcCharge(inverter, enable) => {
                 self.update_hold(
                     inverter,
