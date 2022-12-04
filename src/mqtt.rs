@@ -124,6 +124,8 @@ impl Message {
             }
             ["read", "param", register] => ReadParam(inverter, register.parse()?),
             ["read", "ac_charge", num] => ReadAcChargeTime(inverter, num.parse()?),
+            ["read", "forced_charge", num] => ReadForcedChargeTime(inverter, num.parse()?),
+            ["read", "forced_discharge", num] => ReadForcedDischargeTime(inverter, num.parse()?),
             ["set", "hold", register] => SetHold(inverter, register.parse()?, self.payload_int()?),
             ["set", "param", register] => {
                 WriteParam(inverter, register.parse()?, self.payload_int()?)
@@ -132,7 +134,12 @@ impl Message {
             ["set", "ac_charge", num] => {
                 SetAcChargeTime(inverter, num.parse()?, self.payload_start_end_time()?)
             }
-
+            ["set", "forced_charge", num] => {
+                SetForcedChargeTime(inverter, num.parse()?, self.payload_start_end_time()?)
+            }
+            ["set", "forced_discharge", num] => {
+                SetForcedDischargeTime(inverter, num.parse()?, self.payload_start_end_time()?)
+            }
             ["set", "forced_discharge"] => ForcedDischarge(inverter, self.payload_bool()),
             ["set", "charge_rate_pct"] => ChargeRate(inverter, self.payload_int()?),
             ["set", "discharge_rate_pct"] => DischargeRate(inverter, self.payload_int()?),
