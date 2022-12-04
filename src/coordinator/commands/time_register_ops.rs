@@ -160,7 +160,12 @@ impl SetTimeRegister {
         let reply = receiver.wait_for_reply(&packet).await?;
         if let Packet::TranslatedData(td) = reply {
             if td.values != values {
-                bail!("failed");
+                bail!(
+                    "failed to set register {}, got back value {:?} (wanted {:?})",
+                    register,
+                    td.values,
+                    values
+                );
             }
         } else {
             bail!("didn't get expected reply from inverter");
