@@ -6,6 +6,7 @@
 * Add WriteParam functionality (lxp/cmd/all/set/param/X) (#117)
 * Decode bits in holding registers 21 and 110 and publish to lxp/$datalog/hold/21/bits (#119)
 * Better HomeAssistant discovery message structure (#120, @unreadablename)
+* Add MQTT messages to easily read/set time registers (#123)
 
 
 # 0.9.0 - 2nd November 2022
