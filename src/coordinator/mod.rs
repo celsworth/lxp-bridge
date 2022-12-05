@@ -96,8 +96,8 @@ impl Coordinator {
                 self.read_time_register(inverter, Action::AcCharge(num))
                     .await
             }
-            ReadForcedChargeTime(inverter, num) => {
-                self.read_time_register(inverter, Action::ForcedCharge(num))
+            ReadChargePriorityTime(inverter, num) => {
+                self.read_time_register(inverter, Action::ChargePriority(num))
                     .await
             }
             ReadForcedDischargeTime(inverter, num) => {
@@ -112,8 +112,8 @@ impl Coordinator {
                 self.set_time_register(inverter, Action::AcCharge(num), values)
                     .await
             }
-            SetForcedChargeTime(inverter, num, values) => {
-                self.set_time_register(inverter, Action::ForcedCharge(num), values)
+            SetChargePriorityTime(inverter, num, values) => {
+                self.set_time_register(inverter, Action::ChargePriority(num), values)
                     .await
             }
             SetForcedDischargeTime(inverter, num, values) => {
@@ -129,6 +129,16 @@ impl Coordinator {
                 )
                 .await
             }
+            ChargePriority(inverter, enable) => {
+                self.update_hold(
+                    inverter,
+                    Register::Register21,
+                    RegisterBit::ChargePriorityEnable,
+                    enable,
+                )
+                .await
+            }
+
             ForcedDischarge(inverter, enable) => {
                 self.update_hold(
                     inverter,

@@ -544,6 +544,7 @@ pub enum RegisterBit {
     // Register 21
     AcChargeEnable = 1 << 7,
     ForcedDischargeEnable = 1 << 10,
+    ChargePriorityEnable = 1 << 11,
 }
 
 // Register21Bits {{{
@@ -560,7 +561,7 @@ pub struct Register21Bits {
     pub sw_seamless_en: bool,
     pub set_to_standby: bool,
     pub forced_discharge_en: bool,
-    pub forced_charge_en: bool,
+    pub charge_priority_en: bool,
     pub iso_en: bool,
     pub gfci_en: bool,
     pub dci_en: bool,
@@ -585,7 +586,7 @@ impl Register21Bits {
             sw_seamless_en: Self::is_bit_set(data, 1 << 8),
             set_to_standby: Self::is_bit_set(data, 1 << 9),
             forced_discharge_en: Self::is_bit_set(data, 1 << 10),
-            forced_charge_en: Self::is_bit_set(data, 1 << 1),
+            charge_priority_en: Self::is_bit_set(data, 1 << 1),
             iso_en: Self::is_bit_set(data, 1 << 12),
             gfci_en: Self::is_bit_set(data, 1 << 13),
             dci_en: Self::is_bit_set(data, 1 << 14),
