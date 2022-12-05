@@ -7,16 +7,17 @@ pub enum Command {
     ReadHold(config::Inverter, i16, u16),
     ReadParam(config::Inverter, i16),
     ReadAcChargeTime(config::Inverter, i16),
-    ReadForcedChargeTime(config::Inverter, i16),
+    ReadChargePriorityTime(config::Inverter, i16),
     ReadForcedDischargeTime(config::Inverter, i16),
     SetHold(config::Inverter, i16, u16),
     WriteParam(config::Inverter, i16, u16),
     SetAcChargeTime(config::Inverter, i16, [u8; 4]),
-    SetForcedChargeTime(config::Inverter, i16, [u8; 4]),
+    SetChargePriorityTime(config::Inverter, i16, [u8; 4]),
     SetForcedDischargeTime(config::Inverter, i16, [u8; 4]),
     ChargeRate(config::Inverter, u16),
     DischargeRate(config::Inverter, u16),
     AcCharge(config::Inverter, bool),
+    ChargePriority(config::Inverter, bool),
     ForcedDischarge(config::Inverter, bool),
     AcChargeRate(config::Inverter, u16),
     AcChargeSocLimit(config::Inverter, u16),
@@ -41,8 +42,8 @@ impl Command {
             ReadAcChargeTime(inverter, num) => {
                 format!("{}/read/ac_charge/{}", inverter.datalog(), num)
             }
-            ReadForcedChargeTime(inverter, num) => {
-                format!("{}/read/forced_charge/{}", inverter.datalog(), num)
+            ReadChargePriorityTime(inverter, num) => {
+                format!("{}/read/charge_priority/{}", inverter.datalog(), num)
             }
             ReadForcedDischargeTime(inverter, num) => {
                 format!("{}/read/forced_discharge/{}", inverter.datalog(), num)
@@ -56,13 +57,14 @@ impl Command {
             SetAcChargeTime(inverter, num, _) => {
                 format!("{}/set/ac_charge/{}", inverter.datalog(), num)
             }
-            SetForcedChargeTime(inverter, num, _) => {
-                format!("{}/set/forced_charge/{}", inverter.datalog(), num)
+            SetChargePriorityTime(inverter, num, _) => {
+                format!("{}/set/charge_priority/{}", inverter.datalog(), num)
             }
             SetForcedDischargeTime(inverter, num, _) => {
                 format!("{}/set/forced_discharge/{}", inverter.datalog(), num)
             }
             AcCharge(inverter, _) => format!("{}/set/ac_charge", inverter.datalog()),
+            ChargePriority(inverter, _) => format!("{}/set/forced_harge", inverter.datalog()),
             ForcedDischarge(inverter, _) => format!("{}/set/forced_discharge", inverter.datalog()),
             ChargeRate(inverter, _) => format!("{}/set/charge_rate_pct", inverter.datalog()),
             DischargeRate(inverter, _) => format!("{}/set/discharge_rate_pct", inverter.datalog()),
