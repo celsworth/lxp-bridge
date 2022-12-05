@@ -64,7 +64,7 @@ impl Command {
                 format!("{}/set/forced_discharge/{}", inverter.datalog(), num)
             }
             AcCharge(inverter, _) => format!("{}/set/ac_charge", inverter.datalog()),
-            ChargePriority(inverter, _) => format!("{}/set/forced_harge", inverter.datalog()),
+            ChargePriority(inverter, _) => format!("{}/set/charge_priority", inverter.datalog()),
             ForcedDischarge(inverter, _) => format!("{}/set/forced_discharge", inverter.datalog()),
             ChargeRate(inverter, _) => format!("{}/set/charge_rate_pct", inverter.datalog()),
             DischargeRate(inverter, _) => format!("{}/set/discharge_rate_pct", inverter.datalog()),
