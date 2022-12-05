@@ -6,8 +6,14 @@ pub enum Command {
     ReadInput(config::Inverter, i16, u16),
     ReadHold(config::Inverter, i16, u16),
     ReadParam(config::Inverter, i16),
+    ReadAcChargeTime(config::Inverter, i16),
+    ReadForcedChargeTime(config::Inverter, i16),
+    ReadForcedDischargeTime(config::Inverter, i16),
     SetHold(config::Inverter, i16, u16),
     WriteParam(config::Inverter, i16, u16),
+    SetAcChargeTime(config::Inverter, i16, [u8; 4]),
+    SetForcedChargeTime(config::Inverter, i16, [u8; 4]),
+    SetForcedDischargeTime(config::Inverter, i16, [u8; 4]),
     ChargeRate(config::Inverter, u16),
     DischargeRate(config::Inverter, u16),
     AcCharge(config::Inverter, bool),
@@ -32,11 +38,29 @@ impl Command {
             ReadParam(inverter, register) => {
                 format!("{}/read/param/{}", inverter.datalog(), register)
             }
+            ReadAcChargeTime(inverter, num) => {
+                format!("{}/read/ac_charge/{}", inverter.datalog(), num)
+            }
+            ReadForcedChargeTime(inverter, num) => {
+                format!("{}/read/forced_charge/{}", inverter.datalog(), num)
+            }
+            ReadForcedDischargeTime(inverter, num) => {
+                format!("{}/read/forced_discharge/{}", inverter.datalog(), num)
+            }
             SetHold(inverter, register, _) => {
                 format!("{}/set/hold/{}", inverter.datalog(), register)
             }
             WriteParam(inverter, register, _) => {
                 format!("{}/set/param/{}", inverter.datalog(), register)
+            }
+            SetAcChargeTime(inverter, num, _) => {
+                format!("{}/set/ac_charge/{}", inverter.datalog(), num)
+            }
+            SetForcedChargeTime(inverter, num, _) => {
+                format!("{}/set/forced_charge/{}", inverter.datalog(), num)
+            }
+            SetForcedDischargeTime(inverter, num, _) => {
+                format!("{}/set/forced_discharge/{}", inverter.datalog(), num)
             }
             AcCharge(inverter, _) => format!("{}/set/ac_charge", inverter.datalog()),
             ForcedDischarge(inverter, _) => format!("{}/set/forced_discharge", inverter.datalog()),

@@ -78,6 +78,7 @@ impl Coordinator {
     }
 
     async fn process_command(&self, command: Command) -> Result<()> {
+        use commands::time_register_ops::Action;
         use lxp::packet::{Register, RegisterBit};
         use Command::*;
 
@@ -91,9 +92,33 @@ impl Coordinator {
             }
             ReadHold(inverter, register, count) => self.read_hold(inverter, register, count).await,
             ReadParam(inverter, register) => self.read_param(inverter, register).await,
+            ReadAcChargeTime(inverter, num) => {
+                self.read_time_register(inverter, Action::AcCharge(num))
+                    .await
+            }
+            ReadForcedChargeTime(inverter, num) => {
+                self.read_time_register(inverter, Action::ForcedCharge(num))
+                    .await
+            }
+            ReadForcedDischargeTime(inverter, num) => {
+                self.read_time_register(inverter, Action::ForcedDischarge(num))
+                    .await
+            }
             SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,
             WriteParam(inverter, register, value) => {
                 self.write_param(inverter, register, value).await
+            }
+            SetAcChargeTime(inverter, num, values) => {
+                self.set_time_register(inverter, Action::AcCharge(num), values)
+                    .await
+            }
+            SetForcedChargeTime(inverter, num, values) => {
+                self.set_time_register(inverter, Action::ForcedCharge(num), values)
+                    .await
+            }
+            SetForcedDischargeTime(inverter, num, values) => {
+                self.set_time_register(inverter, Action::ForcedDischarge(num), values)
+                    .await
             }
             AcCharge(inverter, enable) => {
                 self.update_hold(
@@ -187,6 +212,20 @@ impl Coordinator {
         Ok(())
     }
 
+    async fn read_time_register(
+        &self,
+        inverter: config::Inverter,
+        action: commands::time_register_ops::Action,
+    ) -> Result<()> {
+        commands::time_register_ops::ReadTimeRegister::new(
+            self.channels.clone(),
+            inverter.clone(),
+            action,
+        )
+        .run()
+        .await
+    }
+
     async fn write_param<U>(
         &self,
         inverter: config::Inverter,
@@ -206,6 +245,22 @@ impl Coordinator {
         .await?;
 
         Ok(())
+    }
+
+    async fn set_time_register(
+        &self,
+        inverter: config::Inverter,
+        action: commands::time_register_ops::Action,
+        values: [u8; 4],
+    ) -> Result<()> {
+        commands::time_register_ops::SetTimeRegister::new(
+            self.channels.clone(),
+            inverter.clone(),
+            action,
+            values,
+        )
+        .run()
+        .await
     }
 
     async fn set_hold<U>(&self, inverter: config::Inverter, register: U, value: u16) -> Result<()>
