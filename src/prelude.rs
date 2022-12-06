@@ -27,7 +27,6 @@ pub use crate::{
     },
     mqtt::{self, Mqtt},
     options::Options,
-    scheduler::Scheduler,
     unixtime::UnixTime,
     utils::Utils,
 };

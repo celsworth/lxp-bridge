@@ -1,8 +1,6 @@
 use crate::prelude::*;
 
-use cron_parser::parse;
-
-use chrono::{DateTime, Local};
+// use cron_parser::parse;
 
 pub struct Scheduler {
     config: ConfigWrapper,
@@ -29,35 +27,9 @@ impl Scheduler {
 
         info!("scheduler starting");
 
-        if scheduler.timesync().enabled() {
-            // sticking to Utc here avoids some "invalid date" panics around DST changes
-            while let Ok(next) = parse(scheduler.timesync().cron(), &Utils::utc()) {
-                let sleep = next - Utils::utc();
-
-                // localtime is only used for display
-                let local_next: DateTime<Local> = DateTime::from(next);
-                info!("next timesync at {}, sleeping for {}", local_next, sleep);
-
-                tokio::time::sleep(sleep.to_std()?).await;
-                self.timesync().await?;
-            }
-        }
+        /* this doesn't do anything yet */
 
         info!("scheduler exiting");
-
-        Ok(())
-    }
-
-    async fn timesync(&self) -> Result<()> {
-        info!("timesync starting");
-
-        for inverter in self.config.enabled_inverters() {
-            coordinator::commands::timesync::TimeSync::new(self.channels.clone(), inverter)
-                .run()
-                .await?;
-        }
-
-        info!("timesync complete");
 
         Ok(())
     }

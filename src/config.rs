@@ -197,16 +197,10 @@ impl Database {
 pub struct Scheduler {
     #[serde(default = "Config::default_enabled")]
     pub enabled: bool,
-
-    pub timesync: Crontab,
 }
 impl Scheduler {
     pub fn enabled(&self) -> bool {
         self.enabled
-    }
-
-    pub fn timesync(&self) -> &Crontab {
-        &self.timesync
     }
 } // }}}
 

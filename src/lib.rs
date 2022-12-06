@@ -9,7 +9,6 @@ pub mod lxp;
 pub mod mqtt;
 pub mod options;
 pub mod prelude;
-pub mod scheduler;
 pub mod unixtime;
 pub mod utils;
 
@@ -40,7 +39,7 @@ pub async fn app() -> Result<()> {
 
     let channels = Channels::new();
 
-    let scheduler = Scheduler::new(config.clone(), channels.clone());
+    // let scheduler = Scheduler::new(config.clone(), channels.clone());
     let mqtt = Mqtt::new(config.clone(), channels.clone());
     let influx = Influx::new(config.clone(), channels.clone());
     let coordinator = Coordinator::new(config.clone(), channels.clone());
@@ -60,7 +59,7 @@ pub async fn app() -> Result<()> {
     futures::try_join!(
         start_databases(databases),
         start_inverters(inverters),
-        scheduler.start(),
+        // scheduler.start(),
         mqtt.start(),
         influx.start(),
         coordinator.start()
