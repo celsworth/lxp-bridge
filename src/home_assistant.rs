@@ -484,7 +484,7 @@ impl Switch {
     }
 }
 
-fn device(inverter: &config::Inverter) -> ConfigDevice {
+fn device(inverter: &config::Inverter) -> Device {
     Device {
         identifiers: [format!("lxp_{}", inverter.datalog())],
         manufacturer: "LuxPower".to_owned(),
