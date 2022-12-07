@@ -46,6 +46,8 @@ impl Config {
             Self::power(inverter, mqtt_config, "p_to_user", "Power from Grid")?,
             Self::power(inverter, mqtt_config, "p_to_grid", "Power to Grid")?,
             Self::power(inverter, mqtt_config, "p_eps", "Active EPS Power")?,
+            Self::power(inverter, mqtt_config, "p_charge", "Battery Charge Power")?,
+            Self::power(inverter, mqtt_config, "p_discharge", "Battery Discharge Power")?,
             Self::energy(
                 inverter,
                 mqtt_config,
