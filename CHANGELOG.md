@@ -9,7 +9,7 @@
 * Add MQTT messages to easily read/set time registers (#123)
 * Add missing `lxp/cmd/$datalog/set/forced_discharge` (#125)
 * Add more HA discovery sensors (#128, @unreadablename)
-* Add MQTT LWT (#129)
+* Add MQTT LWT and use it in HA discovery messages (#129, #130)
 
 
 # 0.9.0 - 2nd November 2022

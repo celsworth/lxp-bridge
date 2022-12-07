@@ -3,6 +3,11 @@ use crate::prelude::*;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
+pub struct Availability {
+    topic: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct ConfigDevice {
     manufacturer: String,
     name: String,
@@ -20,6 +25,7 @@ pub struct Config {
     unit_of_measurement: String,
     unique_id: String,
     device: ConfigDevice,
+    availability: Availability,
 }
 
 impl Config {
@@ -49,7 +55,12 @@ impl Config {
             Self::power(inverter, mqtt_config, "p_to_grid", "Power to Grid")?,
             Self::power(inverter, mqtt_config, "p_eps", "Active EPS Power")?,
             Self::power(inverter, mqtt_config, "p_charge", "Battery Charge Power")?,
-            Self::power(inverter, mqtt_config, "p_discharge", "Battery Discharge Power")?,
+            Self::power(
+                inverter,
+                mqtt_config,
+                "p_discharge",
+                "Battery Discharge Power",
+            )?,
             Self::energy(
                 inverter,
                 mqtt_config,
@@ -129,7 +140,8 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
+            availability: availability(mqtt_config),
         };
 
         Ok(Some(mqtt::Message {
@@ -165,7 +177,8 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
+            availability: availability(mqtt_config),
         };
 
         Ok(Some(mqtt::Message {
@@ -201,7 +214,8 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
+            availability: availability(mqtt_config),
         };
 
         Ok(Some(mqtt::Message {
@@ -237,7 +251,8 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
+            availability: availability(mqtt_config),
         };
 
         Ok(Some(mqtt::Message {
@@ -273,7 +288,8 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
+            availability: availability(mqtt_config),
         };
 
         Ok(Some(mqtt::Message {
@@ -309,7 +325,8 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
+            availability: availability(mqtt_config),
         };
 
         Ok(Some(mqtt::Message {
@@ -345,7 +362,8 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
+            availability: availability(mqtt_config),
         };
 
         Ok(Some(mqtt::Message {
@@ -382,7 +400,8 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
+            availability: availability(mqtt_config),
         };
 
         Ok(Some(mqtt::Message {
@@ -403,12 +422,18 @@ impl Config {
             .map(|s| s.replace(' ', ""))
             .any(|s| s == "all" || s == name)
     }
+}
 
-    fn device(inverter: &config::Inverter) -> ConfigDevice {
-        ConfigDevice {
-            identifiers: [format!("lxp_{}", inverter.datalog())],
-            manufacturer: "LuxPower".to_owned(),
-            name: format!("lxp_{}", inverter.datalog()),
-        }
+fn device(inverter: &config::Inverter) -> ConfigDevice {
+    ConfigDevice {
+        identifiers: [format!("lxp_{}", inverter.datalog())],
+        manufacturer: "LuxPower".to_owned(),
+        name: format!("lxp_{}", inverter.datalog()),
+    }
+}
+
+fn availability(mqtt_config: &config::Mqtt) -> Availability {
+    Availability {
+        topic: format!("{}/LWT", mqtt_config.namespace()),
     }
 }
