@@ -8,6 +8,7 @@
 * Better HomeAssistant discovery message structure (#120, @unreadablename)
 * Add MQTT messages to easily read/set time registers (#123)
 * Add missing `lxp/cmd/$datalog/set/forced_discharge` (#125)
+* Add more HA discovery sensors (#128, @unreadablename)
 
 
 # 0.9.0 - 2nd November 2022
