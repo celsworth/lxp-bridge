@@ -36,6 +36,7 @@ impl Config {
             Self::voltage(inverter, mqtt_config, "v_bat", "Battery Voltage")?,
             Self::voltage(inverter, mqtt_config, "v_ac_r", "Grid Voltage")?,
             Self::frequency(inverter, mqtt_config, "f_ac", "Grid Frequency")?,
+            Self::frequency(inverter, mqtt_config, "f_eps", "EPS Frequency")?,
             Self::power(inverter, mqtt_config, "p_pv", "Power (PV Array)")?,
             Self::power(inverter, mqtt_config, "p_pv_1", "Power (PV String 1)")?,
             Self::power(inverter, mqtt_config, "p_pv_2", "Power (PV String 2)")?,
@@ -44,6 +45,7 @@ impl Config {
             Self::power(inverter, mqtt_config, "p_discharge", "Battery Discharge")?,
             Self::power(inverter, mqtt_config, "p_to_user", "Power from Grid")?,
             Self::power(inverter, mqtt_config, "p_to_grid", "Power to Grid")?,
+            Self::power(inverter, mqtt_config, "p_eps", "Active EPS Power")?,
             Self::energy(
                 inverter,
                 mqtt_config,
