@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use rumqttc::{AsyncClient, Event, EventLoop, Incoming, MqttOptions, Publish, QoS};
+use rumqttc::{AsyncClient, Event, EventLoop, Incoming, LastWill, MqttOptions, Publish, QoS};
 
 // Message {{{
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -258,6 +258,14 @@ impl Mqtt {
 
         let mut options = MqttOptions::new("lxp-bridge", c.mqtt().host(), c.mqtt().port());
 
+        let will = LastWill {
+            topic: self.lwt_topic(),
+            message: bytes::Bytes::from("OFFLINE"),
+            qos: QoS::AtLeastOnce,
+            retain: true,
+        };
+        options.set_last_will(will);
+
         options.set_keep_alive(std::time::Duration::from_secs(60));
         if let (Some(u), Some(p)) = (c.mqtt().username(), c.mqtt().password()) {
             options.set_credentials(u, p);
@@ -287,6 +295,10 @@ impl Mqtt {
     }
 
     async fn setup(&self, client: AsyncClient) -> Result<()> {
+        client
+            .publish(self.lwt_topic(), QoS::AtLeastOnce, true, "ONLINE")
+            .await?;
+
         client
             .subscribe(
                 format!("{}/cmd/all/#", self.config.mqtt().namespace()),
@@ -394,5 +406,9 @@ impl Mqtt {
         info!("sender loop exiting");
 
         Ok(())
+    }
+
+    fn lwt_topic(&self) -> String {
+        format!("{}/LWT", self.config.mqtt().namespace())
     }
 }
