@@ -3,7 +3,7 @@ use crate::prelude::*;
 use serde::Serialize;
 
 #[derive(Debug, Serialize)]
-pub struct ConfigDevice {
+pub struct Device {
     manufacturer: String,
     name: String,
     identifiers: [String; 1],
@@ -11,7 +11,7 @@ pub struct ConfigDevice {
 }
 
 #[derive(Debug, Serialize)]
-pub struct Config {
+pub struct Sensor {
     device_class: String,
     name: String,
     state_topic: String,
@@ -19,10 +19,20 @@ pub struct Config {
     value_template: String,
     unit_of_measurement: String,
     unique_id: String,
-    device: ConfigDevice,
+    device: Device,
 }
 
-impl Config {
+#[derive(Debug, Serialize)]
+pub struct Switch {
+    name: String,
+    state_topic: String,
+    command_topic: String,
+    value_template: String,
+    unique_id: String,
+    device: Device,
+}
+
+impl Sensor {
     pub fn all(
         inverter: &config::Inverter,
         mqtt_config: &config::Mqtt,
@@ -121,7 +131,7 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
         };
 
         Ok(Some(mqtt::Message {
@@ -157,7 +167,7 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
         };
 
         Ok(Some(mqtt::Message {
@@ -193,7 +203,7 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
         };
 
         Ok(Some(mqtt::Message {
@@ -229,7 +239,7 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
         };
 
         Ok(Some(mqtt::Message {
@@ -266,7 +276,7 @@ impl Config {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
         };
 
         Ok(Some(mqtt::Message {
@@ -287,12 +297,62 @@ impl Config {
             .map(|s| s.replace(' ', ""))
             .any(|s| s == "all" || s == name)
     }
+}
 
-    fn device(inverter: &config::Inverter) -> ConfigDevice {
-        ConfigDevice {
-            identifiers: [format!("lxp_{}", inverter.datalog())],
-            manufacturer: "LuxPower".to_owned(),
-            name: format!("lxp_{}", inverter.datalog()),
+impl Switch {
+    pub fn all(
+        inverter: &config::Inverter,
+        mqtt_config: &config::Mqtt,
+    ) -> Result<Vec<mqtt::Message>> {
+        let r = vec![Self::ac_charge(inverter, mqtt_config)?];
+
+        // drop all None
+        Ok(r.into_iter().flatten().collect())
+    }
+
+    fn ac_charge(
+        inverter: &config::Inverter,
+        mqtt_config: &config::Mqtt,
+    ) -> Result<Option<mqtt::Message>> {
+        /*
+        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+            return Ok(None);
         }
+        */
+
+        let config = Self {
+            value_template: format!("{{{{ value_json.ac_charge_en }}}}"),
+            state_topic: format!(
+                "{}/{}/hold/21/bits",
+                mqtt_config.namespace(),
+                inverter.datalog()
+            ),
+            command_topic: format!(
+                "{}/{}/set/ac_charge",
+                mqtt_config.namespace(),
+                inverter.datalog()
+            ),
+            unique_id: format!("lxp_{}_{}", inverter.datalog(), "ac_charge"),
+            name: "AC Charge".to_string(),
+            device: device(inverter),
+        };
+
+        Ok(Some(mqtt::Message {
+            topic: format!(
+                "{}/switch/lxp_{}/{}/config",
+                mqtt_config.homeassistant().prefix(),
+                inverter.datalog(),
+                "ac_charge"
+            ),
+            payload: serde_json::to_string(&config)?,
+        }))
+    }
+}
+
+fn device(inverter: &config::Inverter) -> Device {
+    Device {
+        identifiers: [format!("lxp_{}", inverter.datalog())],
+        manufacturer: "LuxPower".to_owned(),
+        name: format!("lxp_{}", inverter.datalog()),
     }
 }
