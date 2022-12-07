@@ -550,27 +550,31 @@ pub enum RegisterBit {
 // Register21Bits {{{
 #[derive(Clone, Debug, Serialize)]
 pub struct Register21Bits {
-    pub eps_en: bool,
-    pub ovf_load_derate_en: bool,
-    pub drms_en: bool,
-    pub lvrt_en: bool,
-    pub anti_island_en: bool,
-    pub neutral_detect_en: bool,
-    pub grid_on_power_ss_en: bool,
-    pub ac_charge_en: bool,
-    pub sw_seamless_en: bool,
-    pub set_to_standby: bool,
-    pub forced_discharge_en: bool,
-    pub charge_priority_en: bool,
-    pub iso_en: bool,
-    pub gfci_en: bool,
-    pub dci_en: bool,
-    pub feed_in_grid_en: bool,
+    pub eps_en: String,
+    pub ovf_load_derate_en: String,
+    pub drms_en: String,
+    pub lvrt_en: String,
+    pub anti_island_en: String,
+    pub neutral_detect_en: String,
+    pub grid_on_power_ss_en: String,
+    pub ac_charge_en: String,
+    pub sw_seamless_en: String,
+    pub set_to_standby: String,
+    pub forced_discharge_en: String,
+    pub charge_priority_en: String,
+    pub iso_en: String,
+    pub gfci_en: String,
+    pub dci_en: String,
+    pub feed_in_grid_en: String,
 }
 
 impl Register21Bits {
-    fn is_bit_set(data: u16, bit: u16) -> bool {
-        (data & bit) == bit
+    fn is_bit_set(data: u16, bit: u16) -> String {
+        if (data & bit) == bit {
+            "ON".to_string()
+        } else {
+            "OFF".to_string()
+        }
     }
 
     pub fn new(data: u16) -> Self {
@@ -598,13 +602,17 @@ impl Register21Bits {
 // Register110Bits {{{
 #[derive(Clone, Debug, Serialize)]
 pub struct Register110Bits {
-    pub ub_pv_grid_off_en: bool,
-    pub ub_run_without_grid: bool,
-    pub ub_micro_grid_en: bool,
+    pub ub_pv_grid_off_en: String,
+    pub ub_run_without_grid: String,
+    pub ub_micro_grid_en: String,
 }
 impl Register110Bits {
-    fn is_bit_set(data: u16, bit: u16) -> bool {
-        (data & bit) == bit
+    fn is_bit_set(data: u16, bit: u16) -> String {
+        if (data & bit) == bit {
+            "ON".to_string()
+        } else {
+            "OFF".to_string()
+        }
     }
 
     pub fn new(data: u16) -> Self {
