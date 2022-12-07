@@ -26,10 +26,6 @@ pub struct Sensor {
 pub struct Switch {
     name: String,
     state_topic: String,
-    payload_on: String,
-    payload_off: String,
-    state_on: String,
-    state_off: String,
     command_topic: String,
     value_template: String,
     unique_id: String,
@@ -447,10 +443,6 @@ impl Switch {
 
         let config = Self {
             value_template: "{{ value_json.ac_charge_en }}".to_string(),
-            payload_on: "true".to_string(),
-            payload_off: "false".to_string(),
-            state_on: "true".to_string(),
-            state_off: "false".to_string(),
             state_topic: format!(
                 "{}/{}/hold/21/bits",
                 mqtt_config.namespace(),
