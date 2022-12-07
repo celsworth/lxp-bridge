@@ -259,7 +259,7 @@ impl Mqtt {
         let mut options = MqttOptions::new("lxp-bridge", c.mqtt().host(), c.mqtt().port());
 
         let will = LastWill {
-            topic: "lxp/LWT".to_string(),
+            topic: format!("{}/LWT", self.config.mqtt().namespace()),
             message: bytes::Bytes::from("OFFLINE"),
             qos: QoS::AtLeastOnce,
             retain: true,
@@ -296,7 +296,12 @@ impl Mqtt {
 
     async fn setup(&self, client: AsyncClient) -> Result<()> {
         client
-            .publish("lxp/LWT", QoS::AtLeastOnce, true, "ONLINE")
+            .publish(
+                format!("{}/LWT", self.config.mqtt().namespace()),
+                QoS::AtLeastOnce,
+                true,
+                "ONLINE",
+            )
             .await?;
 
         client
