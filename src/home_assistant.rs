@@ -59,7 +59,12 @@ impl Sensor {
             Self::power(inverter, mqtt_config, "p_to_grid", "Power to Grid")?,
             Self::power(inverter, mqtt_config, "p_eps", "Active EPS Power")?,
             Self::power(inverter, mqtt_config, "p_charge", "Battery Charge Power")?,
-            Self::power(inverter, mqtt_config, "p_discharge", "Battery Discharge Power")?,
+            Self::power(
+                inverter,
+                mqtt_config,
+                "p_discharge",
+                "Battery Discharge Power",
+            )?,
             Self::energy(
                 inverter,
                 mqtt_config,
@@ -139,7 +144,7 @@ impl Sensor {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
         };
 
         Ok(Some(mqtt::Message {
@@ -211,7 +216,7 @@ impl Sensor {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
         };
 
         Ok(Some(mqtt::Message {
@@ -247,7 +252,7 @@ impl Sensor {
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
             name: label.to_string(),
-            device: Self::device(inverter),
+            device: device(inverter),
         };
 
         Ok(Some(mqtt::Message {
@@ -437,7 +442,7 @@ impl Switch {
         */
 
         let config = Self {
-            value_template: format!("{{{{ value_json.ac_charge_en }}}}"),
+            value_template: "{{ value_json.ac_charge_en }}".to_string(),
             state_topic: format!(
                 "{}/{}/hold/21/bits",
                 mqtt_config.namespace(),
