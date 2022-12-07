@@ -34,6 +34,7 @@ impl Config {
             Self::voltage(inverter, mqtt_config, "v_pv_2", "Voltage (PV String 2)")?,
             Self::voltage(inverter, mqtt_config, "v_pv_3", "Voltage (PV String 3)")?,
             Self::voltage(inverter, mqtt_config, "v_bat", "Battery Voltage")?,
+            Self::voltage(inverter, mqtt_config, "v_ac_r", "Grid Voltage")?,
             Self::power(inverter, mqtt_config, "p_pv", "Power (PV Array)")?,
             Self::power(inverter, mqtt_config, "p_pv_1", "Power (PV String 1)")?,
             Self::power(inverter, mqtt_config, "p_pv_2", "Power (PV String 2)")?,
