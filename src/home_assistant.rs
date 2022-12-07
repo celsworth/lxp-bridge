@@ -449,7 +449,7 @@ impl Switch {
                 inverter.datalog()
             ),
             command_topic: format!(
-                "{}/{}/set/ac_charge",
+                "{}/cmd/{}/set/ac_charge",
                 mqtt_config.namespace(),
                 inverter.datalog()
             ),
