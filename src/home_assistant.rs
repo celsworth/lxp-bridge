@@ -35,6 +35,7 @@ impl Config {
             Self::voltage(inverter, mqtt_config, "v_pv_3", "Voltage (PV String 3)")?,
             Self::voltage(inverter, mqtt_config, "v_bat", "Battery Voltage")?,
             Self::voltage(inverter, mqtt_config, "v_ac_r", "Grid Voltage")?,
+            Self::frequency(inverter, mqtt_config, "f_ac", "Grid Frequency")?,
             Self::power(inverter, mqtt_config, "p_pv", "Power (PV Array)")?,
             Self::power(inverter, mqtt_config, "p_pv_1", "Power (PV String 1)")?,
             Self::power(inverter, mqtt_config, "p_pv_2", "Power (PV String 2)")?,
@@ -114,6 +115,42 @@ impl Config {
             device_class: "battery".to_owned(),
             state_class: "measurement".to_owned(),
             unit_of_measurement: "%".to_owned(),
+            value_template: format!("{{{{ value_json.{} }}}}", name),
+            state_topic: format!(
+                "{}/{}/inputs/all",
+                mqtt_config.namespace(),
+                inverter.datalog()
+            ),
+            unique_id: format!("lxp_{}_{}", inverter.datalog(), name),
+            name: label.to_string(),
+            device: Self::device(inverter),
+        };
+
+        Ok(Some(mqtt::Message {
+            topic: format!(
+                "{}/sensor/lxp_{}/{}/config",
+                mqtt_config.homeassistant().prefix(),
+                inverter.datalog(),
+                name
+            ),
+            payload: serde_json::to_string(&config)?,
+        }))
+    }
+
+    fn frequency(
+        inverter: &config::Inverter,
+        mqtt_config: &config::Mqtt,
+        name: &str,
+        label: &str,
+    ) -> Result<Option<mqtt::Message>> {
+        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+            return Ok(None);
+        }
+
+        let config = Self {
+            device_class: "frequency".to_owned(),
+            state_class: "measurement".to_owned(),
+            unit_of_measurement: "Hz".to_owned(),
             value_template: format!("{{{{ value_json.{} }}}}", name),
             state_topic: format!(
                 "{}/{}/inputs/all",
