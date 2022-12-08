@@ -260,7 +260,7 @@ impl Mqtt {
 
         let will = LastWill {
             topic: self.lwt_topic(),
-            message: bytes::Bytes::from("OFFLINE"),
+            message: bytes::Bytes::from("offline"),
             qos: QoS::AtLeastOnce,
             retain: true,
         };
@@ -296,7 +296,7 @@ impl Mqtt {
 
     async fn setup(&self, client: AsyncClient) -> Result<()> {
         client
-            .publish(self.lwt_topic(), QoS::AtLeastOnce, true, "ONLINE")
+            .publish(self.lwt_topic(), QoS::AtLeastOnce, true, "online")
             .await?;
 
         client
