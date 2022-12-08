@@ -10,6 +10,7 @@
 * Add missing `lxp/cmd/$datalog/set/forced_discharge` (#125)
 * Add more HA discovery sensors (#128, @unreadablename)
 * Add MQTT LWT and use it in HA discovery messages (#129, #130)
+* Add AC Charge/Charge Priority/Forced Discharge switches to HA discovery (#127)
 
 
 # 0.9.0 - 2nd November 2022
