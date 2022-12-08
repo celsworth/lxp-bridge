@@ -7,8 +7,9 @@ async fn all_empty_with_no_sensors() {
 
     let mut config = Factory::example_config();
     config.mqtt.homeassistant.sensors = vec![];
+    config.mqtt.homeassistant.switches = vec![];
 
-    let r = home_assistant::Config::all(&config.inverters[0], &config.mqtt);
+    let r = home_assistant::Config::new(&config.inverters[0], &config.mqtt).all();
 
     assert!(r.is_ok());
     assert_eq!(r.unwrap(), vec![]);
@@ -20,8 +21,9 @@ async fn all_has_soc() {
 
     let mut config = Factory::example_config();
     config.mqtt.homeassistant.sensors = vec!["soc".to_owned()];
+    config.mqtt.homeassistant.switches = vec![];
 
-    let r = home_assistant::Config::all(&config.inverters[0], &config.mqtt);
+    let r = home_assistant::Config::new(&config.inverters[0], &config.mqtt).all();
 
     assert!(r.is_ok());
     assert_eq!(
@@ -41,8 +43,9 @@ async fn all_has_v_pv() {
 
     let mut config = Factory::example_config();
     config.mqtt.homeassistant.sensors = vec!["v_pv".to_owned()];
+    config.mqtt.homeassistant.switches = vec![];
 
-    let r = home_assistant::Config::all(&config.inverters[0], &config.mqtt);
+    let r = home_assistant::Config::new(&config.inverters[0], &config.mqtt).all();
 
     assert!(r.is_ok());
     assert_eq!(r.unwrap(), vec![
@@ -59,8 +62,9 @@ async fn all_has_p_pv() {
 
     let mut config = Factory::example_config();
     config.mqtt.homeassistant.sensors = vec!["p_pv".to_owned()];
+    config.mqtt.homeassistant.switches = vec![];
 
-    let r = home_assistant::Config::all(&config.inverters[0], &config.mqtt);
+    let r = home_assistant::Config::new(&config.inverters[0], &config.mqtt).all();
 
     assert!(r.is_ok());
     assert_eq!(
@@ -80,8 +84,9 @@ async fn all_has_e_pv_all() {
 
     let mut config = Factory::example_config();
     config.mqtt.homeassistant.sensors = vec!["e_pv_all".to_owned()];
+    config.mqtt.homeassistant.switches = vec![];
 
-    let r = home_assistant::Config::all(&config.inverters[0], &config.mqtt);
+    let r = home_assistant::Config::new(&config.inverters[0], &config.mqtt).all();
 
     assert!(r.is_ok());
     assert_eq!(r.unwrap(), vec![
