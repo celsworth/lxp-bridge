@@ -197,7 +197,7 @@ impl Config {
                 "{}/switch/lxp_{}/{}/config",
                 self.mqtt_config.homeassistant().prefix(),
                 self.inverter.datalog(),
-                "ac_charge"
+                name
             ),
             payload: serde_json::to_string(&config)?,
         }))
