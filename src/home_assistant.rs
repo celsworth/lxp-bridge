@@ -135,7 +135,7 @@ impl Sensor {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+        if !enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -172,7 +172,7 @@ impl Sensor {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+        if !enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -209,7 +209,7 @@ impl Sensor {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+        if !enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -246,7 +246,7 @@ impl Sensor {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+        if !enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -283,7 +283,7 @@ impl Sensor {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+        if !enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -320,7 +320,7 @@ impl Sensor {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+        if !enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -357,7 +357,7 @@ impl Sensor {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+        if !enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -395,7 +395,7 @@ impl Sensor {
         name: &str,
         label: &str,
     ) -> Result<Option<mqtt::Message>> {
-        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+        if !enabled(mqtt_config.homeassistant().sensors(), name) {
             return Ok(None);
         }
 
@@ -425,14 +425,6 @@ impl Sensor {
             payload: serde_json::to_string(&config)?,
         }))
     }
-
-    fn sensor_enabled(sensors: &[String], name: &str) -> bool {
-        // this is rather suboptimal but it only gets run at startup so not time critical
-        sensors
-            .iter()
-            .map(|s| s.replace(' ', ""))
-            .any(|s| s == "all" || s == name)
-    }
 }
 
 impl Switch {
@@ -440,7 +432,11 @@ impl Switch {
         inverter: &config::Inverter,
         mqtt_config: &config::Mqtt,
     ) -> Result<Vec<mqtt::Message>> {
-        let r = vec![Self::ac_charge(inverter, mqtt_config)?];
+        let r = vec![
+            Self::ac_charge(inverter, mqtt_config)?,
+            Self::charge_priority(inverter, mqtt_config)?,
+            Self::forced_discharge(inverter, mqtt_config)?,
+        ];
 
         // drop all None
         Ok(r.into_iter().flatten().collect())
@@ -450,11 +446,9 @@ impl Switch {
         inverter: &config::Inverter,
         mqtt_config: &config::Mqtt,
     ) -> Result<Option<mqtt::Message>> {
-        /*
-        if !Self::sensor_enabled(mqtt_config.homeassistant().sensors(), name) {
+        if !enabled(mqtt_config.homeassistant().switches(), "ac_charge") {
             return Ok(None);
         }
-        */
 
         let config = Self {
             value_template: "{{ value_json.ac_charge_en }}".to_string(),
@@ -484,6 +478,80 @@ impl Switch {
             payload: serde_json::to_string(&config)?,
         }))
     }
+
+    fn charge_priority(
+        inverter: &config::Inverter,
+        mqtt_config: &config::Mqtt,
+    ) -> Result<Option<mqtt::Message>> {
+        if !enabled(mqtt_config.homeassistant().switches(), "charge_priority") {
+            return Ok(None);
+        }
+
+        let config = Self {
+            value_template: "{{ value_json.charge_priority_en }}".to_string(),
+            state_topic: format!(
+                "{}/{}/hold/21/bits",
+                mqtt_config.namespace(),
+                inverter.datalog()
+            ),
+            command_topic: format!(
+                "{}/cmd/{}/set/charge_priority",
+                mqtt_config.namespace(),
+                inverter.datalog()
+            ),
+            unique_id: format!("lxp_{}_{}", inverter.datalog(), "charge_priority"),
+            name: "AC Charge".to_string(),
+            device: device(inverter),
+            availability: availability(mqtt_config),
+        };
+
+        Ok(Some(mqtt::Message {
+            topic: format!(
+                "{}/switch/lxp_{}/{}/config",
+                mqtt_config.homeassistant().prefix(),
+                inverter.datalog(),
+                "charge_priority"
+            ),
+            payload: serde_json::to_string(&config)?,
+        }))
+    }
+
+    fn forced_discharge(
+        inverter: &config::Inverter,
+        mqtt_config: &config::Mqtt,
+    ) -> Result<Option<mqtt::Message>> {
+        if !enabled(mqtt_config.homeassistant().switches(), "forced_discharge") {
+            return Ok(None);
+        }
+
+        let config = Self {
+            value_template: "{{ value_json.forced_discharge_en }}".to_string(),
+            state_topic: format!(
+                "{}/{}/hold/21/bits",
+                mqtt_config.namespace(),
+                inverter.datalog()
+            ),
+            command_topic: format!(
+                "{}/cmd/{}/set/forced_discharge",
+                mqtt_config.namespace(),
+                inverter.datalog()
+            ),
+            unique_id: format!("lxp_{}_{}", inverter.datalog(), "forced_discharge"),
+            name: "AC Charge".to_string(),
+            device: device(inverter),
+            availability: availability(mqtt_config),
+        };
+
+        Ok(Some(mqtt::Message {
+            topic: format!(
+                "{}/switch/lxp_{}/{}/config",
+                mqtt_config.homeassistant().prefix(),
+                inverter.datalog(),
+                "forced_discharge"
+            ),
+            payload: serde_json::to_string(&config)?,
+        }))
+    }
 }
 
 fn device(inverter: &config::Inverter) -> Device {
@@ -498,4 +566,11 @@ fn availability(mqtt_config: &config::Mqtt) -> Availability {
     Availability {
         topic: format!("{}/LWT", mqtt_config.namespace()),
     }
+}
+
+fn enabled(list: &[String], name: &str) -> bool {
+    // this is rather suboptimal but it only gets run at startup so not time critical
+    list.iter()
+        .map(|s| s.replace(' ', ""))
+        .any(|s| s == "all" || s == name)
 }

@@ -29,6 +29,7 @@ mqtt:
     enabled: true
     prefix: homeassistant
     sensors: all # or e_pv_all,v_bat,soc etc
+    switches: all # or ac_charge,charge_priority,forced_discharge
 
 influx:
   enabled: true
