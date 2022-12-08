@@ -500,7 +500,7 @@ impl Switch {
                 inverter.datalog()
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), "charge_priority"),
-            name: "AC Charge".to_string(),
+            name: "Charge Priority".to_string(),
             device: device(inverter),
             availability: availability(mqtt_config),
         };
@@ -537,7 +537,7 @@ impl Switch {
                 inverter.datalog()
             ),
             unique_id: format!("lxp_{}_{}", inverter.datalog(), "forced_discharge"),
-            name: "AC Charge".to_string(),
+            name: "Forced Discharge".to_string(),
             device: device(inverter),
             availability: availability(mqtt_config),
         };
