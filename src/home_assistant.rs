@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use lxp::packet::Register;
 
 use serde::Serialize;
 
@@ -42,6 +43,21 @@ pub struct Switch {
     unique_id: String,
     device: Device,
     availability: Availability,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Number {
+    name: String,
+    state_topic: String,
+    command_topic: String,
+    value_template: String,
+    unique_id: String,
+    device: Device,
+    availability: Availability,
+    min: f64,
+    max: f64,
+    step: f64,
+    unit_of_measurement: String,
 }
 
 impl Config {
@@ -90,6 +106,57 @@ impl Config {
             self.switch("ac_charge", "AC Charge")?,
             self.switch("charge_priority", "Charge Priority")?,
             self.switch("forced_discharge", "Forced Discharge")?,
+            self.number_percent(
+                "charge_rate_pct_cmd",
+                "System Charge Rate (%)",
+                Register::ChargePowerPercentCmd,
+            )?,
+            self.number_percent(
+                "discharge_rate_pct_cmd",
+                "System Discharge Rate (%)",
+                Register::DischgPowerPercentCmd,
+            )?,
+            // TODO: is this one actually a percentage?
+            // self.number_percent(
+            //    "ac_charge_rate_pct_cmd",
+            //    "Grid Charge Rate (%)",
+            //    Register::AcChargePowerCmd,
+            // )?,
+            self.number_percent(
+                "ac_charge_soc_limit_pct",
+                "AC Charge Limit %",
+                Register::AcChargeSocLimit,
+            )?,
+            self.number_percent(
+                "forced_charge_soc_limit_pct",
+                "Forced Charge Limit %",
+                Register::ForcedChargeSocLimit,
+            )?,
+            self.number_percent(
+                "forced_discharge_soc_limit_pct",
+                "Forced Discharge Limit %",
+                Register::ForcedDischgSocLimit,
+            )?,
+            self.number_percent(
+                "discharge_cutoff_soc_limit_pct",
+                "Discharge Cutoff %",
+                Register::DischgCutOffSocEod,
+            )?,
+            self.number_percent(
+                "eps_discharge_cutoff_soc_limit_pct",
+                "Discharge Cutoff for EPS %",
+                Register::EpsDischgCutoffSocEod,
+            )?,
+            self.number_percent(
+                "ac_charge_start_soc_limit_pct",
+                "Charge From AC Lower Limit %",
+                Register::AcChargeStartSocLimit,
+            )?,
+            self.number_percent(
+                "ac_charge_start_soc_limit_pct",
+                "Charge From AC Upper Limit %",
+                Register::AcChargeEndSocLimit,
+            )?,
         ];
 
         // drop all None
@@ -198,6 +265,47 @@ impl Config {
                 self.mqtt_config.homeassistant().prefix(),
                 self.inverter.datalog(),
                 name
+            ),
+            payload: serde_json::to_string(&config)?,
+        }))
+    }
+
+    fn number_percent(
+        &self,
+        name: &str,
+        label: &str,
+        holding_register: Register,
+    ) -> Result<Option<mqtt::Message>> {
+        let config = Number {
+            name: label.to_string(),
+            state_topic: format!(
+                "{}/{}/hold/{}",
+                self.mqtt_config.namespace(),
+                self.inverter.datalog(),
+                holding_register as i16,
+            ),
+            command_topic: format!(
+                "{}/cmd/{}/set/hold/{:?}",
+                self.mqtt_config.namespace(),
+                self.inverter.datalog(),
+                holding_register
+            ),
+            value_template: "{{ float(value) }}".to_string(),
+            unique_id: format!("lxp_{}_number_{}", self.inverter.datalog(), name),
+            device: self.device(),
+            availability: self.availability(),
+            min: 0.0,
+            max: 100.0,
+            step: 1.0,
+            unit_of_measurement: "%".to_string(),
+        };
+
+        Ok(Some(mqtt::Message {
+            topic: format!(
+                "{}/number/lxp_{}/{}/config",
+                self.mqtt_config.homeassistant().prefix(),
+                self.inverter.datalog(),
+                name,
             ),
             payload: serde_json::to_string(&config)?,
         }))

@@ -530,12 +530,17 @@ pub enum DeviceFunction {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(i16)]
 pub enum Register {
-    Register21 = 21,            // not sure of a better name for this one..
-    ChargePowerPercentCmd = 64, // System Charge Rate (%)
-    DischgPowerPercentCmd = 65, // System Discharge Rate (%)
-    AcChargePowerCmd = 66,      // Grid Charge Power Rate (%)
-    AcChargeSocLimit = 67,      // AC Charge SOC Limit (%)
-    DischgCutOffSocEod = 105,   // Discharge cut-off SOC (%)
+    Register21 = 21,             // not sure of a better name for this one..
+    ChargePowerPercentCmd = 64,  // System Charge Rate (%)
+    DischgPowerPercentCmd = 65,  // System Discharge Rate (%)
+    AcChargePowerCmd = 66,       // Grid Charge Power Rate (%)
+    AcChargeSocLimit = 67,       // AC Charge SOC Limit (%)
+    ForcedChargeSocLimit = 75,   // Forced Charge SOC Limit (%)
+    ForcedDischgSocLimit = 83,   // Forced Discarge SOC Limit (%)
+    DischgCutOffSocEod = 105,    // Discharge cut-off SOC (%)
+    EpsDischgCutoffSocEod = 125, // EPS Discharge cut-off SOC (%)
+    AcChargeStartSocLimit = 160, // SOC at which AC charging will begin (%)
+    AcChargeEndSocLimit = 161,   // SOC at which AC charging will end (%)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
