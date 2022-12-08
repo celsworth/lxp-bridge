@@ -36,6 +36,7 @@ pub struct Switch {
     value_template: String,
     unique_id: String,
     device: Device,
+    availability: Availability,
 }
 
 impl Sensor {
@@ -470,6 +471,7 @@ impl Switch {
             unique_id: format!("lxp_{}_{}", inverter.datalog(), "ac_charge"),
             name: "AC Charge".to_string(),
             device: device(inverter),
+            availability: availability(mqtt_config),
         };
 
         Ok(Some(mqtt::Message {
