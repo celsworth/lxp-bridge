@@ -62,7 +62,7 @@ async fn for_hold_21() {
     assert_eq!(
         mqtt::Message::for_hold(packet).unwrap(),
         vec![mqtt::Message { topic: "2222222222/hold/21".to_owned(), payload: "8716".to_owned() },
-             mqtt::Message { topic: "2222222222/hold/21/bits".to_owned(), payload: "{\"eps_en\":false,\"ovf_load_derate_en\":false,\"drms_en\":true,\"lvrt_en\":true,\"anti_island_en\":false,\"neutral_detect_en\":false,\"grid_on_power_ss_en\":false,\"ac_charge_en\":false,\"sw_seamless_en\":false,\"set_to_standby\":true,\"forced_discharge_en\":false,\"charge_priority_en\":false,\"iso_en\":false,\"gfci_en\":true,\"dci_en\":false,\"feed_in_grid_en\":false}".to_owned() }
+             mqtt::Message { topic: "2222222222/hold/21/bits".to_owned(), payload: "{\"eps_en\":\"OFF\",\"ovf_load_derate_en\":\"OFF\",\"drms_en\":\"ON\",\"lvrt_en\":\"ON\",\"anti_island_en\":\"OFF\",\"neutral_detect_en\":\"OFF\",\"grid_on_power_ss_en\":\"OFF\",\"ac_charge_en\":\"OFF\",\"sw_seamless_en\":\"OFF\",\"set_to_standby\":\"ON\",\"forced_discharge_en\":\"OFF\",\"charge_priority_en\":\"OFF\",\"iso_en\":\"OFF\",\"gfci_en\":\"ON\",\"dci_en\":\"OFF\",\"feed_in_grid_en\":\"OFF\"}".to_owned() }
         ]
     );
 }
@@ -84,7 +84,7 @@ async fn for_hold_110() {
     assert_eq!(
         mqtt::Message::for_hold(packet).unwrap(),
         vec![mqtt::Message { topic: "2222222222/hold/110".to_owned(), payload: "1033".to_owned() },
-             mqtt::Message { topic: "2222222222/hold/110/bits".to_owned(), payload: "{\"ub_pv_grid_off_en\":true,\"ub_run_without_grid\":false,\"ub_micro_grid_en\":false}".to_owned() }
+             mqtt::Message { topic: "2222222222/hold/110/bits".to_owned(), payload: "{\"ub_pv_grid_off_en\":\"ON\",\"ub_run_without_grid\":\"OFF\",\"ub_micro_grid_en\":\"OFF\"}".to_owned() }
         ]
     );
 }
