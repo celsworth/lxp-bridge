@@ -125,7 +125,7 @@ impl Config {
     }
 
     fn temperature(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
-        self.sensor(name, label, "temperature", "measurement", "C")
+        self.sensor(name, label, "temperature", "measurement", "°C")
     }
 
     fn sensor(
