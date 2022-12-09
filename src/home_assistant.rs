@@ -106,92 +106,63 @@ impl Config {
             self.switch("ac_charge", "AC Charge")?,
             self.switch("charge_priority", "Charge Priority")?,
             self.switch("forced_discharge", "Forced Discharge")?,
-            self.number_percent(
-                "charge_rate_pct_cmd",
-                "System Charge Rate (%)",
-                Register::ChargePowerPercentCmd,
-            )?,
-            self.number_percent(
-                "discharge_rate_pct_cmd",
-                "System Discharge Rate (%)",
-                Register::DischgPowerPercentCmd,
-            )?,
+            self.number_percent(Register::ChargePowerPercentCmd, "System Charge Rate (%)")?,
+            self.number_percent(Register::DischgPowerPercentCmd, "System Discharge Rate (%)")?,
             // TODO: is this one actually a percentage?
             // self.number_percent(
-            //    "ac_charge_rate_pct_cmd",
-            //    "Grid Charge Rate (%)",
             //    Register::AcChargePowerCmd,
+            //    "Grid Charge Rate (%)",
             // )?,
+            self.number_percent(Register::AcChargeSocLimit, "AC Charge Limit %")?,
+            self.number_percent(Register::ForcedChargeSocLimit, "Forced Charge Limit %")?,
+            self.number_percent(Register::ForcedDischgSocLimit, "Forced Discharge Limit %")?,
+            self.number_percent(Register::DischgCutOffSocEod, "Discharge Cutoff %")?,
             self.number_percent(
-                "ac_charge_soc_limit_pct",
-                "AC Charge Limit %",
-                Register::AcChargeSocLimit,
-            )?,
-            self.number_percent(
-                "forced_charge_soc_limit_pct",
-                "Forced Charge Limit %",
-                Register::ForcedChargeSocLimit,
-            )?,
-            self.number_percent(
-                "forced_discharge_soc_limit_pct",
-                "Forced Discharge Limit %",
-                Register::ForcedDischgSocLimit,
-            )?,
-            self.number_percent(
-                "discharge_cutoff_soc_limit_pct",
-                "Discharge Cutoff %",
-                Register::DischgCutOffSocEod,
-            )?,
-            self.number_percent(
-                "eps_discharge_cutoff_soc_limit_pct",
-                "Discharge Cutoff for EPS %",
                 Register::EpsDischgCutoffSocEod,
+                "Discharge Cutoff for EPS %",
             )?,
             self.number_percent(
-                "ac_charge_start_soc_limit_pct",
-                "Charge From AC Lower Limit %",
                 Register::AcChargeStartSocLimit,
+                "Charge From AC Lower Limit %",
             )?,
             self.number_percent(
-                "ac_charge_start_soc_limit_pct",
-                "Charge From AC Upper Limit %",
                 Register::AcChargeEndSocLimit,
+                "Charge From AC Upper Limit %",
             )?,
         ];
 
-        // drop all None
-        Ok(r.into_iter().flatten().collect())
+        Ok(r)
     }
 
-    fn apparent_power(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
+    fn apparent_power(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "apparent_power", "measurement", "VA")
     }
 
-    fn battery(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
+    fn battery(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "battery", "measurement", "%")
     }
 
-    fn duration(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
+    fn duration(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "duration", "total_increasing", "s")
     }
 
-    fn frequency(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
+    fn frequency(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "frequency", "measurement", "Hz")
     }
 
-    fn power(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
+    fn power(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "power", "measurement", "W")
     }
 
-    fn energy(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
+    fn energy(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "energy", "total_increasing", "kWh")
     }
 
-    fn voltage(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
+    fn voltage(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "voltage", "measurement", "V")
     }
 
-    fn temperature(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
+    fn temperature(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "temperature", "measurement", "°C")
     }
 
@@ -202,11 +173,7 @@ impl Config {
         device_class: &str,
         state_class: &str,
         unit_of_measurement: &str,
-    ) -> Result<Option<mqtt::Message>> {
-        if !enabled(self.mqtt_config.homeassistant().sensors(), name) {
-            return Ok(None);
-        }
-
+    ) -> Result<mqtt::Message> {
         let config = Sensor {
             device_class: device_class.to_owned(),
             state_class: state_class.to_owned(),
@@ -223,7 +190,7 @@ impl Config {
             availability: self.availability(),
         };
 
-        Ok(Some(mqtt::Message {
+        Ok(mqtt::Message {
             topic: format!(
                 "{}/sensor/lxp_{}/{}/config",
                 self.mqtt_config.homeassistant().prefix(),
@@ -232,14 +199,10 @@ impl Config {
             ),
 
             payload: serde_json::to_string(&config)?,
-        }))
+        })
     }
 
-    fn switch(&self, name: &str, label: &str) -> Result<Option<mqtt::Message>> {
-        if !enabled(self.mqtt_config.homeassistant().switches(), name) {
-            return Ok(None);
-        }
-
+    fn switch(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         let config = Switch {
             value_template: format!("{{{{ value_json.{}_en }}}}", name),
             state_topic: format!(
@@ -259,7 +222,7 @@ impl Config {
             availability: self.availability(),
         };
 
-        Ok(Some(mqtt::Message {
+        Ok(mqtt::Message {
             topic: format!(
                 "{}/switch/lxp_{}/{}/config",
                 self.mqtt_config.homeassistant().prefix(),
@@ -267,31 +230,26 @@ impl Config {
                 name
             ),
             payload: serde_json::to_string(&config)?,
-        }))
+        })
     }
 
-    fn number_percent(
-        &self,
-        name: &str,
-        label: &str,
-        holding_register: Register,
-    ) -> Result<Option<mqtt::Message>> {
+    fn number_percent(&self, register: Register, label: &str) -> Result<mqtt::Message> {
         let config = Number {
             name: label.to_string(),
             state_topic: format!(
                 "{}/{}/hold/{}",
                 self.mqtt_config.namespace(),
                 self.inverter.datalog(),
-                holding_register as i16,
+                register as i16,
             ),
             command_topic: format!(
-                "{}/cmd/{}/set/hold/{:?}",
+                "{}/cmd/{}/set/hold/{}",
                 self.mqtt_config.namespace(),
                 self.inverter.datalog(),
-                holding_register
+                register as i16,
             ),
             value_template: "{{ float(value) }}".to_string(),
-            unique_id: format!("lxp_{}_number_{}", self.inverter.datalog(), name),
+            unique_id: format!("lxp_{}_number_{:?}", self.inverter.datalog(), register),
             device: self.device(),
             availability: self.availability(),
             min: 0.0,
@@ -300,15 +258,15 @@ impl Config {
             unit_of_measurement: "%".to_string(),
         };
 
-        Ok(Some(mqtt::Message {
+        Ok(mqtt::Message {
             topic: format!(
-                "{}/number/lxp_{}/{}/config",
+                "{}/number/lxp_{}/{:?}/config",
                 self.mqtt_config.homeassistant().prefix(),
                 self.inverter.datalog(),
-                name,
+                register,
             ),
             payload: serde_json::to_string(&config)?,
-        }))
+        })
     }
 
     fn device(&self) -> Device {
@@ -324,11 +282,4 @@ impl Config {
             topic: format!("{}/LWT", self.mqtt_config.namespace()),
         }
     }
-}
-
-fn enabled(list: &[String], name: &str) -> bool {
-    // this is rather suboptimal but it only gets run at startup so not time critical
-    list.iter()
-        .map(|s| s.replace(' ', ""))
-        .any(|s| s == "all" || s == name)
 }
