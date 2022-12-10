@@ -11,6 +11,8 @@
 * Add more HA discovery sensors (#128, @unreadablename)
 * Add MQTT LWT and use it in HA discovery messages (#129, #130)
 * Add AC Charge/Charge Priority/Forced Discharge switches to HA discovery (#127)
+* Remove v_pv inputs key (#135)
+* Add HA discovery messages for number controls (AC Charge Cutoff % etc) (#132, @lupine)
 
 
 # 0.9.0 - 2nd November 2022
