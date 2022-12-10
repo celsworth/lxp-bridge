@@ -16,7 +16,7 @@ async fn all_has_soc() {
 }
 
 #[tokio::test]
-async fn all_has_v_pv() {
+async fn all_has_v_pv_1() {
     common_setup();
 
     let config = Factory::example_config();
@@ -24,8 +24,8 @@ async fn all_has_v_pv() {
 
     assert!(r.is_ok());
     assert!(r.unwrap().contains(&mqtt::Message {
-        topic: "homeassistant/sensor/lxp_2222222222/v_pv/config".to_string(),
-        payload: "{\"device_class\":\"voltage\",\"name\":\"Voltage (PV Array)\",\"state_topic\":\"lxp/2222222222/inputs/all\",\"state_class\":\"measurement\",\"value_template\":\"{{ value_json.v_pv }}\",\"unit_of_measurement\":\"V\",\"unique_id\":\"lxp_2222222222_v_pv\",\"device\":{\"manufacturer\":\"LuxPower\",\"name\":\"lxp_2222222222\",\"identifiers\":[\"lxp_2222222222\"]},\"availability\":{\"topic\":\"lxp/LWT\"}}".to_string()
+        topic: "homeassistant/sensor/lxp_2222222222/v_pv_1/config".to_string(),
+        payload: "{\"device_class\":\"voltage\",\"name\":\"Voltage (PV String 1)\",\"state_topic\":\"lxp/2222222222/inputs/all\",\"state_class\":\"measurement\",\"value_template\":\"{{ value_json.v_pv_1 }}\",\"unit_of_measurement\":\"V\",\"unique_id\":\"lxp_2222222222_v_pv_1\",\"device\":{\"manufacturer\":\"LuxPower\",\"name\":\"lxp_2222222222\",\"identifiers\":[\"lxp_2222222222\"]},\"availability\":{\"topic\":\"lxp/LWT\"}}".to_string()
     }));
 }
 
