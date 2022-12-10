@@ -2,6 +2,7 @@ mod common;
 use common::*;
 
 #[tokio::test]
+#[cfg_attr(not(feature = "mocks"), ignore)]
 async fn handles_missing_read_input() {
     let mut read_inputs = lxp::packet::ReadInputs::default();
     read_inputs.set_read_input_1(Factory::read_input_1());

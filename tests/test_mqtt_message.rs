@@ -123,6 +123,7 @@ async fn for_hold_multi() {
 }
 
 #[tokio::test]
+#[cfg_attr(not(feature = "mocks"), ignore)]
 async fn for_input() {
     common_setup();
 

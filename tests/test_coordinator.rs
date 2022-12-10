@@ -54,6 +54,7 @@ async fn publishes_read_hold_mqtt() {
 }
 
 #[tokio::test]
+#[cfg_attr(not(feature = "mocks"), ignore)]
 async fn handles_read_input_all() {
     common_setup();
 

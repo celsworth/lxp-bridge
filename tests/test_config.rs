@@ -60,14 +60,6 @@ fn homeassistant_defaults() {
     let ha: config::HomeAssistant = serde_json::from_value(input).unwrap();
     assert!(ha.enabled());
     assert_eq!(ha.prefix(), "homeassistant");
-    assert_eq!(ha.sensors(), &["all"]);
-}
-
-#[test]
-fn homeassistant_sensors_parsing() {
-    let input = json!({ "sensors": "foo,bar" });
-    let ha: config::HomeAssistant = serde_json::from_value(input).unwrap();
-    assert_eq!(ha.sensors(), &["foo", "bar"]);
 }
 
 #[test]
