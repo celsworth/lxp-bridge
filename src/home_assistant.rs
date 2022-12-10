@@ -57,7 +57,6 @@ impl Config {
             self.apparent_power("s_eps", "Apparent EPS Power")?,
             self.battery("soc", "Battery Percentage")?,
             self.duration("runtime", "Total Runtime")?,
-            self.voltage("v_pv", "Voltage (PV Array)")?,
             self.voltage("v_pv_1", "Voltage (PV String 1)")?,
             self.voltage("v_pv_2", "Voltage (PV String 2)")?,
             self.voltage("v_pv_3", "Voltage (PV String 3)")?,
