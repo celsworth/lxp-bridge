@@ -38,11 +38,11 @@ async fn all_has_soc() {
 }
 
 #[tokio::test]
-async fn all_has_v_pv() {
+async fn all_has_v_pv_1() {
     common_setup();
 
     let mut config = Factory::example_config();
-    config.mqtt.homeassistant.sensors = vec!["v_pv".to_owned()];
+    config.mqtt.homeassistant.sensors = vec!["v_pv_1".to_owned()];
     config.mqtt.homeassistant.switches = vec![];
 
     let r = home_assistant::Config::new(&config.inverters[0], &config.mqtt).all();
@@ -50,8 +50,8 @@ async fn all_has_v_pv() {
     assert!(r.is_ok());
     assert_eq!(r.unwrap(), vec![
         mqtt::Message {
-            topic: "homeassistant/sensor/lxp_2222222222/v_pv/config".to_string(),
-            payload: "{\"device_class\":\"voltage\",\"name\":\"Voltage (PV Array)\",\"state_topic\":\"lxp/2222222222/inputs/all\",\"state_class\":\"measurement\",\"value_template\":\"{{ value_json.v_pv }}\",\"unit_of_measurement\":\"V\",\"unique_id\":\"lxp_2222222222_v_pv\",\"device\":{\"manufacturer\":\"LuxPower\",\"name\":\"lxp_2222222222\",\"identifiers\":[\"lxp_2222222222\"]},\"availability\":{\"topic\":\"lxp/LWT\"}}".to_string()
+            topic: "homeassistant/sensor/lxp_2222222222/v_pv_1/config".to_string(),
+            payload: "{\"device_class\":\"voltage\",\"name\":\"Voltage (PV String 1)\",\"state_topic\":\"lxp/2222222222/inputs/all\",\"state_class\":\"measurement\",\"value_template\":\"{{ value_json.v_pv_1 }}\",\"unit_of_measurement\":\"V\",\"unique_id\":\"lxp_2222222222_v_pv_1\",\"device\":{\"manufacturer\":\"LuxPower\",\"name\":\"lxp_2222222222\",\"identifiers\":[\"lxp_2222222222\"]},\"availability\":{\"topic\":\"lxp/LWT\"}}".to_string()
         }
     ]);
 }

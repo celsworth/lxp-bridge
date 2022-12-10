@@ -28,7 +28,6 @@ impl Factory {
     pub fn read_input_1() -> lxp::packet::ReadInput1 {
         lxp::packet::ReadInput1 {
             status: 16,
-            v_pv: 0.0,
             v_pv_1: 0.0,
             v_pv_2: 0.0,
             v_pv_3: 0.0,
@@ -134,7 +133,6 @@ impl Factory {
     pub fn read_input_all() -> lxp::packet::ReadInputAll {
         lxp::packet::ReadInputAll {
             status: 16,
-            v_pv: 0.0,
             v_pv_1: 0.0,
             v_pv_2: 0.0,
             v_pv_3: 0.0,

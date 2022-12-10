@@ -17,8 +17,6 @@ pub enum ReadInput {
 #[nom(LittleEndian)]
 pub struct ReadInputAll {
     pub status: i16,
-    #[nom(Ignore)]
-    pub v_pv: f64,
     #[nom(Parse = "Utils::le_i16_div10")]
     pub v_pv_1: f64,
     #[nom(Parse = "Utils::le_i16_div10")]
@@ -192,8 +190,6 @@ pub struct ReadInputAll {
 #[nom(LittleEndian)]
 pub struct ReadInput1 {
     pub status: i16,
-    #[nom(Ignore)]
-    pub v_pv: f64,
     #[nom(Parse = "Utils::le_i16_div10")]
     pub v_pv_1: f64,
     #[nom(Parse = "Utils::le_i16_div10")]
@@ -408,7 +404,6 @@ impl ReadInputs {
         ) {
             (Some(ri1), Some(ri2), Some(ri3)) => Some(ReadInputAll {
                 status: ri1.status,
-                v_pv: ri1.v_pv,
                 v_pv_1: ri1.v_pv_1,
                 v_pv_2: ri1.v_pv_2,
                 v_pv_3: ri1.v_pv_3,
@@ -777,7 +772,6 @@ impl TranslatedData {
         match ReadInputAll::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.v_pv = r.v_pv_1 + r.v_pv_2 + r.v_pv_3;
                 r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
                 r.e_pv_all = r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3;
                 r.datalog = self.datalog;
@@ -791,7 +785,6 @@ impl TranslatedData {
         match ReadInput1::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.v_pv = r.v_pv_1 + r.v_pv_2 + r.v_pv_3;
                 r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
                 r.datalog = self.datalog;
                 Ok(r)
