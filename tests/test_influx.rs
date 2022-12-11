@@ -19,7 +19,8 @@ async fn sends_http_request() {
     let influx = Influx::new(config, channels.clone());
 
     let tf = async {
-        let json = json!({ "time": 1, "soc": 100, "v_bat": 52.4 });
+        let json =
+            json!({ "time": 1, "datalog": "BA12345678", "soc": 100, "p_pv": 250, "v_bat": 52.4 });
         channels
             .to_influx
             .send(influx::ChannelData::InputData(json))?;
@@ -28,7 +29,7 @@ async fn sends_http_request() {
     };
 
     let mock = mock_influxdb()
-        .match_body("inputs soc=100i,v_bat=52.4 1000000000")
+        .match_body("inputs,datalog=BA12345678 p_pv=250i,soc=100i,v_bat=52.4 1000000000")
         .create();
 
     futures::try_join!(influx.start(), tf).unwrap();
