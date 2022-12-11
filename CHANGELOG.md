@@ -3,6 +3,14 @@
 * Fix crash in scheduler during DST transition times (#107)
 * Add read individual input command and optional publishing of individual input registers (#111)
 * [Internal Cleanup] Use signed integers for inverter registers/values (#115)
+* Add WriteParam functionality (`lxp/cmd/all/set/param/X`) (#117)
+* Decode bits in holding registers 21 and 110 and publish to `lxp/$datalog/hold/21/bits` (#119)
+* Better HomeAssistant discovery message structure (#120, @unreadablename)
+* Add MQTT messages to easily read/set time registers (#123)
+* Add missing `lxp/cmd/$datalog/set/forced_discharge` (#125)
+* Add more HA discovery sensors (#128, @unreadablename)
+* Add MQTT LWT and use it in HA discovery messages (#129, #130)
+* Add AC Charge/Charge Priority/Forced Discharge switches to HA discovery (#127)
 
 
 # 0.9.0 - 2nd November 2022

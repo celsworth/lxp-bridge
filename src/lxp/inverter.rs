@@ -49,6 +49,11 @@ impl WaitForReply for Receiver {
                         return Ok(Packet::ReadParam(reply));
                     }
                 }
+                (Packet::WriteParam(wp), Ok(ChannelData::Packet(Packet::WriteParam(reply)))) => {
+                    if wp.datalog == reply.datalog && wp.register == reply.register {
+                        return Ok(Packet::WriteParam(reply));
+                    }
+                }
                 (_, Ok(ChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
                 (_, Ok(ChannelData::Disconnect(inverter_datalog))) => {
                     if inverter_datalog == packet.datalog() {

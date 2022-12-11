@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use rumqttc::{AsyncClient, Event, EventLoop, Incoming, MqttOptions, Publish, QoS};
+use rumqttc::{AsyncClient, Event, EventLoop, Incoming, LastWill, MqttOptions, Publish, QoS};
 
 // Message {{{
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -36,6 +36,22 @@ impl Message {
                 topic: format!("{}/hold/{}", td.datalog, register),
                 payload: serde_json::to_string(&value)?,
             });
+
+            if register == 21 {
+                let bits = lxp::packet::Register21Bits::new(value);
+                r.push(mqtt::Message {
+                    topic: format!("{}/hold/{}/bits", td.datalog, register),
+                    payload: serde_json::to_string(&bits)?,
+                });
+            }
+
+            if register == 110 {
+                let bits = lxp::packet::Register110Bits::new(value);
+                r.push(mqtt::Message {
+                    topic: format!("{}/hold/{}/bits", td.datalog, register),
+                    payload: serde_json::to_string(&bits)?,
+                });
+            }
         }
 
         Ok(r)
@@ -107,11 +123,25 @@ impl Message {
                 ReadHold(inverter, register.parse()?, self.payload_int_or_1()?)
             }
             ["read", "param", register] => ReadParam(inverter, register.parse()?),
+            ["read", "ac_charge", num] => ReadAcChargeTime(inverter, num.parse()?),
+            ["read", "charge_priority", num] => ReadChargePriorityTime(inverter, num.parse()?),
+            ["read", "forced_discharge", num] => ReadForcedDischargeTime(inverter, num.parse()?),
             ["set", "hold", register] => SetHold(inverter, register.parse()?, self.payload_int()?),
-            // TODO: set param
+            ["set", "param", register] => {
+                WriteParam(inverter, register.parse()?, self.payload_int()?)
+            }
             ["set", "ac_charge"] => AcCharge(inverter, self.payload_bool()),
-
+            ["set", "ac_charge", num] => {
+                SetAcChargeTime(inverter, num.parse()?, self.payload_start_end_time()?)
+            }
+            ["set", "charge_priority"] => ChargePriority(inverter, self.payload_bool()),
+            ["set", "charge_priority", num] => {
+                SetChargePriorityTime(inverter, num.parse()?, self.payload_start_end_time()?)
+            }
             ["set", "forced_discharge"] => ForcedDischarge(inverter, self.payload_bool()),
+            ["set", "forced_discharge", num] => {
+                SetForcedDischargeTime(inverter, num.parse()?, self.payload_start_end_time()?)
+            }
             ["set", "charge_rate_pct"] => ChargeRate(inverter, self.payload_int()?),
             ["set", "discharge_rate_pct"] => DischargeRate(inverter, self.payload_int()?),
             ["set", "ac_charge_rate_pct"] => AcChargeRate(inverter, self.payload_int()?),
@@ -152,11 +182,36 @@ impl Message {
         }
     }
 
-    pub fn payload_int_or_1(&self) -> Result<i16> {
+    // not entirely happy with this return type but it avoids needing to expose a struct for now
+    pub fn payload_start_end_time(&self) -> Result<[u8; 4]> {
+        use serde::Deserialize;
+        #[derive(Deserialize)]
+        struct StartEndTime {
+            start: String,
+            end: String,
+        }
+
+        // {"start":"20:00", "end":"21:00"} -> [20, 0, 21, 0]
+        let t = serde_json::from_str::<StartEndTime>(&self.payload)?;
+        // split on : then make u8s to return in an array
+        let start: Vec<&str> = t.start.split(':').collect();
+        let end: Vec<&str> = t.end.split(':').collect();
+        if start.len() != 2 || end.len() != 2 {
+            bail!("badly formatted time, use HH:MM")
+        }
+        Ok([
+            start[0].parse()?,
+            start[1].parse()?,
+            end[0].parse()?,
+            end[1].parse()?,
+        ])
+    }
+
+    pub fn payload_int_or_1(&self) -> Result<u16> {
         self.payload_int().or(Ok(1))
     }
 
-    pub fn payload_int(&self) -> Result<i16> {
+    pub fn payload_int(&self) -> Result<u16> {
         self.payload
             .parse()
             .map_err(|err| anyhow!("payload_int: {}", err))
@@ -203,6 +258,14 @@ impl Mqtt {
 
         let mut options = MqttOptions::new("lxp-bridge", c.mqtt().host(), c.mqtt().port());
 
+        let will = LastWill {
+            topic: self.lwt_topic(),
+            message: bytes::Bytes::from("offline"),
+            qos: QoS::AtLeastOnce,
+            retain: true,
+        };
+        options.set_last_will(will);
+
         options.set_keep_alive(std::time::Duration::from_secs(60));
         if let (Some(u), Some(p)) = (c.mqtt().username(), c.mqtt().password()) {
             options.set_credentials(u, p);
@@ -233,6 +296,10 @@ impl Mqtt {
 
     async fn setup(&self, client: AsyncClient) -> Result<()> {
         client
+            .publish(self.lwt_topic(), QoS::AtLeastOnce, true, "online")
+            .await?;
+
+        client
             .subscribe(
                 format!("{}/cmd/all/#", self.config.mqtt().namespace()),
                 QoS::AtMostOnce,
@@ -252,8 +319,8 @@ impl Mqtt {
                 .await?;
 
             if self.config.mqtt().homeassistant().enabled() {
-                let msgs = home_assistant::Config::all(&inverter, &self.config.mqtt())?;
-                for msg in msgs.into_iter() {
+                let ha = home_assistant::Config::new(&inverter, &self.config.mqtt());
+                for msg in ha.all()?.into_iter() {
                     let _ = client
                         .publish(&msg.topic, QoS::AtLeastOnce, true, msg.payload)
                         .await;
@@ -339,5 +406,9 @@ impl Mqtt {
         info!("sender loop exiting");
 
         Ok(())
+    }
+
+    fn lwt_topic(&self) -> String {
+        format!("{}/LWT", self.config.mqtt().namespace())
     }
 }

@@ -57,9 +57,9 @@ impl UpdateHold {
         let packet = receiver.wait_for_reply(&packet).await?;
         let bit = i16::from(self.bit.clone());
         let value = if self.enable {
-            packet.value() | bit
+            packet.value() | (bit as u16)
         } else {
-            packet.value() & !bit
+            packet.value() & !(bit as u16)
         };
 
         // new packet to set register with a new value

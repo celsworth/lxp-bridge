@@ -579,7 +579,85 @@ pub enum RegisterBit {
     // Register 21
     AcChargeEnable = 1 << 7,
     ForcedDischargeEnable = 1 << 10,
+    ChargePriorityEnable = 1 << 11,
 }
+
+// Register21Bits {{{
+#[derive(Clone, Debug, Serialize)]
+pub struct Register21Bits {
+    pub eps_en: String,
+    pub ovf_load_derate_en: String,
+    pub drms_en: String,
+    pub lvrt_en: String,
+    pub anti_island_en: String,
+    pub neutral_detect_en: String,
+    pub grid_on_power_ss_en: String,
+    pub ac_charge_en: String,
+    pub sw_seamless_en: String,
+    pub set_to_standby: String,
+    pub forced_discharge_en: String,
+    pub charge_priority_en: String,
+    pub iso_en: String,
+    pub gfci_en: String,
+    pub dci_en: String,
+    pub feed_in_grid_en: String,
+}
+
+impl Register21Bits {
+    fn is_bit_set(data: u16, bit: u16) -> String {
+        if (data & bit) == bit {
+            "ON".to_string()
+        } else {
+            "OFF".to_string()
+        }
+    }
+
+    pub fn new(data: u16) -> Self {
+        Self {
+            eps_en: Self::is_bit_set(data, 1 << 0),
+            ovf_load_derate_en: Self::is_bit_set(data, 1 << 1),
+            drms_en: Self::is_bit_set(data, 1 << 2),
+            lvrt_en: Self::is_bit_set(data, 1 << 3),
+            anti_island_en: Self::is_bit_set(data, 1 << 4),
+            neutral_detect_en: Self::is_bit_set(data, 1 << 5),
+            grid_on_power_ss_en: Self::is_bit_set(data, 1 << 6),
+            ac_charge_en: Self::is_bit_set(data, 1 << 7),
+            sw_seamless_en: Self::is_bit_set(data, 1 << 8),
+            set_to_standby: Self::is_bit_set(data, 1 << 9),
+            forced_discharge_en: Self::is_bit_set(data, 1 << 10),
+            charge_priority_en: Self::is_bit_set(data, 1 << 1),
+            iso_en: Self::is_bit_set(data, 1 << 12),
+            gfci_en: Self::is_bit_set(data, 1 << 13),
+            dci_en: Self::is_bit_set(data, 1 << 14),
+            feed_in_grid_en: Self::is_bit_set(data, 1 << 15),
+        }
+    }
+} // }}}
+
+// Register110Bits {{{
+#[derive(Clone, Debug, Serialize)]
+pub struct Register110Bits {
+    pub ub_pv_grid_off_en: String,
+    pub ub_run_without_grid: String,
+    pub ub_micro_grid_en: String,
+}
+impl Register110Bits {
+    fn is_bit_set(data: u16, bit: u16) -> String {
+        if (data & bit) == bit {
+            "ON".to_string()
+        } else {
+            "OFF".to_string()
+        }
+    }
+
+    pub fn new(data: u16) -> Self {
+        Self {
+            ub_pv_grid_off_en: Self::is_bit_set(data, 1 << 0),
+            ub_run_without_grid: Self::is_bit_set(data, 1 << 1),
+            ub_micro_grid_en: Self::is_bit_set(data, 1 << 2),
+        }
+    }
+} // }}}
 
 #[enum_dispatch]
 pub trait PacketCommon {
@@ -594,7 +672,7 @@ pub trait PacketCommon {
     fn register(&self) -> i16 {
         unimplemented!("register() not implemented");
     }
-    fn value(&self) -> i16 {
+    fn value(&self) -> u16 {
         unimplemented!("value() not implemented");
     }
 }
@@ -710,11 +788,11 @@ pub struct TranslatedData {
     pub values: Vec<u8>,                 // undecoded, since can be i16 or u32s?
 }
 impl TranslatedData {
-    pub fn pairs(&self) -> Vec<(i16, i16)> {
+    pub fn pairs(&self) -> Vec<(i16, u16)> {
         self.values
             .chunks(2)
             .enumerate()
-            .map(|(pos, value)| (self.register + pos as i16, Utils::i16ify(value, 0)))
+            .map(|(pos, value)| (self.register + pos as i16, Utils::u16ify(value, 0)))
             .collect()
     }
 
@@ -921,8 +999,8 @@ impl PacketCommon for TranslatedData {
         self.register
     }
 
-    fn value(&self) -> i16 {
-        Utils::i16ify(&self.values, 0)
+    fn value(&self) -> u16 {
+        Utils::u16ify(&self.values, 0)
     }
 }
 
@@ -1017,8 +1095,8 @@ impl PacketCommon for ReadParam {
         self.register
     }
 
-    fn value(&self) -> i16 {
-        Utils::i16ify(&self.values, 0)
+    fn value(&self) -> u16 {
+        Utils::u16ify(&self.values, 0)
     }
 }
 
@@ -1126,8 +1204,8 @@ impl PacketCommon for WriteParam {
         self.register
     }
 
-    fn value(&self) -> i16 {
-        Utils::i16ify(&self.values, 0)
+    fn value(&self) -> u16 {
+        Utils::u16ify(&self.values, 0)
     }
 }
 

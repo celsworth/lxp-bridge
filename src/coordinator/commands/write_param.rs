@@ -1,19 +1,16 @@
 use crate::prelude::*;
 
-use lxp::{
-    inverter::WaitForReply,
-    packet::{DeviceFunction, TranslatedData},
-};
+use lxp::inverter::WaitForReply;
 
-pub struct ReadHold {
+pub struct WriteParam {
     channels: Channels,
     inverter: config::Inverter,
     register: i16,
-    count: u16,
+    value: u16,
 }
 
-impl ReadHold {
-    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, count: u16) -> Self
+impl WriteParam {
+    pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, value: u16) -> Self
     where
         U: Into<i16>,
     {
@@ -21,17 +18,15 @@ impl ReadHold {
             channels,
             inverter,
             register: register.into(),
-            count,
+            value,
         }
     }
 
     pub async fn run(&self) -> Result<Packet> {
-        let packet = Packet::TranslatedData(TranslatedData {
+        let packet = Packet::WriteParam(lxp::packet::WriteParam {
             datalog: self.inverter.datalog(),
-            device_function: DeviceFunction::ReadHold,
-            inverter: self.inverter.serial(),
             register: self.register,
-            values: self.count.to_le_bytes().to_vec(),
+            values: self.value.to_le_bytes().to_vec(),
         });
 
         let mut receiver = self.channels.from_inverter.subscribe();
@@ -45,6 +40,12 @@ impl ReadHold {
             bail!("send(to_inverter) failed - channel closed?");
         }
 
-        receiver.wait_for_reply(&packet).await
+        let packet = receiver.wait_for_reply(&packet).await?;
+        // WriteParam packets seem to reply with 0 on success, very odd
+        if packet.value() != 0 {
+            bail!("failed to set register {}", self.register);
+        }
+
+        Ok(packet)
     }
 }
