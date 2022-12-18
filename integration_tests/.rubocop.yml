@@ -4,3 +4,6 @@ AllCops:
 
 Metrics/BlockLength:
   Enabled: false
+
+Style/CommentedKeyword:
+  Enabled: false

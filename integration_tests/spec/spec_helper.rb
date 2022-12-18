@@ -3,6 +3,7 @@
 require 'mqtt'
 require 'rspec'
 require 'json'
+require 'sequel'
 
 require_relative 'support/inverter'
 
@@ -68,5 +69,9 @@ RSpec.configure do |config|
 
   def inverter # rubocop:disable Style/TrivialAccessors
     @inverter
+  end
+
+  def sqlite_inputs_table
+    @sqlite_inputs_table ||= Sequel.sqlite('tmp/db/lxp.db')[:inputs]
   end
 end
