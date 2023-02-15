@@ -320,7 +320,12 @@ impl Coordinator {
                     self.process_inverter_packet(packet, &mut inputs_store)
                         .await?;
                 }
-                // this loop holds no state so doesn't care about inverter reconnects
+                Connected(serial) => {
+                    if let Err(e) = self.inverter_connected(serial).await {
+                        error!("{}", e);
+                    }
+                }
+                // this loop holds no state so doesn't care about inverter disconnects
                 Disconnect(_) => {}
                 Shutdown => break,
             }
@@ -404,6 +409,57 @@ impl Coordinator {
                     error!("{}", e);
                 }
             }
+        }
+
+        Ok(())
+    }
+
+    // Unlike input registers, holding registers are not broadcast by inverters,
+    // but they are interesting nevertheless. Publishing the holding registers
+    // when we connect to an inverter makes it easy for configuration data to be
+    // tracked, which is particularly useful in conjunction with HomeAssistant.
+    async fn inverter_connected(&self, datalog: Serial) -> Result<()> {
+        let inverter = match self.config.enabled_inverter_with_datalog(datalog) {
+            Some(inverter) => inverter,
+            None => bail!("Unknown inverter connected: {}", datalog),
+        };
+
+        if !inverter.publish_holdings_on_connect() {
+            return Ok(());
+        }
+
+        info!("Reading holding registers for inverter {}", datalog);
+
+        // We can only read holding registers in blocks of 40. Provisionally,
+        // there are 6 pages of 40 values.
+        self.read_hold(inverter.clone(), 0_i16, 40).await?;
+        self.read_hold(inverter.clone(), 40_i16, 40).await?;
+        self.read_hold(inverter.clone(), 80_i16, 40).await?;
+        self.read_hold(inverter.clone(), 120_i16, 40).await?;
+        self.read_hold(inverter.clone(), 160_i16, 40).await?;
+        self.read_hold(inverter.clone(), 200_i16, 40).await?;
+
+        // Also send any special interpretive topics which are derived from
+        // the holding registers.
+        //
+        // FIXME: this is a further 9 round-trips to the inverter to read values
+        // we have already taken, just above. We should be able to do better!
+        for num in &[1, 2, 3] {
+            self.read_time_register(
+                inverter.clone(),
+                commands::time_register_ops::Action::AcCharge(*num),
+            )
+            .await?;
+            self.read_time_register(
+                inverter.clone(),
+                commands::time_register_ops::Action::ChargePriority(*num),
+            )
+            .await?;
+            self.read_time_register(
+                inverter.clone(),
+                commands::time_register_ops::Action::ForcedDischarge(*num),
+            )
+            .await?;
         }
 
         Ok(())

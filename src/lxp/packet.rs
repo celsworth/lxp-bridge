@@ -822,7 +822,7 @@ impl TranslatedData {
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 38 {
-            bail!("packet too short");
+            bail!("TranslatedData::decode packet too short");
         }
 
         let protocol = Utils::i16ify(input, 2);
@@ -991,7 +991,7 @@ impl ReadParam {
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 24 {
-            bail!("packet too short");
+            bail!("ReadParam::decode packet too short");
         }
 
         let protocol = Utils::i16ify(input, 2);
@@ -1087,7 +1087,7 @@ impl WriteParam {
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 21 {
-            bail!("packet too short");
+            bail!("WriteParam::decode packet too short");
         }
 
         let protocol = Utils::i16ify(input, 2);

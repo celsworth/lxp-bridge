@@ -22,6 +22,7 @@ impl Factory {
             datalog: Serial::from_str("2222222222").unwrap(),
             serial: Serial::from_str("5555555555").unwrap(),
             heartbeats: None,
+            publish_holdings_on_connect: None,
         }
     }
 
