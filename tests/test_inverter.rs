@@ -112,8 +112,6 @@ async fn test_replies_to_heartbeats() {
     let channels = Channels::new();
     let inverter = lxp::inverter::Inverter::new(config, &inverter, channels.clone());
 
-    let from_inverter = channels.from_inverter.subscribe();
-
     let tf = async {
         // pretend to be an inverter
         let listener = tokio::net::TcpListener::bind("localhost:1235")

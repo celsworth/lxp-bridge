@@ -1,5 +1,5 @@
 pub use std::{
-    cell::{Ref, RefCell, RefMut},
+    cell::{Cell, Ref, RefCell, RefMut},
     convert::{TryFrom, TryInto},
     io::Write,
     rc::Rc,
