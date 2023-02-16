@@ -186,7 +186,9 @@ RSpec.describe 'inverter communications' do
       inverter.write(fixture('read_inputs_0_to_39_ok.packet'))
       inverter.write(fixture('read_inputs_40_to_79_ok.packet'))
       inverter.write(fixture('read_inputs_80_to_119_ok.packet'))
-      sleep 0.5 # meh. be better to poll the table with a much shorter sleep
+      # meh. be better to poll the table with a much shorter sleep.
+      # better still to be told when the row appears but thats not gonna happen.
+      sleep 0.5
     end
 
     it 'creates database row' do
