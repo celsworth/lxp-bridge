@@ -2,14 +2,19 @@ use crate::prelude::*;
 
 #[derive(Default, Clone)]
 pub struct Notify {
-    /* wrap everything in a single Rc, avoids having an Rc for each member */
+    /* wrap everything in a single Rc, avoids having an Rc for each subsystem */
     inner: Rc<Inner>,
 }
 
 #[derive(Default)]
 struct Inner {
-    mqtt_sender_ready: RefCell<bool>,
-    mqtt_sender_notify: tokio::sync::Notify,
+    mqtt_sender: Subsystem,
+}
+
+#[derive(Default)]
+struct Subsystem {
+    ready: RefCell<bool>,
+    notify: tokio::sync::Notify,
 }
 
 impl Notify {
@@ -20,16 +25,23 @@ impl Notify {
     }
 
     pub fn mqtt_sender_is_ready(&self) {
-        *self.inner.mqtt_sender_ready.borrow_mut() = true;
-
-        self.inner.mqtt_sender_notify.notify_waiters();
+        Self::is_ready(&self.inner.mqtt_sender);
     }
 
     pub async fn wait_for_mqtt_sender(&self) {
-        if *self.inner.mqtt_sender_ready.borrow() {
+        Self::wait(&self.inner.mqtt_sender).await;
+    }
+
+    fn is_ready(subsystem: &Subsystem) {
+        *subsystem.ready.borrow_mut() = true;
+        subsystem.notify.notify_waiters();
+    }
+
+    async fn wait(subsystem: &Subsystem) {
+        if *subsystem.ready.borrow() {
             return;
         }
 
-        self.inner.mqtt_sender_notify.notified().await;
+        subsystem.notify.notified().await;
     }
 }
