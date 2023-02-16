@@ -237,13 +237,15 @@ pub struct Mqtt {
     config: ConfigWrapper,
     shutdown: bool,
     channels: Channels,
+    notify: Notify,
 }
 
 impl Mqtt {
-    pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
+    pub fn new(config: ConfigWrapper, channels: Channels, notify: Notify) -> Self {
         Self {
             config,
             channels,
+            notify,
             shutdown: false,
         }
     }
@@ -388,6 +390,8 @@ impl Mqtt {
         use ChannelData::*;
 
         let mut receiver = self.channels.to_mqtt.subscribe();
+
+        self.notify.mqtt_sender_is_ready();
 
         loop {
             match receiver.recv().await? {
