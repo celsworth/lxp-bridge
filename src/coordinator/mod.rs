@@ -14,11 +14,16 @@ pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs
 pub struct Coordinator {
     config: ConfigWrapper,
     channels: Channels,
+    notify: Notify,
 }
 
 impl Coordinator {
-    pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
-        Self { config, channels }
+    pub fn new(config: ConfigWrapper, channels: Channels, notify: Notify) -> Self {
+        Self {
+            config,
+            channels,
+            notify,
+        }
     }
 
     pub async fn start(&self) -> Result<()> {

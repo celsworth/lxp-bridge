@@ -7,6 +7,7 @@ pub mod home_assistant;
 pub mod influx;
 pub mod lxp;
 pub mod mqtt;
+pub mod notify;
 pub mod options;
 pub mod prelude;
 pub mod scheduler;
@@ -36,6 +37,8 @@ pub async fn app() -> Result<()> {
 
     info!("lxp-bridge {} starting", CARGO_PKG_VERSION);
 
+    let notify = Notify::new();
+
     let config = ConfigWrapper::new(options.config_file)?;
 
     let channels = Channels::new();
@@ -43,7 +46,7 @@ pub async fn app() -> Result<()> {
     let scheduler = Scheduler::new(config.clone(), channels.clone());
     let mqtt = Mqtt::new(config.clone(), channels.clone());
     let influx = Influx::new(config.clone(), channels.clone());
-    let coordinator = Coordinator::new(config.clone(), channels.clone());
+    let coordinator = Coordinator::new(config.clone(), channels.clone(), notify.clone());
 
     let inverters = config
         .enabled_inverters()

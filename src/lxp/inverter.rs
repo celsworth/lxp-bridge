@@ -74,16 +74,12 @@ impl WaitForReply for Receiver {
 } // }}}
 
 // Serial {{{
-#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
 pub struct Serial([u8; 10]);
 
 impl Serial {
     pub fn new(input: &[u8]) -> Result<Self> {
         Ok(Self(input.try_into()?))
-    }
-
-    pub fn default() -> Self {
-        Self([0; 10])
     }
 
     pub fn data(&self) -> [u8; 10] {

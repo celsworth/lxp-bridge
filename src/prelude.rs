@@ -26,6 +26,7 @@ pub use crate::{
         packet::{Packet, PacketCommon},
     },
     mqtt::{self, Mqtt},
+    notify::Notify,
     options::Options,
     scheduler::Scheduler,
     unixtime::UnixTime,
