@@ -130,6 +130,7 @@ pub struct Inverter {
     config: ConfigWrapper,
     host: String,
     channels: Channels,
+    receiver: Cell<Option<Receiver>>,
 }
 
 impl Inverter {
@@ -137,10 +138,16 @@ impl Inverter {
         // remember which inverter this instance is for
         let host = inverter.host().to_string();
 
+        // Create the receiver at new() time, rather than start(), so things
+        // wanting to send to the inverter queue messages, rather than failing
+        // with an error about closed channels
+        let receiver = Cell::new(Some(channels.to_inverter.subscribe()));
+
         Self {
             config,
             host,
             channels,
+            receiver,
         }
     }
 
@@ -247,7 +254,7 @@ impl Inverter {
 
     // coordinator -> inverter
     async fn sender(&self, mut socket: tokio::net::tcp::OwnedWriteHalf) -> Result<()> {
-        let mut receiver = self.channels.to_inverter.subscribe();
+        let mut receiver = self.receiver.take().expect("should only be called once");
 
         use ChannelData::*;
 
