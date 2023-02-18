@@ -11,27 +11,16 @@ pub enum ChannelData {
     Shutdown,
 }
 
-pub type Receiver = broadcast::Receiver<ChannelData>;
 pub type Sender = broadcast::Sender<ChannelData>;
 
 pub struct Influx {
     config: ConfigWrapper,
     channels: Channels,
-    receiver: Cell<Option<Receiver>>,
 }
 
 impl Influx {
     pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
-        // Create the receiver at new() time, rather than start(), so things
-        // wanting to send to queue messages, rather than failing with an error
-        // about closed channels
-        let receiver = Cell::new(Some(channels.to_influx.subscribe()));
-
-        Self {
-            config,
-            channels,
-            receiver,
-        }
+        Self { config, channels }
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -67,7 +56,7 @@ impl Influx {
     async fn sender(&self, client: Client) -> Result<()> {
         use ChannelData::*;
 
-        let mut receiver = self.receiver.take().expect("should only be called once");
+        let mut receiver = self.channels.to_influx.subscribe();
 
         loop {
             let mut line = LineBuilder::new(INPUTS_MEASUREMENT);
