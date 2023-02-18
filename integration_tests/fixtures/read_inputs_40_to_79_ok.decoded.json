@@ -1,0 +1,20 @@
+{
+	"e_pv_all": 4215.8,
+	"e_pv_all_1": 4215.8,
+	"e_pv_all_2": 0.0,
+	"e_pv_all_3": 0.0,
+	"e_inv_all": 4965.0,
+	"e_rec_all": 5947.1,
+	"e_chg_all": 6369.4,
+	"e_dischg_all": 6039.3,
+	"e_eps_all": 0.0,
+	"e_to_grid_all": 1005.8,
+	"e_to_user_all": 10157.0,
+	"t_inner": 28,
+	"t_rad_1": 27,
+	"t_rad_2": 27,
+	"t_bat": 0,
+	"runtime": 82628180,
+	"time": 1671372070,
+	"datalog": "2222222222"
+}
