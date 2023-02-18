@@ -231,19 +231,27 @@ pub enum ChannelData {
     Shutdown,
 }
 
+pub type Receiver = broadcast::Receiver<ChannelData>;
 pub type Sender = broadcast::Sender<ChannelData>;
 
 pub struct Mqtt {
     config: ConfigWrapper,
     shutdown: bool,
     channels: Channels,
+    receiver: Cell<Option<Receiver>>,
 }
 
 impl Mqtt {
     pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
+        // Create the receiver at new() time, rather than start(), so things
+        // wanting to send to MQTT queue messages, rather than failing with an
+        // error about closed channels
+        let receiver = Cell::new(Some(channels.to_mqtt.subscribe()));
+
         Self {
             config,
             channels,
+            receiver,
             shutdown: false,
         }
     }
@@ -387,7 +395,7 @@ impl Mqtt {
     async fn sender(&self, client: AsyncClient) -> Result<()> {
         use ChannelData::*;
 
-        let mut receiver = self.channels.to_mqtt.subscribe();
+        let mut receiver = self.receiver.take().expect("should only be called once");
 
         loop {
             match receiver.recv().await? {

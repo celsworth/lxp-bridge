@@ -2,7 +2,8 @@ use crate::prelude::*;
 
 pub mod commands;
 
-use lxp::packet::{DeviceFunction, TcpFunction};
+use lxp::inverter;
+use lxp::packet::{DeviceFunction, Register, TcpFunction};
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ChannelData {
@@ -14,11 +15,25 @@ pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs
 pub struct Coordinator {
     config: ConfigWrapper,
     channels: Channels,
+
+    inverter_receiver: Cell<Option<inverter::Receiver>>,
+    mqtt_receiver: Cell<Option<mqtt::Receiver>>,
 }
 
 impl Coordinator {
     pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
-        Self { config, channels }
+        // Create the receivers at new() time, rather than start(), so things
+        // wanting to send to us will queue messages instead of failing with an
+        // error about closed channels
+        let inverter_receiver = Cell::new(Some(channels.from_inverter.subscribe()));
+        let mqtt_receiver = Cell::new(Some(channels.from_mqtt.subscribe()));
+
+        Self {
+            config,
+            channels,
+            inverter_receiver,
+            mqtt_receiver,
+        }
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -37,7 +52,10 @@ impl Coordinator {
     }
 
     async fn mqtt_receiver(&self) -> Result<()> {
-        let mut receiver = self.channels.from_mqtt.subscribe();
+        let mut receiver = self
+            .mqtt_receiver
+            .take()
+            .expect("should only be called once");
 
         loop {
             match receiver.recv().await? {
@@ -79,7 +97,7 @@ impl Coordinator {
 
     async fn process_command(&self, command: Command) -> Result<()> {
         use commands::time_register_ops::Action;
-        use lxp::packet::{Register, RegisterBit};
+        use lxp::packet::RegisterBit;
         use Command::*;
 
         match command {
@@ -310,7 +328,10 @@ impl Coordinator {
     async fn inverter_receiver(&self) -> Result<()> {
         use lxp::inverter::ChannelData::*;
 
-        let mut receiver = self.channels.from_inverter.subscribe();
+        let mut receiver = self
+            .inverter_receiver
+            .take()
+            .expect("should only be called once");
 
         let mut inputs_store = InputsStore::new();
 
