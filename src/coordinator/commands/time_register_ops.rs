@@ -134,6 +134,22 @@ impl SetTimeRegister {
         self.set_register(self.action.register()? + 1, &self.values[2..4])
             .await?;
 
+        // FIXME: If we only update one of the two registers, we should probably
+        // still output the change we did manage to make here.
+        let payload = MqttReplyPayload {
+            start: format!("{:02}:{:02}", self.values[0], self.values[1]),
+            end: format!("{:02}:{:02}", self.values[2], self.values[3]),
+        };
+        let message = mqtt::Message {
+            topic: self.action.mqtt_reply_topic(self.inverter.datalog),
+            payload: serde_json::to_string(&payload)?,
+        };
+        let channel_data = mqtt::ChannelData::Message(message);
+
+        if self.channels.to_mqtt.send(channel_data).is_err() {
+            bail!("send(to_mqtt) failed - channel closed?");
+        }
+
         Ok(())
     }
 
