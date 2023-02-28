@@ -128,6 +128,7 @@ fn inverters_for_message() {
 
     let message = mqtt::Message {
         topic: "cmd/all/foo".to_string(),
+        retain: false,
         payload: "foo".to_string(),
     };
 
@@ -136,6 +137,7 @@ fn inverters_for_message() {
 
     let message = mqtt::Message {
         topic: "cmd/MISMATCHED/foo".to_string(),
+        retain: false,
         payload: "foo".to_string(),
     };
 
@@ -144,6 +146,7 @@ fn inverters_for_message() {
 
     let message = mqtt::Message {
         topic: "cmd/TESTSERIAL/foo".to_string(),
+        retain: false,
         payload: "foo".to_string(),
     };
 

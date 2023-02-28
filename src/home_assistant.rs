@@ -227,6 +227,7 @@ impl Config {
 
         Ok(mqtt::Message {
             topic: self.ha_discovery_topic("sensor", name),
+            retain: true,
             payload: serde_json::to_string(&config)?,
         })
     }
@@ -253,6 +254,7 @@ impl Config {
 
         Ok(mqtt::Message {
             topic: self.ha_discovery_topic("switch", name),
+            retain: true,
             payload: serde_json::to_string(&config)?,
         })
     }
@@ -284,6 +286,7 @@ impl Config {
 
         Ok(mqtt::Message {
             topic: self.ha_discovery_topic("number", &format!("{:?}", register)),
+            retain: true,
             payload: serde_json::to_string(&config)?,
         })
     }
@@ -314,6 +317,7 @@ impl Config {
 
         Ok(mqtt::Message {
             topic: self.ha_discovery_topic("text", name),
+            retain: true,
             payload: serde_json::to_string(&config)?,
         })
     }
