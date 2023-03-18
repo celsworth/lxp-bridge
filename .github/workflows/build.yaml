@@ -83,7 +83,14 @@ jobs:
           command: test
           args: --features=mocks
 
+      - name: Start Mosquitto
+        uses: namoshek/mosquitto-github-action@v1
+        with:
+          version: '1.6'
+
       - name: Run integration tests
+        env:
+          CI_USE_EXTERNAL_MOSQUITTO: '1'
         working-directory: integration_tests
         run: bundle exec rspec
   build:

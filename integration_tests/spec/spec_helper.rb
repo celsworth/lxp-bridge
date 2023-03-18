@@ -13,6 +13,11 @@ RSpec.configure do |config|
 
   # Set up an MQTT server
   config.around(:each) do |example|
+    if ENV['CI_USE_EXTERNAL_MOSQUITTO'] == '1'
+      example.run
+      next
+    end
+
     name = "mosquitto-lxp-bridge-tests-#{Process.pid}"
     Kernel.system(
       *%W[docker run --detach --rm -p 1883:1883 -p 9001:9001 --name #{name} eclipse-mosquitto:1.6],
