@@ -180,8 +180,6 @@ RSpec.describe 'inverter communications' do
   end # }}}
 
   context 'receiving all unprompted input registers' do # {{{
-    before { sleep 0.2 } # avoid test seeing a row write from a previous test
-
     subject do
       inverter.write(fixture('read_inputs_0_to_39_ok.packet'))
       inverter.write(fixture('read_inputs_40_to_79_ok.packet'))
