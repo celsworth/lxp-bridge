@@ -26,6 +26,7 @@ fn inverter_defaults() {
     let inverter: config::Inverter = serde_json::from_value(input).unwrap();
     assert!(inverter.enabled());
     assert_eq!(inverter.heartbeats(), false);
+    assert_eq!(inverter.publish_holdings_on_connect(), false);
 }
 
 #[test]
@@ -36,6 +37,16 @@ fn inverter_heartbeats() {
     let input = json!({ "host": "host", "port": 8000, "serial": "TESTSERIAL", "datalog": "TESTDATALO", "heartbeats": true });
     let inverter: config::Inverter = serde_json::from_value(input).unwrap();
     assert_eq!(inverter.heartbeats(), true);
+}
+
+#[test]
+fn inverter_publish_holdings_on_connect() {
+    let input = json!({ "host": "host", "port": 8000, "serial": "TESTSERIAL", "datalog": "TESTDATALO", "publish_holdings_on_connect": false });
+    let inverter: config::Inverter = serde_json::from_value(input).unwrap();
+    assert_eq!(inverter.publish_holdings_on_connect(), false);
+    let input = json!({ "host": "host", "port": 8000, "serial": "TESTSERIAL", "datalog": "TESTDATALO", "publish_holdings_on_connect": true });
+    let inverter: config::Inverter = serde_json::from_value(input).unwrap();
+    assert_eq!(inverter.publish_holdings_on_connect(), true);
 }
 
 #[test]
@@ -74,6 +85,7 @@ fn enabled_inverters() {
             port: 8000,
             serial: example_serial(),
             heartbeats: None,
+            publish_holdings_on_connect: None,
         },
         config::Inverter {
             enabled: true,
@@ -82,6 +94,7 @@ fn enabled_inverters() {
             port: 8000,
             serial: example_serial(),
             heartbeats: None,
+            publish_holdings_on_connect: None,
         },
     ]);
 
@@ -100,6 +113,7 @@ fn inverters_for_message() {
             port: 8000,
             serial: example_serial(),
             heartbeats: None,
+            publish_holdings_on_connect: None,
         },
         config::Inverter {
             enabled: false,
@@ -108,6 +122,7 @@ fn inverters_for_message() {
             port: 8000,
             serial: example_serial(),
             heartbeats: None,
+            publish_holdings_on_connect: None,
         },
     ]);
 

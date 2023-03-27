@@ -31,6 +31,7 @@ pub struct Inverter {
     pub datalog: Serial,
 
     pub heartbeats: Option<bool>,
+    pub publish_holdings_on_connect: Option<bool>,
 }
 impl Inverter {
     pub fn enabled(&self) -> bool {
@@ -55,6 +56,10 @@ impl Inverter {
 
     pub fn heartbeats(&self) -> bool {
         self.heartbeats == Some(true)
+    }
+
+    pub fn publish_holdings_on_connect(&self) -> bool {
+        self.publish_holdings_on_connect == Some(true)
     }
 } // }}}
 
@@ -262,6 +267,13 @@ impl ConfigWrapper {
         self.inverters()
             .iter()
             .find(|inverter| inverter.host == host)
+            .cloned()
+    }
+
+    pub fn enabled_inverter_with_datalog(&self, datalog: Serial) -> Option<Inverter> {
+        self.enabled_inverters()
+            .iter()
+            .find(|inverter| inverter.datalog == datalog)
             .cloned()
     }
 
