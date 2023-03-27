@@ -11,6 +11,11 @@
 * Add more HA discovery sensors (#128, @unreadablename)
 * Add MQTT LWT and use it in HA discovery messages (#129, #130)
 * Add AC Charge/Charge Priority/Forced Discharge switches to HA discovery (#127)
+* Remove v_pv inputs key (#135)
+* Remove mqtt.homeassistant.sensors configuration option (#132, @lupine)
+* Add HA discovery messages for number controls (AC Charge Cutoff % etc) (#132, @lupine)
+* Fix crash in timesync during DST transition times (#153)
+* Add option to send holding registers on startup (#147, @lupine)
 
 
 # 0.9.0 - 2nd November 2022

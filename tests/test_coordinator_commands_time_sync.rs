@@ -2,6 +2,7 @@ mod common;
 use common::*;
 
 #[tokio::test]
+#[cfg_attr(not(feature = "mocks"), ignore)]
 async fn update_time() {
     common_setup();
 
@@ -72,6 +73,7 @@ async fn update_time() {
 }
 
 #[tokio::test]
+#[cfg_attr(not(feature = "mocks"), ignore)]
 async fn time_already_correct() {
     common_setup();
 

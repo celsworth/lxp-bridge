@@ -20,6 +20,7 @@ async fn serials_fixed_in_outgoing_packets() {
         datalog: Serial::from_str("0000000000").unwrap(),
         serial: Serial::from_str("0000000000").unwrap(),
         heartbeats: None,
+        publish_holdings_on_connect: None,
     };
     let channels = Channels::new();
     let inverter = lxp::inverter::Inverter::new(config, &inverter, channels.clone());
@@ -108,6 +109,7 @@ async fn test_replies_to_heartbeats() {
         datalog: Serial::from_str("XXXXXXXXXX").unwrap(),
         serial: Serial::from_str("0000000000").unwrap(),
         heartbeats: Some(true),
+        publish_holdings_on_connect: None,
     };
     let channels = Channels::new();
     let inverter = lxp::inverter::Inverter::new(config, &inverter, channels.clone());

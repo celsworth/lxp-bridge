@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 use serde::Deserialize;
-use serde_with::{formats::CommaSeparator, serde_as, StringWithSeparator}; //, OneOrMany;
+use serde_with::serde_as; //, OneOrMany;
 
 #[serde_as]
 #[derive(Clone, Debug, Deserialize)]
@@ -31,6 +31,7 @@ pub struct Inverter {
     pub datalog: Serial,
 
     pub heartbeats: Option<bool>,
+    pub publish_holdings_on_connect: Option<bool>,
 }
 impl Inverter {
     pub fn enabled(&self) -> bool {
@@ -56,6 +57,10 @@ impl Inverter {
     pub fn heartbeats(&self) -> bool {
         self.heartbeats == Some(true)
     }
+
+    pub fn publish_holdings_on_connect(&self) -> bool {
+        self.publish_holdings_on_connect == Some(true)
+    }
 } // }}}
 
 // HomeAssistant {{{
@@ -67,15 +72,8 @@ pub struct HomeAssistant {
 
     #[serde(default = "Config::default_mqtt_homeassistant_prefix")]
     pub prefix: String,
-
-    #[serde(default = "Config::default_mqtt_homeassistant_sensors")]
-    #[serde_as(as = "StringWithSeparator::<CommaSeparator, String>")]
-    pub sensors: Vec<String>,
-
-    #[serde(default = "Config::default_mqtt_homeassistant_switches")]
-    #[serde_as(as = "StringWithSeparator::<CommaSeparator, String>")]
-    pub switches: Vec<String>,
 }
+
 impl HomeAssistant {
     pub fn enabled(&self) -> bool {
         self.enabled
@@ -83,14 +81,6 @@ impl HomeAssistant {
 
     pub fn prefix(&self) -> &str {
         &self.prefix
-    }
-
-    pub fn sensors(&self) -> &Vec<String> {
-        &self.sensors
-    }
-
-    pub fn switches(&self) -> &Vec<String> {
-        &self.switches
     }
 } // }}}
 
@@ -280,6 +270,13 @@ impl ConfigWrapper {
             .cloned()
     }
 
+    pub fn enabled_inverter_with_datalog(&self, datalog: Serial) -> Option<Inverter> {
+        self.enabled_inverters()
+            .iter()
+            .find(|inverter| inverter.datalog == datalog)
+            .cloned()
+    }
+
     pub fn inverters_for_message(&self, message: &mqtt::Message) -> Result<Vec<Inverter>> {
         use mqtt::TargetInverter::*;
 
@@ -359,21 +356,11 @@ impl Config {
         HomeAssistant {
             enabled: Self::default_enabled(),
             prefix: Self::default_mqtt_homeassistant_prefix(),
-            sensors: Self::default_mqtt_homeassistant_sensors(),
-            switches: Self::default_mqtt_homeassistant_switches(),
         }
     }
 
     fn default_mqtt_homeassistant_prefix() -> String {
         "homeassistant".to_string()
-    }
-    fn default_mqtt_homeassistant_sensors() -> Vec<String> {
-        // by default, use the special-case string of "all" rather than list them all out
-        vec!["all".to_string()]
-    }
-    fn default_mqtt_homeassistant_switches() -> Vec<String> {
-        // by default, use the special-case string of "all" rather than list them all out
-        vec!["all".to_string()]
     }
 
     fn default_enabled() -> bool {

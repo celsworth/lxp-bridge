@@ -17,8 +17,6 @@ pub enum ReadInput {
 #[nom(LittleEndian)]
 pub struct ReadInputAll {
     pub status: i16,
-    #[nom(Ignore)]
-    pub v_pv: f64,
     #[nom(Parse = "Utils::le_i16_div10")]
     pub v_pv_1: f64,
     #[nom(Parse = "Utils::le_i16_div10")]
@@ -192,8 +190,6 @@ pub struct ReadInputAll {
 #[nom(LittleEndian)]
 pub struct ReadInput1 {
     pub status: i16,
-    #[nom(Ignore)]
-    pub v_pv: f64,
     #[nom(Parse = "Utils::le_i16_div10")]
     pub v_pv_1: f64,
     #[nom(Parse = "Utils::le_i16_div10")]
@@ -406,7 +402,6 @@ impl ReadInputs {
         if let (Some(ri1), Some(ri2)) = (self.read_input_1.as_ref(), self.read_input_2.as_ref()) {
             let mut ria = ReadInputAll {
                 status: ri1.status,
-                v_pv: ri1.v_pv,
                 v_pv_1: ri1.v_pv_1,
                 v_pv_2: ri1.v_pv_2,
                 v_pv_3: ri1.v_pv_3,
@@ -565,12 +560,17 @@ pub enum DeviceFunction {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(i16)]
 pub enum Register {
-    Register21 = 21,            // not sure of a better name for this one..
-    ChargePowerPercentCmd = 64, // System Charge Rate (%)
-    DischgPowerPercentCmd = 65, // System Discharge Rate (%)
-    AcChargePowerCmd = 66,      // Grid Charge Power Rate (%)
-    AcChargeSocLimit = 67,      // AC Charge SOC Limit (%)
-    DischgCutOffSocEod = 105,   // Discharge cut-off SOC (%)
+    Register21 = 21,             // not sure of a better name for this one..
+    ChargePowerPercentCmd = 64,  // System Charge Rate (%)
+    DischgPowerPercentCmd = 65,  // System Discharge Rate (%)
+    AcChargePowerCmd = 66,       // Grid Charge Power Rate (%)
+    AcChargeSocLimit = 67,       // AC Charge SOC Limit (%)
+    ForcedChargeSocLimit = 75,   // Forced Charge SOC Limit (%)
+    ForcedDischgSocLimit = 83,   // Forced Discarge SOC Limit (%)
+    DischgCutOffSocEod = 105,    // Discharge cut-off SOC (%)
+    EpsDischgCutoffSocEod = 125, // EPS Discharge cut-off SOC (%)
+    AcChargeStartSocLimit = 160, // SOC at which AC charging will begin (%)
+    AcChargeEndSocLimit = 161,   // SOC at which AC charging will end (%)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -812,7 +812,6 @@ impl TranslatedData {
         match ReadInputAll::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.v_pv = r.v_pv_1 + r.v_pv_2 + r.v_pv_3;
                 r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
                 r.e_pv_all = r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3;
                 r.datalog = self.datalog;
@@ -826,7 +825,6 @@ impl TranslatedData {
         match ReadInput1::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.v_pv = r.v_pv_1 + r.v_pv_2 + r.v_pv_3;
                 r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
                 r.datalog = self.datalog;
                 Ok(r)
@@ -859,7 +857,7 @@ impl TranslatedData {
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 38 {
-            bail!("packet too short");
+            bail!("TranslatedData::decode packet too short");
         }
 
         let protocol = Utils::i16ify(input, 2);
@@ -1028,7 +1026,7 @@ impl ReadParam {
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 24 {
-            bail!("packet too short");
+            bail!("ReadParam::decode packet too short");
         }
 
         let protocol = Utils::i16ify(input, 2);
@@ -1124,7 +1122,7 @@ impl WriteParam {
     fn decode(input: &[u8]) -> Result<Self> {
         let len = input.len();
         if len < 21 {
-            bail!("packet too short");
+            bail!("WriteParam::decode packet too short");
         }
 
         let protocol = Utils::i16ify(input, 2);

@@ -8,7 +8,8 @@ use {
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ChannelData {
-    Disconnect(Serial), // strictly speaking, only ever goes inverter->coordinator, but eh.
+    Connected(Serial),  // strictly speaking, these two only ever go
+    Disconnect(Serial), // inverter->coordinator, but eh.
     Packet(Packet),     // this one goes both ways through the channel.
     Shutdown,
 }
@@ -55,6 +56,7 @@ impl WaitForReply for Receiver {
                     }
                 }
                 (_, Ok(ChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
+                (_, Ok(ChannelData::Connected(_))) => {} // Breaks on channel overflow, but we have a timeout
                 (_, Ok(ChannelData::Disconnect(inverter_datalog))) => {
                     if inverter_datalog == packet.datalog() {
                         bail!("inverter disconnect?");
@@ -185,6 +187,9 @@ impl Inverter {
         let (reader, writer) = tokio::net::TcpStream::from_std(std_stream)?.into_split();
 
         info!("inverter {}: connected!", self.config().datalog());
+        self.channels
+            .from_inverter
+            .send(ChannelData::Connected(self.config().datalog()))?;
 
         futures::try_join!(self.sender(writer), self.receiver(reader))?;
 
@@ -254,7 +259,8 @@ impl Inverter {
         loop {
             match receiver.recv().await? {
                 Shutdown => break,
-                // this doesn't actually happen yet; Disconnect is never sent to this channel
+                // this doesn't actually happen yet; (Dis)connect is never sent to this channel
+                Connected(_) => {}
                 Disconnect(_) => bail!("sender exiting due to ChannelData::Disconnect"),
                 Packet(packet) => {
                     // this works, but needs more thought. because we only fix it here, immediately

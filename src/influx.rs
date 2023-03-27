@@ -68,14 +68,26 @@ impl Influx {
                         let key = key.to_string();
 
                         line = if key == "time" {
-                            line.set_timestamp(chrono::Utc.timestamp(value.as_i64().unwrap(), 0))
+                            let value = value.as_i64().unwrap_or_else(|| {
+                                panic!("cannot represent {value} as i64 for {key}")
+                            });
+                            line.set_timestamp(chrono::Utc.timestamp_opt(value, 0).unwrap())
                         } else if key == "datalog" {
-                            line.insert_tag(key, value.as_str().unwrap())
+                            let value = value.as_str().unwrap_or_else(|| {
+                                panic!("cannot represent {value} as str for {key}")
+                            });
+                            line.insert_tag(key, value)
                         } else if value.is_f64() {
-                            line.insert_field(key, value.as_f64().unwrap())
+                            let value = value.as_f64().unwrap_or_else(|| {
+                                panic!("cannot represent {value} as f64 for {key}")
+                            });
+                            line.insert_field(key, value)
                         } else {
                             // can't be anything other than int
-                            line.insert_field(key, value.as_u64().unwrap())
+                            let value = value.as_u64().unwrap_or_else(|| {
+                                panic!("cannot represent {value} as u64 for {key}")
+                            });
+                            line.insert_field(key, value)
                         }
                     }
 
