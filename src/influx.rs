@@ -71,7 +71,7 @@ impl Influx {
                             let value = value.as_i64().unwrap_or_else(|| {
                                 panic!("cannot represent {value} as i64 for {key}")
                             });
-                            line.set_timestamp(chrono::Utc.timestamp(value, 0))
+                            line.set_timestamp(chrono::Utc.timestamp_opt(value, 0).unwrap())
                         } else if key == "datalog" {
                             let value = value.as_str().unwrap_or_else(|| {
                                 panic!("cannot represent {value} as str for {key}")
