@@ -16,6 +16,7 @@
 * Add HA discovery messages for number controls (AC Charge Cutoff % etc) (#132, @lupine)
 * Fix crash in timesync during DST transition times (#153)
 * Add option to send holding registers on startup (#147, @lupine)
+* Add HomeAssistant time control discovery messages (#143, @lupine)
 
 
 # 0.9.0 - 2nd November 2022
