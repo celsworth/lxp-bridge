@@ -45,11 +45,16 @@ impl TimeSync {
             let minute = td.values[4] as u32;
             let second = td.values[5] as u32;
 
-            let dt = chrono::Local
-                .ymd(2000 + year as i32, month, day)
-                .and_hms(hour, minute, second);
+            // pretend inverter is in Utc to avoid ambiguous time conversions and timezones
+            let dt = chrono::Utc
+                .with_ymd_and_hms(2000 + year as i32, month, day, hour, minute, second)
+                .unwrap();
 
-            let now = Utils::localtime();
+            // get current time in Utc, then add the appropriate offset so we can compare to
+            // inverter time correctly
+            let offset_in_sec =
+                chrono::Duration::seconds(chrono::Local::now().offset().local_minus_utc() as i64);
+            let now = Utils::utc() + offset_in_sec;
 
             debug!(
                 "inverter {} time difference is {}",
@@ -60,7 +65,8 @@ impl TimeSync {
             let limit = chrono::Duration::seconds(120);
 
             if dt - now > limit || now - dt > limit {
-                let packet = self.set_current_time_packet();
+                let packet = self.set_time_packet(now);
+
                 if self
                     .channels
                     .to_inverter
@@ -81,10 +87,8 @@ impl TimeSync {
         Ok(())
     }
 
-    fn set_current_time_packet(&self) -> Packet {
+    fn set_time_packet(&self, now: chrono::DateTime<chrono::Utc>) -> Packet {
         use chrono::{Datelike, Timelike};
-
-        let now = Utils::localtime();
 
         Packet::TranslatedData(TranslatedData {
             datalog: self.inverter.datalog(),
