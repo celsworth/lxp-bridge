@@ -91,6 +91,7 @@ impl ReadTimeRegister {
             };
             let message = mqtt::Message {
                 topic: self.action.mqtt_reply_topic(td.datalog),
+                retain: true,
                 payload: serde_json::to_string(&payload)?,
             };
             let channel_data = mqtt::ChannelData::Message(message);
@@ -142,6 +143,7 @@ impl SetTimeRegister {
         };
         let message = mqtt::Message {
             topic: self.action.mqtt_reply_topic(self.inverter.datalog),
+            retain: true,
             payload: serde_json::to_string(&payload)?,
         };
         let channel_data = mqtt::ChannelData::Message(message);

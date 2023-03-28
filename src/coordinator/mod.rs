@@ -62,6 +62,7 @@ impl Coordinator {
 
                     let reply = mqtt::ChannelData::Message(mqtt::Message {
                         topic: topic_reply,
+                        retain: false,
                         payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
                     });
                     if self.channels.to_mqtt.send(reply).is_err() {
