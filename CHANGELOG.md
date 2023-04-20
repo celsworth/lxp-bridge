@@ -1,4 +1,4 @@
-# 0.10.0 - Unreleased
+# 0.10.0 - 20th April 2023
 
 * Fix crash in scheduler during DST transition times (#107)
 * Add read individual input command and optional publishing of individual input registers (#111)
