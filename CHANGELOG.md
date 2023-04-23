@@ -1,4 +1,4 @@
-# 0.10.0 - Unreleased
+# 0.10.0 - 20th April 2023
 
 * Fix crash in scheduler during DST transition times (#107)
 * Add read individual input command and optional publishing of individual input registers (#111)
@@ -16,6 +16,8 @@
 * Add HA discovery messages for number controls (AC Charge Cutoff % etc) (#132, @lupine)
 * Fix crash in timesync during DST transition times (#153)
 * Add option to send holding registers on startup (#147, @lupine)
+* Add HomeAssistant time control discovery messages (#143, @lupine)
+* Retain holding and parameter register messages (#154, @lupine)
 
 
 # 0.9.0 - 2nd November 2022

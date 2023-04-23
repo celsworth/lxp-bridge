@@ -21,6 +21,7 @@ pub struct Config {
     mqtt_config: config::Mqtt,
 }
 
+// https://www.home-assistant.io/integrations/sensor.mqtt/
 #[derive(Debug, Serialize)]
 pub struct Sensor {
     device_class: String,
@@ -34,6 +35,7 @@ pub struct Sensor {
     availability: Availability,
 }
 
+// https://www.home-assistant.io/integrations/switch.mqtt/
 #[derive(Debug, Serialize)]
 pub struct Switch {
     name: String,
@@ -45,6 +47,7 @@ pub struct Switch {
     availability: Availability,
 }
 
+// https://www.home-assistant.io/integrations/number.mqtt/
 #[derive(Debug, Serialize)]
 pub struct Number {
     name: String,
@@ -58,6 +61,20 @@ pub struct Number {
     max: f64,
     step: f64,
     unit_of_measurement: String,
+}
+
+// https://www.home-assistant.io/integrations/text.mqtt/
+#[derive(Debug, Serialize)]
+pub struct Text {
+    name: String,
+    state_topic: String,
+    command_topic: String,
+    command_template: String,
+    value_template: String,
+    unique_id: String,
+    device: Device,
+    availability: Availability,
+    pattern: String,
 }
 
 impl Config {
@@ -89,8 +106,6 @@ impl Config {
             self.power("p_to_user", "Power from Grid")?,
             self.power("p_to_grid", "Power to Grid")?,
             self.power("p_eps", "Active EPS Power")?,
-            self.power("p_charge", "Battery Charge Power")?,
-            self.power("p_discharge", "Battery Discharge Power")?,
             self.energy("e_pv_all", "PV Generation (All time)")?,
             self.energy("e_pv_all_1", "PV Generation (All time) (String 1)")?,
             self.energy("e_pv_all_2", "PV Generation (All time) (String 2)")?,
@@ -128,9 +143,30 @@ impl Config {
                 Register::AcChargeEndSocLimit,
                 "Charge From AC Upper Limit %",
             )?,
+            self.time_range("ac_charge/1", "AC Charge Timeslot 1")?,
+            self.time_range("ac_charge/2", "AC Charge Timeslot 2")?,
+            self.time_range("ac_charge/3", "AC Charge Timeslot 3")?,
+            self.time_range("charge_priority/1", "Charge Priority Timeslot 1")?,
+            self.time_range("charge_priority/2", "Charge Priority Timeslot 2")?,
+            self.time_range("charge_priority/3", "Charge Priority Timeslot 3")?,
+            self.time_range("forced_discharge/1", "Forced Discharge Timeslot 1")?,
+            self.time_range("forced_discharge/2", "Forced Discharge Timeslot 2")?,
+            self.time_range("forced_discharge/3", "Forced Discharge Timeslot 3")?,
         ];
 
         Ok(r)
+    }
+
+    fn ha_discovery_topic(&self, kind: &str, name: &str) -> String {
+        format!(
+            "{}/{}/lxp_{}/{}/config",
+            self.mqtt_config.homeassistant().prefix(),
+            kind,
+            self.inverter.datalog(),
+            // The forward slash is used in some names (e.g. ac_charge/1) but
+            // has semantic meaning in MQTT, so must be changed
+            name.replace('/', "_"),
+        )
     }
 
     fn apparent_power(&self, name: &str, label: &str) -> Result<mqtt::Message> {
@@ -190,13 +226,8 @@ impl Config {
         };
 
         Ok(mqtt::Message {
-            topic: format!(
-                "{}/sensor/lxp_{}/{}/config",
-                self.mqtt_config.homeassistant().prefix(),
-                self.inverter.datalog(),
-                name
-            ),
-
+            topic: self.ha_discovery_topic("sensor", name),
+            retain: true,
             payload: serde_json::to_string(&config)?,
         })
     }
@@ -222,12 +253,8 @@ impl Config {
         };
 
         Ok(mqtt::Message {
-            topic: format!(
-                "{}/switch/lxp_{}/{}/config",
-                self.mqtt_config.homeassistant().prefix(),
-                self.inverter.datalog(),
-                name
-            ),
+            topic: self.ha_discovery_topic("switch", name),
+            retain: true,
             payload: serde_json::to_string(&config)?,
         })
     }
@@ -258,12 +285,39 @@ impl Config {
         };
 
         Ok(mqtt::Message {
-            topic: format!(
-                "{}/number/lxp_{}/{:?}/config",
-                self.mqtt_config.homeassistant().prefix(),
+            topic: self.ha_discovery_topic("number", &format!("{:?}", register)),
+            retain: true,
+            payload: serde_json::to_string(&config)?,
+        })
+    }
+
+    // Models a time range as an MQTT Text field taking values like: 00:00-23:59
+    fn time_range(&self, name: &str, label: &str) -> Result<mqtt::Message> {
+        let config = Text {
+            name: label.to_string(),
+            state_topic: format!(
+                "{}/{}/{}",
+                self.mqtt_config.namespace(),
                 self.inverter.datalog(),
-                register,
+                name,
             ),
+            command_topic: format!(
+                "{}/cmd/{}/set/{}",
+                self.mqtt_config.namespace(),
+                self.inverter.datalog(),
+                name,
+            ),
+            command_template: r#"{% set parts = value.split("-") %}{"start":"{{ parts[0] }}", "end":"{{ parts[1] }}"}"#.to_string(),
+            value_template: r#"{{ value_json["start"] }}-{{ value_json["end"] }}"#.to_string(),
+            unique_id: format!("lxp_{}_text_{}", self.inverter.datalog(), name),
+            device: self.device(),
+            availability: self.availability(),
+            pattern: r"([01]?[0-9]|2[0-3]):[0-5][0-9]-([01]?[0-9]|2[0-3]):[0-5][0-9]".to_string(),
+        };
+
+        Ok(mqtt::Message {
+            topic: self.ha_discovery_topic("text", name),
+            retain: true,
             payload: serde_json::to_string(&config)?,
         })
     }

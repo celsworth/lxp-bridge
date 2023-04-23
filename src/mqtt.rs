@@ -6,6 +6,7 @@ use rumqttc::{AsyncClient, Event, EventLoop, Incoming, LastWill, MqttOptions, Pu
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub struct Message {
     pub topic: String,
+    pub retain: bool,
     pub payload: String,
 }
 
@@ -21,6 +22,7 @@ impl Message {
         for (register, value) in rp.pairs() {
             r.push(mqtt::Message {
                 topic: format!("{}/param/{}", rp.datalog, register),
+                retain: true,
                 payload: serde_json::to_string(&value)?,
             });
         }
@@ -34,6 +36,7 @@ impl Message {
         for (register, value) in td.pairs() {
             r.push(mqtt::Message {
                 topic: format!("{}/hold/{}", td.datalog, register),
+                retain: true,
                 payload: serde_json::to_string(&value)?,
             });
 
@@ -41,6 +44,7 @@ impl Message {
                 let bits = lxp::packet::Register21Bits::new(value);
                 r.push(mqtt::Message {
                     topic: format!("{}/hold/{}/bits", td.datalog, register),
+                    retain: true,
                     payload: serde_json::to_string(&bits)?,
                 });
             }
@@ -49,6 +53,7 @@ impl Message {
                 let bits = lxp::packet::Register110Bits::new(value);
                 r.push(mqtt::Message {
                     topic: format!("{}/hold/{}/bits", td.datalog, register),
+                    retain: true,
                     payload: serde_json::to_string(&bits)?,
                 });
             }
@@ -63,6 +68,7 @@ impl Message {
     ) -> Result<Message> {
         Ok(mqtt::Message {
             topic: format!("{}/inputs/all", datalog),
+            retain: false,
             payload: serde_json::to_string(&inputs)?,
         })
     }
@@ -79,6 +85,7 @@ impl Message {
             for (register, value) in td.pairs() {
                 r.push(mqtt::Message {
                     topic: format!("{}/input/{}", td.datalog, register),
+                    retain: false,
                     payload: serde_json::to_string(&value)?,
                 });
             }
@@ -87,18 +94,22 @@ impl Message {
         match td.read_input() {
             Ok(ReadInput::ReadInputAll(r_all)) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/all", td.datalog),
+                retain: false,
                 payload: serde_json::to_string(&r_all)?,
             }),
             Ok(ReadInput::ReadInput1(r1)) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/1", td.datalog),
+                retain: false,
                 payload: serde_json::to_string(&r1)?,
             }),
             Ok(ReadInput::ReadInput2(r2)) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/2", td.datalog),
+                retain: false,
                 payload: serde_json::to_string(&r2)?,
             }),
             Ok(ReadInput::ReadInput3(r3)) => r.push(mqtt::Message {
                 topic: format!("{}/inputs/3", td.datalog),
+                retain: false,
                 payload: serde_json::to_string(&r3)?,
             }),
             Err(x) => warn!("ignoring {:?}", x),
@@ -322,7 +333,7 @@ impl Mqtt {
                 let ha = home_assistant::Config::new(&inverter, &self.config.mqtt());
                 for msg in ha.all()?.into_iter() {
                     let _ = client
-                        .publish(&msg.topic, QoS::AtLeastOnce, true, msg.payload)
+                        .publish(&msg.topic, QoS::AtLeastOnce, msg.retain, msg.payload)
                         .await;
                 }
             }
@@ -368,6 +379,7 @@ impl Mqtt {
 
         let message = Message {
             topic,
+            retain: publish.retain,
             payload: String::from_utf8(publish.payload.to_vec())?,
         };
         debug!("RX: {:?}", message);
@@ -396,7 +408,7 @@ impl Mqtt {
                     let topic = format!("{}/{}", self.config.mqtt().namespace(), message.topic);
                     info!("publishing: {} = {}", topic, message.payload);
                     let _ = client
-                        .publish(&topic, QoS::AtLeastOnce, false, message.payload)
+                        .publish(&topic, QoS::AtLeastOnce, message.retain, message.payload)
                         .await
                         .map_err(|err| error!("publish {} failed: {:?} .. skipping", topic, err));
                 }

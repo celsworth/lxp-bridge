@@ -17,6 +17,7 @@ async fn for_param() {
         mqtt::Message::for_param(packet).unwrap(),
         vec![mqtt::Message {
             topic: "2222222222/param/0".to_owned(),
+            retain: true,
             payload: "1".to_owned()
         }]
     );
@@ -40,6 +41,7 @@ async fn for_hold_single() {
         mqtt::Message::for_hold(packet).unwrap(),
         vec![mqtt::Message {
             topic: "2222222222/hold/0".to_owned(),
+            retain: true,
             payload: "1".to_owned()
         }]
     );
@@ -61,8 +63,8 @@ async fn for_hold_21() {
 
     assert_eq!(
         mqtt::Message::for_hold(packet).unwrap(),
-        vec![mqtt::Message { topic: "2222222222/hold/21".to_owned(), payload: "8716".to_owned() },
-             mqtt::Message { topic: "2222222222/hold/21/bits".to_owned(), payload: "{\"eps_en\":\"OFF\",\"ovf_load_derate_en\":\"OFF\",\"drms_en\":\"ON\",\"lvrt_en\":\"ON\",\"anti_island_en\":\"OFF\",\"neutral_detect_en\":\"OFF\",\"grid_on_power_ss_en\":\"OFF\",\"ac_charge_en\":\"OFF\",\"sw_seamless_en\":\"OFF\",\"set_to_standby\":\"ON\",\"forced_discharge_en\":\"OFF\",\"charge_priority_en\":\"OFF\",\"iso_en\":\"OFF\",\"gfci_en\":\"ON\",\"dci_en\":\"OFF\",\"feed_in_grid_en\":\"OFF\"}".to_owned() }
+        vec![mqtt::Message { topic: "2222222222/hold/21".to_owned(), retain: true, payload: "8716".to_owned() },
+             mqtt::Message { topic: "2222222222/hold/21/bits".to_owned(), retain: true, payload: "{\"eps_en\":\"OFF\",\"ovf_load_derate_en\":\"OFF\",\"drms_en\":\"ON\",\"lvrt_en\":\"ON\",\"anti_island_en\":\"OFF\",\"neutral_detect_en\":\"OFF\",\"grid_on_power_ss_en\":\"OFF\",\"ac_charge_en\":\"OFF\",\"sw_seamless_en\":\"OFF\",\"set_to_standby\":\"ON\",\"forced_discharge_en\":\"OFF\",\"charge_priority_en\":\"OFF\",\"iso_en\":\"OFF\",\"gfci_en\":\"ON\",\"dci_en\":\"OFF\",\"feed_in_grid_en\":\"OFF\"}".to_owned() }
         ]
     );
 }
@@ -83,8 +85,8 @@ async fn for_hold_110() {
 
     assert_eq!(
         mqtt::Message::for_hold(packet).unwrap(),
-        vec![mqtt::Message { topic: "2222222222/hold/110".to_owned(), payload: "1033".to_owned() },
-             mqtt::Message { topic: "2222222222/hold/110/bits".to_owned(), payload: "{\"ub_pv_grid_off_en\":\"ON\",\"ub_run_without_grid\":\"OFF\",\"ub_micro_grid_en\":\"OFF\"}".to_owned() }
+        vec![mqtt::Message { topic: "2222222222/hold/110".to_owned(), retain: true, payload: "1033".to_owned() },
+             mqtt::Message { topic: "2222222222/hold/110/bits".to_owned(), retain: true, payload: "{\"ub_pv_grid_off_en\":\"ON\",\"ub_run_without_grid\":\"OFF\",\"ub_micro_grid_en\":\"OFF\"}".to_owned() }
         ]
     );
 }
@@ -108,14 +110,17 @@ async fn for_hold_multi() {
         vec![
             mqtt::Message {
                 topic: "2222222222/hold/12".to_owned(),
+                retain: true,
                 payload: "1558".to_owned()
             },
             mqtt::Message {
                 topic: "2222222222/hold/13".to_owned(),
+                retain: true,
                 payload: "2055".to_owned()
             },
             mqtt::Message {
                 topic: "2222222222/hold/14".to_owned(),
+                retain: true,
                 payload: "9".to_owned()
             },
         ]
@@ -141,6 +146,7 @@ async fn for_input() {
         mqtt::Message::for_input(packet, false).unwrap(),
         vec![mqtt::Message {
             topic: "2222222222/inputs/1".to_owned(),
+            retain: false,
             payload: "{\"status\":0,\"v_pv_1\":0.0,\"v_pv_2\":0.0,\"v_pv_3\":0.0,\"v_bat\":0.0,\"soc\":0,\"soh\":0,\"p_pv\":0,\"p_pv_1\":0,\"p_pv_2\":0,\"p_pv_3\":0,\"p_charge\":0,\"p_discharge\":0,\"v_ac_r\":0.0,\"v_ac_s\":0.0,\"v_ac_t\":0.0,\"f_ac\":0.0,\"p_inv\":0,\"p_rec\":0,\"pf\":0.0,\"v_eps_r\":0.0,\"v_eps_s\":0.0,\"v_eps_t\":0.0,\"f_eps\":0.0,\"p_eps\":0,\"s_eps\":0,\"p_to_grid\":0,\"p_to_user\":0,\"e_pv_day\":0.0,\"e_pv_day_1\":0.0,\"e_pv_day_2\":0.0,\"e_pv_day_3\":0.0,\"e_inv_day\":0.0,\"e_rec_day\":0.0,\"e_chg_day\":0.0,\"e_dischg_day\":0.0,\"e_eps_day\":0.0,\"e_to_grid_day\":0.0,\"e_to_user_day\":0.0,\"v_bus_1\":0.0,\"v_bus_2\":0.0,\"time\":1646370367,\"datalog\":\"2222222222\"}".to_owned()
         }]
     );
@@ -158,10 +164,12 @@ async fn for_input() {
         vec![
             mqtt::Message {
                 topic: "2222222222/input/0".to_owned(),
+                retain: false,
                 payload: "0".to_owned()
             },
             mqtt::Message {
                 topic: "2222222222/input/1".to_owned(),
+                retain: false,
                 payload: "0".to_owned()
             }
         ]
