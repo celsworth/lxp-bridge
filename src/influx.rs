@@ -84,8 +84,8 @@ impl Influx {
                             line.insert_field(key, value)
                         } else {
                             // can't be anything other than int
-                            let value = value.as_u64().unwrap_or_else(|| {
-                                panic!("cannot represent {value} as u64 for {key}")
+                            let value = value.as_i64().unwrap_or_else(|| {
+                                panic!("cannot represent {value} as i64 for {key}")
                             });
                             line.insert_field(key, value)
                         }
