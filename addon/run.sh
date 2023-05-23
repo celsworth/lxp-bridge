@@ -2,7 +2,7 @@
 
 bashio::log.info "Creating lxp-bridge config from options..."
 
-yq -P /data/options.json > /etc/config.yaml
+yq -oy /data/options.json > /etc/config.yaml
 
 bashio::log "Done."
 
