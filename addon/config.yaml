@@ -20,7 +20,7 @@ options:
   - enabled: false
     url: "postgres://lxp:lxp@localhost/lxp"
   mqtt:
-  - enabled: true
+    enabled: true
     host: "localhost"
     port: 1883
     username: ""
@@ -45,7 +45,7 @@ schema:
   - enabled: bool
     url: url
   mqtt:
-  - enabled: bool
+    enabled: bool
     host: str
     port: port
     username: str
