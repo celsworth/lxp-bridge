@@ -5,7 +5,6 @@ description: lxp-bridge is a tool to communicate with a LuxPower inverter (commo
 arch: [armhf, armv7, aarch64, amd64, i386]
 url: "https://github.com/celsworth/lxp-bridge"
 startup: application
-discovery: mqtt
 stage: experimental
 options:
   inverters:
@@ -59,9 +58,9 @@ schema:
     username: str
     password: password
     namespace: str
-    homeassistant:
-      enabled: bool
-      prefix: str
+    homeassistant: str
+      # enabled: bool
+      # prefix: str
   influx:
     enabled: bool
     url: url
@@ -70,6 +69,6 @@ schema:
     database: str
   scheduler:
     enabled: bool
-    timesync:
-      enabled: bool
-      cron: str
+    timesync: str
+      # enabled: bool
+      # cron: str
