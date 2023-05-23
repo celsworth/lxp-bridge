@@ -1,14 +1,16 @@
 ARG BUILD_VERSION
 ARG BUILD_FROM
 
-FROM $BUILD_FROM as base
-
-FROM mikefarah/yq as json-to-yaml
-COPY --from=base /data/options.json /data/options.json
-RUN yq -P /data/options.json > /data/config.yaml
-
 FROM celsworth/lxp-bridge:${BUILD_VERSION} AS lxp-bridge
-COPY --from=json-to-yaml /data/config.yaml /etc/config.yaml
 
-FROM base
+FROM $BUILD_FROM
 COPY --from=lxp-bridge / /
+
+RUN echo "$MIRROR/alpine/edge/community" >> /etc/apk/repositories
+RUN apk update
+RUN apk add yq
+
+COPY run.sh /
+RUN chmod a+x /run.sh
+
+CMD [ "/run.sh" ]
