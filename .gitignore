@@ -1,3 +1,4 @@
 /target
 config.yaml
 docker-compose.yaml
+!/addon/config.yaml
