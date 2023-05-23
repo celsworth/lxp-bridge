@@ -9,36 +9,28 @@ stage: experimental
 options:
   inverters:
   - enabled: true
-    host:
+    host: ""
     port: 8000
-    serial:
-    datalog:
+    serial: ""
+    datalog: ""
     heartbeats: false
     publish_holdings_on_connect: false
   databases:
   - enabled: false
-    url: postgres://lxp:lxp@localhost/lxp
+    url: "postgres://lxp:lxp@localhost/lxp"
   mqtt:
   - enabled: true
-    host: localhost
+    host: "localhost"
     port: 1883
-    username:
-    password:
+    username: ""
+    password: ""
     namespace: lxp
-    homeassistant:
-      enabled: true
-      prefix: homeassistant
   influx:
     enabled: false
-    url: http://localhost:8086
-    username:
-    password:
-    database: lxp
-  scheduler:
-    enabled: false
-    timesync:
-      enabled: false
-      cron: "0 0 * * *"
+    url: "http://localhost:8086"
+    username: ""
+    password: ""
+    database: "lxp"
 schema:
   inverters:
   - enabled: bool
