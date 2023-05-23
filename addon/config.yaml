@@ -58,17 +58,9 @@ schema:
     username: str
     password: password
     namespace: str
-    homeassistant: str
-      # enabled: bool
-      # prefix: str
   influx:
     enabled: bool
     url: url
     username: str
     password: password
     database: str
-  scheduler:
-    enabled: bool
-    timesync: str
-      # enabled: bool
-      # cron: str
