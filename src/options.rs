@@ -1,5 +1,3 @@
-use crate::prelude::*;
-
 use clap::Parser;
 
 #[derive(Debug, Parser)]
@@ -11,9 +9,7 @@ pub struct Options {
 }
 
 impl Options {
-    pub fn new() -> Result<Self, Error> {
-        let r = Self::parse();
-
-        Ok(r)
+    pub fn new() -> Self {
+        Self::parse()
     }
 }
