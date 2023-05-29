@@ -18,7 +18,15 @@ const CARGO_PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 use crate::prelude::*;
 
 pub async fn app() -> Result<()> {
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
+    let options = Options::new();
+
+    let config = ConfigWrapper::new(options.config_file).unwrap_or_else(|err| {
+        // no logging available yet, so eprintln! will have to do
+        eprintln!("Error: {:?}", err);
+        std::process::exit(255);
+    });
+
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(config.loglevel()))
         .format(|buf, record| {
             writeln!(
                 buf,
@@ -32,11 +40,7 @@ pub async fn app() -> Result<()> {
         .write_style(env_logger::WriteStyle::Never)
         .init();
 
-    let options = Options::new()?;
-
     info!("lxp-bridge {} starting", CARGO_PKG_VERSION);
-
-    let config = ConfigWrapper::new(options.config_file)?;
 
     let channels = Channels::new();
 

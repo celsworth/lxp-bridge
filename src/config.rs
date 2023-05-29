@@ -15,6 +15,9 @@ pub struct Config {
     pub databases: Vec<Database>,
 
     pub scheduler: Option<Scheduler>,
+
+    #[serde(default = "Config::default_loglevel")]
+    pub loglevel: String,
 }
 
 // Inverter {{{
@@ -335,6 +338,10 @@ impl ConfigWrapper {
     pub fn scheduler(&self) -> Ref<Option<Scheduler>> {
         Ref::map(self.config.borrow(), |b| &b.scheduler)
     }
+
+    pub fn loglevel(&self) -> String {
+        self.config.borrow().loglevel.to_owned()
+    }
 }
 
 impl Config {
@@ -365,6 +372,10 @@ impl Config {
 
     fn default_enabled() -> bool {
         true
+    }
+
+    fn default_loglevel() -> String {
+        "debug".to_string()
     }
 }
 
