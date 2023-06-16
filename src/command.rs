@@ -7,11 +7,13 @@ pub enum Command {
     ReadHold(config::Inverter, i16, u16),
     ReadParam(config::Inverter, i16),
     ReadAcChargeTime(config::Inverter, i16),
+    ReadAcFirstTime(config::Inverter, i16),
     ReadChargePriorityTime(config::Inverter, i16),
     ReadForcedDischargeTime(config::Inverter, i16),
     SetHold(config::Inverter, i16, u16),
     WriteParam(config::Inverter, i16, u16),
     SetAcChargeTime(config::Inverter, i16, [u8; 4]),
+    SetAcFirstTime(config::Inverter, i16, [u8; 4]),
     SetChargePriorityTime(config::Inverter, i16, [u8; 4]),
     SetForcedDischargeTime(config::Inverter, i16, [u8; 4]),
     ChargeRate(config::Inverter, u16),
@@ -42,6 +44,9 @@ impl Command {
             ReadAcChargeTime(inverter, num) => {
                 format!("{}/read/ac_charge/{}", inverter.datalog(), num)
             }
+            ReadAcFirstTime(inverter, num) => {
+                format!("{}/read/ac_first/{}", inverter.datalog(), num)
+            }
             ReadChargePriorityTime(inverter, num) => {
                 format!("{}/read/charge_priority/{}", inverter.datalog(), num)
             }
@@ -56,6 +61,9 @@ impl Command {
             }
             SetAcChargeTime(inverter, num, _) => {
                 format!("{}/set/ac_charge/{}", inverter.datalog(), num)
+            }
+            SetAcFirstTime(inverter, num, _) => {
+                format!("{}/set/ac_first/{}", inverter.datalog(), num)
             }
             SetChargePriorityTime(inverter, num, _) => {
                 format!("{}/set/charge_priority/{}", inverter.datalog(), num)

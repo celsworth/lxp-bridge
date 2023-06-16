@@ -97,6 +97,10 @@ impl Coordinator {
                 self.read_time_register(inverter, Action::AcCharge(num))
                     .await
             }
+            ReadAcFirstTime(inverter, num) => {
+                self.read_time_register(inverter, Action::AcFirst(num))
+                    .await
+            }
             ReadChargePriorityTime(inverter, num) => {
                 self.read_time_register(inverter, Action::ChargePriority(num))
                     .await
@@ -111,6 +115,10 @@ impl Coordinator {
             }
             SetAcChargeTime(inverter, num, values) => {
                 self.set_time_register(inverter, Action::AcCharge(num), values)
+                    .await
+            }
+            SetAcFirstTime(inverter, num, values) => {
+                self.set_time_register(inverter, Action::AcFirst(num), values)
                     .await
             }
             SetChargePriorityTime(inverter, num, values) => {

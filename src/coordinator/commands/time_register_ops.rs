@@ -21,6 +21,7 @@ struct MqttReplyPayload {
 
 pub enum Action {
     AcCharge(i16),
+    AcFirst(i16),
     ChargePriority(i16),
     ForcedDischarge(i16),
 }
@@ -32,6 +33,9 @@ impl Action {
             AcCharge(1) => Ok(68),
             AcCharge(2) => Ok(70),
             AcCharge(3) => Ok(72),
+            AcFirst(1) => Ok(152),
+            AcFirst(2) => Ok(154),
+            AcFirst(3) => Ok(156),
             ChargePriority(1) => Ok(76),
             ChargePriority(2) => Ok(78),
             ChargePriority(3) => Ok(80),
@@ -47,6 +51,7 @@ impl Action {
         // no need to be defensive about n here, we checked it already in register()
         match self {
             AcCharge(n) => format!("{}/ac_charge/{}", datalog, n),
+            AcFirst(n) => format!("{}/ac_first/{}", datalog, n),
             ChargePriority(n) => format!("{}/charge_priority/{}", datalog, n),
             ForcedDischarge(n) => format!("{}/forced_discharge/{}", datalog, n),
         }
