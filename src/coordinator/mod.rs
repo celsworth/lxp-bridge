@@ -451,7 +451,7 @@ impl Coordinator {
         // Also send any special interpretive topics which are derived from
         // the holding registers.
         //
-        // FIXME: this is a further 9 round-trips to the inverter to read values
+        // FIXME: this is a further 12 round-trips to the inverter to read values
         // we have already taken, just above. We should be able to do better!
         for num in &[1, 2, 3] {
             self.read_time_register(
@@ -467,6 +467,11 @@ impl Coordinator {
             self.read_time_register(
                 inverter.clone(),
                 commands::time_register_ops::Action::ForcedDischarge(*num),
+            )
+            .await?;
+            self.read_time_register(
+                inverter.clone(),
+                commands::time_register_ops::Action::AcFirst(*num),
             )
             .await?;
         }
