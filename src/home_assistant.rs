@@ -106,6 +106,8 @@ impl Config {
             self.power("p_to_user", "Power from Grid")?,
             self.power("p_to_grid", "Power to Grid")?,
             self.power("p_eps", "Active EPS Power")?,
+            self.power("p_inv", "Power from Inverter")?,
+            self.power("p_rec", "Power to Inverter")?,
             self.energy("e_pv_all", "PV Generation (All time)")?,
             self.energy("e_pv_all_1", "PV Generation (All time) (String 1)")?,
             self.energy("e_pv_all_2", "PV Generation (All time) (String 2)")?,
