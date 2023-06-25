@@ -155,11 +155,11 @@ impl Inverter {
     pub async fn start(&self) -> Result<()> {
         while let Err(e) = self.connect().await {
             error!("inverter {}: {}", self.config().datalog(), e);
-            info!("inverter {}: reconnecting in 5s", self.config().datalog());
+            info!("inverter {}: reconnecting in 30 seconds", self.config().datalog());
             self.channels
                 .from_inverter
                 .send(ChannelData::Disconnect(self.config().datalog()))?; // kill any waiting readers
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(30)).await;
         }
 
         Ok(())
@@ -183,7 +183,7 @@ impl Inverter {
 
         let stream = tokio::net::TcpStream::connect(inverter_hp).await?;
         let std_stream = stream.into_std()?;
-        std_stream.set_keepalive(Some(std::time::Duration::new(60, 0)))?;
+        std_stream.set_keepalive(Some(std::time::Duration::new(90, 0)))?;
         let (reader, writer) = tokio::net::TcpStream::from_std(std_stream)?.into_split();
 
         info!("inverter {}: connected!", self.config().datalog());
