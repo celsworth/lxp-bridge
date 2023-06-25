@@ -6,6 +6,6 @@ yq -oy /data/options.json > /etc/config.yaml
 
 bashio::log "Done."
 
-bashio::log.info "Starting lxp-bridge..."
+bashio::log.info "Starting marcdebeer/lxp-bridge..."
 
 /usr/local/bin/lxp-bridge -c /etc/config.yaml
