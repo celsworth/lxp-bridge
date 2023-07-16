@@ -50,6 +50,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Get the version
+        id: vars
+        run: echo tag=$(echo ${{github.ref_name}}) >> $GITHUB_OUTPUT
+
       - name: Change image version number
         uses: jossef/action-set-json-field@v1
         with:
