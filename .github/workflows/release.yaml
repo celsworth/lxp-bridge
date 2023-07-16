@@ -144,10 +144,6 @@ jobs:
           command: build
           args: --release --target ${{ matrix.target }}
 
-      - name: Rename release binary
-        run: |
-          mv target/${{ matrix.target }}/release/lxp-bridge lxp-bridge.${{ matrix.build }}
-
       - name: Set release version
         shell: bash
         run: |
