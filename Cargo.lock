@@ -1119,7 +1119,7 @@ dependencies = [
 
 [[package]]
 name = "lxp-bridge"
-version = "0.11.0-dev"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "async-trait",

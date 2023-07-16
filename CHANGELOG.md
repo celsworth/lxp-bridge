@@ -1,4 +1,4 @@
-# 0.11.0 - unreleased
+# 0.11.0 - 16th July 2023
 
 * Fix crash due to signed integer overflow when saving inputs to InfluxDB (#161, @dgcartersa)
 * Add HomeAssistant add-on (#167, @apbarratt)
