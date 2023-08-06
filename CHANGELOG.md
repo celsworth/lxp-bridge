@@ -1,3 +1,7 @@
+# 0.12.0 - Unreleased
+
+* Add more sensors to HomeAssistant autodiscovery (#181, @Sboshoff76)
+
 # 0.11.0 - 16th July 2023
 
 * Fix crash due to signed integer overflow when saving inputs to InfluxDB (#161, @dgcartersa)
