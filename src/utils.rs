@@ -13,9 +13,17 @@ impl Utils {
         u16::from_le_bytes([array[offset], array[offset + 1]])
     }
 
+    pub fn opt_le_i16_div10(input: &[u8]) -> nom::IResult<&[u8], Option<f64>> {
+        let (input, num) = nom::number::complete::le_i16(input)?;
+        Ok((input, Some(num as f64 / 10.0)))
+    }
     pub fn le_i16_div10(input: &[u8]) -> nom::IResult<&[u8], f64> {
         let (input, num) = nom::number::complete::le_i16(input)?;
         Ok((input, num as f64 / 10.0))
+    }
+    pub fn opt_le_i16_div100(input: &[u8]) -> nom::IResult<&[u8], Option<f64>> {
+        let (input, num) = nom::number::complete::le_i16(input)?;
+        Ok((input, Some(num as f64 / 100.0)))
     }
     pub fn le_i16_div100(input: &[u8]) -> nom::IResult<&[u8], f64> {
         let (input, num) = nom::number::complete::le_i16(input)?;
