@@ -28,7 +28,7 @@ pub struct ReadInputAll {
 
     pub soc: i8,
     pub soh: i8,
-    #[nom(SkipBefore(2))]
+    #[nom(SkipBefore(2))] // InternalFault
     #[nom(Ignore)]
     pub p_pv: i16,
     pub p_pv_1: i16,
@@ -51,7 +51,7 @@ pub struct ReadInputAll {
     pub p_inv: i16,
     pub p_rec: i16,
 
-    #[nom(SkipBefore(2))]
+    #[nom(SkipBefore(2))] // IinvRMS
     #[nom(Parse = "Utils::le_i16_div1000")]
     pub pf: f64,
 
@@ -123,7 +123,7 @@ pub struct ReadInputAll {
     #[nom(Parse = "Utils::le_u32_div10")]
     pub e_to_user_all: f64,
 
-    #[nom(SkipBefore(8))] // 4 byte fault code, 4 byte warning code?
+    #[nom(SkipBefore(8))] // 4 byte fault code, 4 byte warning code
     pub t_inner: i16,
     pub t_rad_1: i16,
     pub t_rad_2: i16,
@@ -160,8 +160,8 @@ pub struct ReadInputAll {
     #[nom(Parse = "Utils::le_i16_div100")]
     pub bat_current: f64,
 
-    pub bms_event_1: i16,
-    pub bms_event_2: i16,
+    pub bms_event_1: i16, // FaultCode_BMS
+    pub bms_event_2: i16, // WarningCode_BMS
 
     // TODO: probably floats but need non-zero sample data to check. just guessing at the div100.
     #[nom(Parse = "Utils::le_i16_div100")]
@@ -205,7 +205,7 @@ pub struct ReadInput1 {
 
     pub soc: i8,
     pub soh: i8,
-    #[nom(SkipBefore(2))]
+    #[nom(SkipBefore(2))] // InternalFault
     #[nom(Ignore)]
     pub p_pv: i16,
     pub p_pv_1: i16,
@@ -228,7 +228,7 @@ pub struct ReadInput1 {
     pub p_inv: i16,
     pub p_rec: i16,
 
-    #[nom(SkipBefore(2))]
+    #[nom(SkipBefore(2))] // IinvRMS
     #[nom(Parse = "Utils::le_i16_div1000")]
     pub pf: f64,
 
@@ -310,7 +310,7 @@ pub struct ReadInput2 {
     #[nom(Parse = "Utils::le_u32_div10")]
     pub e_to_user_all: f64,
 
-    #[nom(SkipBefore(8))] // 4 byte fault code, 4 byte warning code?
+    #[nom(SkipBefore(8))] // 4 byte fault code, 4 byte warning code
     pub t_inner: i16,
     pub t_rad_1: i16,
     pub t_rad_2: i16,
