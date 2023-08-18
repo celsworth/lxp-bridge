@@ -1,6 +1,8 @@
 # 0.12.0 - Unreleased
 
 * Add more sensors to HomeAssistant autodiscovery (#181, @Sboshoff76)
+* Add `p_battery` and `p_grid` inputs keys to show net power flows (#183)
+
 
 # 0.11.0 - 16th July 2023
 
