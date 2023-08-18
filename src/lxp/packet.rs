@@ -34,6 +34,8 @@ pub struct ReadInputAll {
     pub p_pv_1: i16,
     pub p_pv_2: i16,
     pub p_pv_3: i16,
+    #[nom(Ignore)]
+    pub p_battery: i16,
     pub p_charge: i16,
     pub p_discharge: i16,
 
@@ -63,6 +65,8 @@ pub struct ReadInputAll {
     pub f_eps: f64,
     pub p_eps: i16,
     pub s_eps: i16,
+    #[nom(Ignore)]
+    pub p_grid: i16,
     pub p_to_grid: i16,
     pub p_to_user: i16,
 
@@ -207,6 +211,8 @@ pub struct ReadInput1 {
     pub p_pv_1: i16,
     pub p_pv_2: i16,
     pub p_pv_3: i16,
+    #[nom(Ignore)]
+    pub p_battery: i16,
     pub p_charge: i16,
     pub p_discharge: i16,
 
@@ -236,6 +242,8 @@ pub struct ReadInput1 {
     pub f_eps: f64,
     pub p_eps: i16,
     pub s_eps: i16,
+    #[nom(Ignore)]
+    pub p_grid: i16,
     pub p_to_grid: i16,
     pub p_to_user: i16,
 
@@ -414,6 +422,7 @@ impl ReadInputs {
                 p_pv_1: ri1.p_pv_1,
                 p_pv_2: ri1.p_pv_2,
                 p_pv_3: ri1.p_pv_3,
+                p_battery: ri1.p_battery,
                 p_charge: ri1.p_charge,
                 p_discharge: ri1.p_discharge,
                 v_ac_r: ri1.v_ac_r,
@@ -429,6 +438,7 @@ impl ReadInputs {
                 f_eps: ri1.f_eps,
                 p_eps: ri1.p_eps,
                 s_eps: ri1.s_eps,
+                p_grid: ri1.p_grid,
                 p_to_grid: ri1.p_to_grid,
                 p_to_user: ri1.p_to_user,
                 e_pv_day: ri1.e_pv_day,
@@ -777,6 +787,8 @@ impl TranslatedData {
         match ReadInputAll::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
+                r.p_grid = r.p_to_user - r.p_to_grid;
+                r.p_battery = r.p_charge - r.p_discharge;
                 r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
                 r.e_pv_all = r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3;
                 r.datalog = self.datalog;
@@ -790,6 +802,8 @@ impl TranslatedData {
         match ReadInput1::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
+                r.p_grid = r.p_to_user - r.p_to_grid;
+                r.p_battery = r.p_charge - r.p_discharge;
                 r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
                 r.datalog = self.datalog;
                 Ok(r)
