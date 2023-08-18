@@ -50,6 +50,8 @@ async fn sqlite_insertion() {
                 let ria = Factory::read_input_all();
                 // really this should test a whole lot more columns, but tedious
                 assert_i16_eq(row.get("status"), ria.status);
+                assert_i16_eq(row.get("p_grid"), ria.p_grid);
+                assert_i16_eq(row.get("p_battery"), ria.p_battery);
                 assert_i16_eq(row.get("p_discharge"), ria.p_discharge);
                 assert_f64_eq(row.get("e_to_user_day"), ria.e_to_user_day);
                 assert_f64_eq(row.get("e_pv_all"), ria.e_pv_all);
