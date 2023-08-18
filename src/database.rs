@@ -118,12 +118,12 @@ impl Database {
                 v_pv_1, v_pv_2, v_pv_3, v_bat,
                 soc, soh,
                 p_pv, p_pv_1, p_pv_2, p_pv_3,
-                p_charge, p_discharge,
+                p_battery, p_charge, p_discharge,
                 v_ac_r, v_ac_s, v_ac_t, f_ac,
                 p_inv, p_rec,
                 pf,
                 v_eps_r, v_eps_s, v_eps_t, f_eps, p_eps, s_eps,
-                p_to_grid, p_to_user,
+                p_grid, p_to_grid, p_to_user,
                 e_pv_day, e_pv_day_1, e_pv_day_2, e_pv_day_3,
                 e_inv_day, e_rec_day, e_chg_day, e_dischg_day,
                 e_eps_day, e_to_grid_day, e_to_user_day,
@@ -181,6 +181,7 @@ impl Database {
             .bind(data.p_pv_1)
             .bind(data.p_pv_2)
             .bind(data.p_pv_3)
+            .bind(data.p_battery)
             .bind(data.p_charge)
             .bind(data.p_discharge)
             .bind(data.v_ac_r)
@@ -196,6 +197,7 @@ impl Database {
             .bind(data.f_eps)
             .bind(data.p_eps)
             .bind(data.s_eps)
+            .bind(data.p_grid)
             .bind(data.p_to_grid)
             .bind(data.p_to_user)
             .bind(data.e_pv_day)
@@ -267,7 +269,7 @@ impl Database {
         r#"(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
     }
 
     fn values_for_not_mysql() -> &'static str {
@@ -277,6 +279,6 @@ impl Database {
             $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56,
             $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
             $71, $72, $73, $74, $75, $76, $77, $78, $79, $80, $81, $82, $83, $84,
-            $85, $86)"#
+            $85, $86, $87, $88)"#
     }
 }
