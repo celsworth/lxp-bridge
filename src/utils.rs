@@ -6,6 +6,11 @@ const HARDCODED_TEST_TIME: i64 = 1646370367;
 
 pub struct Utils;
 impl Utils {
+    pub fn round(x: f64, decimals: u32) -> f64 {
+        let y = 10i32.pow(decimals) as f64;
+        (x * y).round() / y
+    }
+
     pub fn i16ify(array: &[u8], offset: usize) -> i16 {
         i16::from_le_bytes([array[offset], array[offset + 1]])
     }

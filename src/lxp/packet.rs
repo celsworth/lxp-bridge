@@ -789,8 +789,8 @@ impl TranslatedData {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
                 r.p_grid = r.p_to_user - r.p_to_grid;
                 r.p_battery = r.p_charge - r.p_discharge;
-                r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
-                r.e_pv_all = r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3;
+                r.e_pv_day = Utils::round(r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3, 1);
+                r.e_pv_all = Utils::round(r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3, 1);
                 r.datalog = self.datalog;
                 Ok(r)
             }
@@ -804,7 +804,7 @@ impl TranslatedData {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
                 r.p_grid = r.p_to_user - r.p_to_grid;
                 r.p_battery = r.p_charge - r.p_discharge;
-                r.e_pv_day = r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3;
+                r.e_pv_day = Utils::round(r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3, 1);
                 r.datalog = self.datalog;
                 Ok(r)
             }
@@ -815,7 +815,7 @@ impl TranslatedData {
     fn read_input2(&self) -> Result<ReadInput2> {
         match ReadInput2::parse(&self.values) {
             Ok((_, mut r)) => {
-                r.e_pv_all = r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3;
+                r.e_pv_all = Utils::round(r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3, 1);
                 r.datalog = self.datalog;
                 Ok(r)
             }
