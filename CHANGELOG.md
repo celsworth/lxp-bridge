@@ -2,7 +2,7 @@
 
 * Add more sensors to HomeAssistant autodiscovery (#181, @Sboshoff76)
 * Add `p_battery` and `p_grid` inputs keys to show net power flows (#183)
-
+* Avoid floating point maths oddities in e_pv_day and e_pv_all calculations (#185)
 
 # 0.11.0 - 16th July 2023
 
