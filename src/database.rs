@@ -177,6 +177,7 @@ impl Database {
             .bind(data.v_bat)
             .bind(data.soc as i16)
             .bind(data.soh as i16)
+            .bind(data.internal_fault as i32)
             .bind(data.p_pv)
             .bind(data.p_pv_1)
             .bind(data.p_pv_2)
@@ -224,6 +225,8 @@ impl Database {
             .bind(data.e_eps_all)
             .bind(data.e_to_grid_all)
             .bind(data.e_to_user_all)
+            .bind(data.fault_code as i64)
+            .bind(data.warning_code as i64)
             .bind(data.t_inner)
             .bind(data.t_rad_1)
             .bind(data.t_rad_2)
@@ -269,7 +272,7 @@ impl Database {
         r#"(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
             ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
+            ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"#
     }
 
     fn values_for_not_mysql() -> &'static str {
@@ -279,6 +282,6 @@ impl Database {
             $43, $44, $45, $46, $47, $48, $49, $50, $51, $52, $53, $54, $55, $56,
             $57, $58, $59, $60, $61, $62, $63, $64, $65, $66, $67, $68, $69, $70,
             $71, $72, $73, $74, $75, $76, $77, $78, $79, $80, $81, $82, $83, $84,
-            $85, $86, $87, $88)"#
+            $85, $86, $87, $88, $89, $90, $91)"#
     }
 }
