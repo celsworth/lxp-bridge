@@ -117,6 +117,7 @@ impl Database {
               ( status,
                 v_pv_1, v_pv_2, v_pv_3, v_bat,
                 soc, soh,
+                internal_fault,
                 p_pv, p_pv_1, p_pv_2, p_pv_3,
                 p_battery, p_charge, p_discharge,
                 v_ac_r, v_ac_s, v_ac_t, f_ac,
@@ -132,6 +133,9 @@ impl Database {
                 e_pv_all, e_pv_all_1, e_pv_all_2, e_pv_all_3,
                 e_inv_all, e_rec_all, e_chg_all, e_dischg_all,
                 e_eps_all, e_to_grid_all, e_to_user_all,
+
+                fault_code, warning_code,
+
                 t_inner, t_rad_1, t_rad_2, t_bat,
                 runtime,
 
