@@ -1,0 +1,4 @@
+ALTER TABLE inputs
+  ADD internal_fault INTEGER NOT NULL DEFAULT 0,
+  ADD fault_code INTEGER NOT NULL DEFAULT 0,
+  ADD warning_code INTEGER NOT NULL DEFAULT 0;

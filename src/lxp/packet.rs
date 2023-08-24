@@ -28,7 +28,9 @@ pub struct ReadInputAll {
 
     pub soc: i8,
     pub soh: i8,
-    #[nom(SkipBefore(2))] // InternalFault
+
+    pub internal_fault: u16,
+
     #[nom(Ignore)]
     pub p_pv: i16,
     pub p_pv_1: i16,
@@ -123,7 +125,9 @@ pub struct ReadInputAll {
     #[nom(Parse = "Utils::le_u32_div10")]
     pub e_to_user_all: f64,
 
-    #[nom(SkipBefore(8))] // 4 byte fault code, 4 byte warning code
+    pub fault_code: u32,
+    pub warning_code: u32,
+
     pub t_inner: i16,
     pub t_rad_1: i16,
     pub t_rad_2: i16,
@@ -205,7 +209,9 @@ pub struct ReadInput1 {
 
     pub soc: i8,
     pub soh: i8,
-    #[nom(SkipBefore(2))] // InternalFault
+
+    pub internal_fault: u16,
+
     #[nom(Ignore)]
     pub p_pv: i16,
     pub p_pv_1: i16,
@@ -310,7 +316,9 @@ pub struct ReadInput2 {
     #[nom(Parse = "Utils::le_u32_div10")]
     pub e_to_user_all: f64,
 
-    #[nom(SkipBefore(8))] // 4 byte fault code, 4 byte warning code
+    pub fault_code: u32,
+    pub warning_code: u32,
+
     pub t_inner: i16,
     pub t_rad_1: i16,
     pub t_rad_2: i16,
@@ -418,6 +426,7 @@ impl ReadInputs {
                 v_bat: ri1.v_bat,
                 soc: ri1.soc,
                 soh: ri1.soh,
+                internal_fault: ri1.internal_fault,
                 p_pv: ri1.p_pv,
                 p_pv_1: ri1.p_pv_1,
                 p_pv_2: ri1.p_pv_2,
@@ -465,6 +474,8 @@ impl ReadInputs {
                 e_eps_all: ri2.e_eps_all,
                 e_to_grid_all: ri2.e_to_grid_all,
                 e_to_user_all: ri2.e_to_user_all,
+                fault_code: ri2.fault_code,
+                warning_code: ri2.warning_code,
                 t_inner: ri2.t_inner,
                 t_rad_1: ri2.t_rad_1,
                 t_rad_2: ri2.t_rad_2,
