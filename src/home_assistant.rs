@@ -87,6 +87,10 @@ impl Config {
 
     pub fn all(&self) -> Result<Vec<mqtt::Message>> {
         let r = vec![
+            self.generic("status", "Status")?,
+            self.generic("internal_fault", "Internal Fault")?,
+            self.generic("warning_code", "Warning Code")?,
+            self.generic("fault_code", "Fault Code")?,
             self.apparent_power("s_eps", "Apparent EPS Power")?,
             self.battery("soc", "Battery Percentage")?,
             self.duration("runtime", "Total Runtime")?,
@@ -188,6 +192,10 @@ impl Config {
             // has semantic meaning in MQTT, so must be changed
             name.replace('/', "_"),
         )
+    }
+
+    fn generic(&self, name: &str, label: &str) -> Result<mqtt::Message> {
+        self.sensor(name, label, "None", "measurement", "")
     }
 
     fn apparent_power(&self, name: &str, label: &str) -> Result<mqtt::Message> {
