@@ -115,9 +115,14 @@ impl Message {
                 }
             }
 
-            // TODO deal with fault_code and warning_code
+            r.push(mqtt::Message {
+                topic: format!("{}/input/warning_code/parsed", td.datalog),
+                retain: false,
+                payload: lxp::packet::WarningCodeString::from_value(warning_code).to_owned(),
+            });
+
+            // TODO deal with fault_code
             debug!("fault_code = {}", fault_code);
-            debug!("warning_code = {}", warning_code);
         }
 
         match td.read_input() {
@@ -227,7 +232,7 @@ impl Message {
     }
 
     // not entirely happy with this return type but it avoids needing to expose a struct for now
-    pub fn payload_start_end_time(&self) -> Result<[u8; 4]> {
+    fn payload_start_end_time(&self) -> Result<[u8; 4]> {
         use serde::Deserialize;
         #[derive(Deserialize)]
         struct StartEndTime {
@@ -251,17 +256,17 @@ impl Message {
         ])
     }
 
-    pub fn payload_int_or_1(&self) -> Result<u16> {
+    fn payload_int_or_1(&self) -> Result<u16> {
         self.payload_int().or(Ok(1))
     }
 
-    pub fn payload_int(&self) -> Result<u16> {
+    fn payload_int(&self) -> Result<u16> {
         self.payload
             .parse()
             .map_err(|err| anyhow!("payload_int: {}", err))
     }
 
-    pub fn payload_bool(&self) -> bool {
+    fn payload_bool(&self) -> bool {
         matches!(
             self.payload.to_ascii_lowercase().as_str(),
             "1" | "t" | "true" | "on" | "y" | "yes"

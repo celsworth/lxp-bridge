@@ -1253,3 +1253,54 @@ impl StatusString {
         }
     }
 }
+
+pub struct WarningCodeString;
+impl WarningCodeString {
+    pub fn from_value(value: u16) -> &'static str {
+        let arr = [0; 31];
+        arr.iter()
+            .position(|i| value & (1 << i) > 0)
+            .and_then(|i| Some(Self::from_bit(i)))
+            .or(Some("OK"))
+            .unwrap()
+    }
+
+    fn from_bit(bit: usize) -> &'static str {
+        match bit {
+            0 => "W000: Battery communication failure",
+            1 => "W001: AFCI communication failure",
+            2 => "W002: AFCI high",
+            3 => "W003: Meter communication failure",
+            4 => "W004: Both charge and discharge forbidden by battery",
+            5 => "W005: Auto test failed",
+            6 => "W006: Reserved",
+            7 => "W007: LCD communication failure",
+            8 => "W008: FW version mismatch",
+            9 => "W009: Fan stuck",
+            10 => "W010: Reserved",
+            11 => "W011: Parallel number out of range",
+            12 => "W012: Bat On Mos",
+            13 => "W013: Overtemperature (NTC reading is too high)",
+            14 => "W014: Reserved",
+            15 => "W015: Battery reverse connection",
+            16 => "W016: Grid power outage",
+            17 => "W017: Grid voltage out of range",
+            18 => "W018: Grid frequency out of range",
+            19 => "W019: Reserved",
+            20 => "W020: PV insulation low",
+            21 => "W021: Leakage current high",
+            22 => "W022: DCI high",
+            23 => "W023: PV short",
+            24 => "W024: Reserved",
+            25 => "W025: Battery voltage high",
+            26 => "W026: Battery voltage low",
+            27 => "W027: Battery open circuit",
+            28 => "W028: EPS overload",
+            29 => "W029: EPS voltage high",
+            30 => "W030: Meter reverse connection",
+            31 => "W031: DCV high",
+
+            _ => todo!("Unknown Warning"),
+        }
+    }
+}
