@@ -82,6 +82,9 @@ impl Message {
         let mut r = Vec::new();
 
         if publish_individual {
+            let mut fault_code = 0;
+            let mut warning_code = 0;
+
             for (register, value) in td.pairs() {
                 r.push(mqtt::Message {
                     topic: format!("{}/input/{}", td.datalog, register),
@@ -98,16 +101,23 @@ impl Message {
                 }
 
                 if register == 60 {
-                    // this should actually read 60 and 61, as they are L and H bytes of fault_code
-                    // respectively. But this mechanism doesn't support that as we only have access
-                    // to a single register here. Fortunately I think the H byte isn't used as they
-                    // only go up to 31.
+                    fault_code |= value;
+                }
+                if register == 61 {
+                    fault_code |= value << 8;
                 }
 
                 if register == 62 {
-                    // this should actually read 62 and 63 - see above
+                    warning_code |= value;
+                }
+                if register == 63 {
+                    warning_code |= value << 8;
                 }
             }
+
+            // TODO deal with fault_code and warning_code
+            debug!("fault_code = {}", fault_code);
+            debug!("warning_code = {}", warning_code);
         }
 
         match td.read_input() {
