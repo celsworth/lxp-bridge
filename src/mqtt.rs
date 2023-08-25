@@ -88,6 +88,14 @@ impl Message {
                     retain: false,
                     payload: serde_json::to_string(&value)?,
                 });
+
+                if register == 0 {
+                    r.push(mqtt::Message {
+                        topic: format!("{}/input/{}/parsed", td.datalog, register),
+                        retain: false,
+                        payload: lxp::packet::StatusString::from_value(value).to_owned(),
+                    });
+                }
             }
         }
 

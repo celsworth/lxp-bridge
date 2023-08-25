@@ -21,6 +21,16 @@ pub struct Config {
     mqtt_config: config::Mqtt,
 }
 
+#[derive(Debug, Serialize)]
+pub struct Diagnostic {
+    entity_category: String,
+    name: String,
+    state_topic: String,
+    unique_id: String,
+    device: Device,
+    availability: Availability,
+}
+
 // https://www.home-assistant.io/integrations/sensor.mqtt/
 #[derive(Debug, Serialize)]
 pub struct Sensor {
@@ -87,10 +97,10 @@ impl Config {
 
     pub fn all(&self) -> Result<Vec<mqtt::Message>> {
         let r = vec![
-            self.generic("status", "Status")?,
-            self.generic("internal_fault", "Internal Fault")?,
-            self.generic("warning_code", "Warning Code")?,
-            self.generic("fault_code", "Fault Code")?,
+            self.diagnostic("status", "Status", "input/0/parsed")?,
+            self.diagnostic("internal_fault", "Internal Fault", "input/1/parsed")?,
+            self.diagnostic("warning_code", "Warning Code", "input/1/parsed")?,
+            self.diagnostic("fault_code", "Fault Code", "input/1/parsed")?,
             self.apparent_power("s_eps", "Apparent EPS Power")?,
             self.battery("soc", "Battery Percentage")?,
             self.duration("runtime", "Total Runtime")?,
@@ -194,10 +204,6 @@ impl Config {
         )
     }
 
-    fn generic(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "None", "measurement", "")
-    }
-
     fn apparent_power(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "apparent_power", "measurement", "VA")
     }
@@ -228,6 +234,28 @@ impl Config {
 
     fn temperature(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(name, label, "temperature", "measurement", "°C")
+    }
+
+    fn diagnostic(&self, name: &str, label: &str, topic_suffix: &str) -> Result<mqtt::Message> {
+        let config = Diagnostic {
+            entity_category: "diagnostic".to_owned(),
+            state_topic: format!(
+                "{}/{}/{}",
+                self.mqtt_config.namespace(),
+                self.inverter.datalog(),
+                topic_suffix
+            ),
+            unique_id: format!("lxp_{}_{}", self.inverter.datalog(), name),
+            name: label.to_string(),
+            device: self.device(),
+            availability: self.availability(),
+        };
+
+        Ok(mqtt::Message {
+            topic: self.ha_discovery_topic("sensor", name),
+            retain: true,
+            payload: serde_json::to_string(&config)?,
+        })
     }
 
     fn sensor(

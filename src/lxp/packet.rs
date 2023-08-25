@@ -1228,3 +1228,28 @@ impl Parser {
         Ok(r)
     }
 }
+
+pub struct StatusString;
+impl StatusString {
+    pub fn from_value(status: u16) -> &'static str {
+        match status {
+            0x00 => "Standby",
+            0x02 => "FW Updating",
+            0x04 => "PV On-grid",
+            0x08 => "PV Charge",
+            0x0C => "PV Charge On-grid",
+            0x10 => "Battery On-grid",
+            0x11 => "Bypass",
+            0x14 => "PV & Battery On-grid",
+            0x19 => "PV Charge + Bypass",
+            0x20 => "AC Charge",
+            0x28 => "PV & AC Charge",
+            0x40 => "Battery Off-grid",
+            0x80 => "PV Off-grid",
+            0xC0 => "PV & Battery Off-grid",
+            0x88 => "PV Charge Off-grid",
+
+            _ => "Unknown",
+        }
+    }
+}
