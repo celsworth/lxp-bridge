@@ -82,7 +82,9 @@ impl Message {
         let mut r = Vec::new();
 
         if publish_individual {
+            let mut fault_code_registers_seen = false;
             let mut fault_code = 0;
+            let mut warning_code_registers_seen = false;
             let mut warning_code = 0;
 
             for (register, value) in td.pairs() {
@@ -102,24 +104,30 @@ impl Message {
 
                 if register == 60 {
                     fault_code |= value;
+                    fault_code_registers_seen = true;
                 }
                 if register == 61 {
                     fault_code |= value << 8;
+                    fault_code_registers_seen = true;
                 }
 
                 if register == 62 {
                     warning_code |= value;
+                    warning_code_registers_seen = true;
                 }
                 if register == 63 {
                     warning_code |= value << 8;
+                    warning_code_registers_seen = true;
                 }
             }
 
-            r.push(mqtt::Message {
-                topic: format!("{}/input/warning_code/parsed", td.datalog),
-                retain: false,
-                payload: lxp::packet::WarningCodeString::from_value(warning_code).to_owned(),
-            });
+            if warning_code_registers_seen {
+                r.push(mqtt::Message {
+                    topic: format!("{}/input/warning_code/parsed", td.datalog),
+                    retain: false,
+                    payload: lxp::packet::WarningCodeString::from_value(warning_code).to_owned(),
+                });
+            }
 
             // TODO deal with fault_code
             debug!("fault_code = {}", fault_code);
