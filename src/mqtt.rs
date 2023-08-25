@@ -96,6 +96,17 @@ impl Message {
                         payload: lxp::packet::StatusString::from_value(value).to_owned(),
                     });
                 }
+
+                if register == 60 {
+                    // this should actually read 60 and 61, as they are L and H bytes of fault_code
+                    // respectively. But this mechanism doesn't support that as we only have access
+                    // to a single register here. Fortunately I think the H byte isn't used as they
+                    // only go up to 31.
+                }
+
+                if register == 62 {
+                    // this should actually read 62 and 63 - see above
+                }
             }
         }
 
