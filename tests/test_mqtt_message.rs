@@ -168,6 +168,11 @@ async fn for_input() {
                 payload: "0".to_owned()
             },
             mqtt::Message {
+                topic: "2222222222/input/0/parsed".to_owned(),
+                retain: false,
+                payload: "Standby".to_owned()
+            },
+            mqtt::Message {
                 topic: "2222222222/input/1".to_owned(),
                 retain: false,
                 payload: "0".to_owned()
