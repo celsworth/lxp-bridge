@@ -30,9 +30,9 @@ pub struct Sensor {
     #[serde(skip_serializing_if = "Option::is_none")]
     entity_category: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    device_class: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
     state_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_class: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     value_template: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
