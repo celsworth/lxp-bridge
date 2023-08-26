@@ -21,26 +21,22 @@ pub struct Config {
     mqtt_config: config::Mqtt,
 }
 
-#[derive(Debug, Serialize)]
-pub struct Diagnostic {
-    entity_category: String,
-    name: String,
-    state_topic: String,
-    unique_id: String,
-    device: Device,
-    availability: Availability,
-}
-
 // https://www.home-assistant.io/integrations/sensor.mqtt/
 #[derive(Debug, Serialize)]
 pub struct Sensor {
-    device_class: String,
     name: String,
     state_topic: String,
-    state_class: String,
-    value_template: String,
-    unit_of_measurement: String,
     unique_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    entity_category: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state_class: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value_template: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unit_of_measurement: Option<String>,
     device: Device,
     availability: Availability,
 }
@@ -205,40 +201,74 @@ impl Config {
     }
 
     fn apparent_power(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "apparent_power", "measurement", "VA")
+        self.sensor(
+            name,
+            label,
+            Some("apparent_power"),
+            Some("measurement"),
+            Some("VA"),
+        )
     }
 
     fn battery(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "battery", "measurement", "%")
+        self.sensor(name, label, Some("battery"), Some("measurement"), Some("%"))
     }
 
     fn duration(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "duration", "total_increasing", "s")
+        self.sensor(
+            name,
+            label,
+            Some("duration"),
+            Some("total_increasing"),
+            Some("s"),
+        )
     }
 
     fn frequency(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "frequency", "measurement", "Hz")
+        self.sensor(
+            name,
+            label,
+            Some("frequency"),
+            Some("measurement"),
+            Some("Hz"),
+        )
     }
 
     fn power(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "power", "measurement", "W")
+        self.sensor(name, label, Some("power"), Some("measurement"), Some("W"))
     }
 
     fn energy(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "energy", "total_increasing", "kWh")
+        self.sensor(
+            name,
+            label,
+            Some("energy"),
+            Some("total_increasing"),
+            Some("kWh"),
+        )
     }
 
     fn voltage(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "voltage", "measurement", "V")
+        self.sensor(name, label, Some("voltage"), Some("measurement"), Some("V"))
     }
 
     fn temperature(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "temperature", "measurement", "°C")
+        self.sensor(
+            name,
+            label,
+            Some("temperature"),
+            Some("measurement"),
+            Some("°C"),
+        )
     }
 
     fn diagnostic(&self, name: &str, label: &str, topic_suffix: &str) -> Result<mqtt::Message> {
-        let config = Diagnostic {
-            entity_category: "diagnostic".to_owned(),
+        let config = Sensor {
+            entity_category: Some("diagnostic".to_owned()),
+            device_class: None,
+            state_class: None,
+            unit_of_measurement: None,
+            value_template: None,
             state_topic: format!(
                 "{}/{}/{}",
                 self.mqtt_config.namespace(),
@@ -262,15 +292,16 @@ impl Config {
         &self,
         name: &str,
         label: &str,
-        device_class: &str,
-        state_class: &str,
-        unit_of_measurement: &str,
+        device_class: Option<&str>,
+        state_class: Option<&str>,
+        unit_of_measurement: Option<&str>,
     ) -> Result<mqtt::Message> {
         let config = Sensor {
-            device_class: device_class.to_owned(),
-            state_class: state_class.to_owned(),
-            unit_of_measurement: unit_of_measurement.to_owned(),
-            value_template: format!("{{{{ value_json.{} }}}}", name),
+            entity_category: None,
+            device_class: device_class.map(String::from),
+            state_class: state_class.map(String::from),
+            unit_of_measurement: unit_of_measurement.map(String::from),
+            value_template: Some(format!("{{{{ value_json.{} }}}}", name)),
             state_topic: format!(
                 "{}/{}/inputs/all",
                 self.mqtt_config.namespace(),
