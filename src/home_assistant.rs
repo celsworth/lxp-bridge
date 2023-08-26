@@ -3,12 +3,12 @@ use lxp::packet::Register;
 
 use serde::Serialize;
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Availability {
     topic: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Device {
     manufacturer: String,
     name: String,
@@ -19,6 +19,25 @@ pub struct Device {
 pub struct Config {
     inverter: config::Inverter,
     mqtt_config: config::Mqtt,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct Entity<'a> {
+    name: &'a str,
+    state_topic: &'a str,
+    unique_id: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    entity_category: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state_class: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_class: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    value_template: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unit_of_measurement: Option<&'a str>,
+    device: Device,
+    availability: Availability,
 }
 
 // https://www.home-assistant.io/integrations/sensor.mqtt/
@@ -89,6 +108,62 @@ impl Config {
             inverter: inverter.clone(),
             mqtt_config: mqtt_config.clone(),
         }
+    }
+
+    pub fn sensors(&self) -> [mqtt::Message; 3] {
+        let base = Entity {
+            entity_category: None,
+            device_class: None,
+            state_class: None,
+            unit_of_measurement: None,
+            value_template: None,
+            state_topic: &format!(
+                "{}/{}/inputs/all",
+                self.mqtt_config.namespace(),
+                self.inverter.datalog()
+            ),
+            unique_id: "PLACEHOLDER",
+            name: "PLACEHOLDER",
+            device: self.device(),
+            availability: self.availability(),
+        };
+
+        let voltage = Entity {
+            device_class: Some("voltage"),
+            state_class: Some("measurement"),
+            unit_of_measurement: Some("V"),
+            ..base.clone()
+        };
+
+        let sensors = [
+            Entity {
+                device_class: Some("battery"),
+                state_class: Some("measurement"),
+                unit_of_measurement: Some("%"),
+                value_template: Some("value_json.soc"),
+                unique_id: &self.unique_id("soc"),
+                name: "State of Charge",
+                ..base.clone()
+            },
+            Entity {
+                value_template: Some("value_json.v_pv_1"),
+                unique_id: &self.unique_id("v_pv_1"),
+                name: "PV Voltage (String 1)",
+                ..voltage.clone()
+            },
+            Entity {
+                value_template: Some("value_json.v_pv_2"),
+                unique_id: &self.unique_id("v_pv_2"),
+                name: "PV Voltage (String 2)",
+                ..voltage.clone()
+            },
+        ];
+
+        sensors.map(|sensor| mqtt::Message {
+            topic: self.ha_discovery_topic("sensor", &sensor.name),
+            retain: true,
+            payload: serde_json::to_string(&sensor).unwrap(),
+        })
     }
 
     pub fn all(&self) -> Result<Vec<mqtt::Message>> {
@@ -407,6 +482,10 @@ impl Config {
             retain: true,
             payload: serde_json::to_string(&config)?,
         })
+    }
+
+    fn unique_id(&self, name: &str) -> String {
+        format!("lxp_{}_{}", self.inverter.datalog(), name)
     }
 
     fn device(&self) -> Device {
