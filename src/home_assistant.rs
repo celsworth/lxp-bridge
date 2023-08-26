@@ -23,6 +23,9 @@ pub struct Config {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Entity<'a> {
+    #[serde(skip)]
+    key: &'a str,
+
     name: &'a str,
     state_topic: &'a str,
     unique_id: &'a str,
@@ -112,6 +115,7 @@ impl Config {
 
     pub fn sensors(&self) -> [mqtt::Message; 3] {
         let base = Entity {
+            key: "PLACEHOLDER",
             entity_category: None,
             device_class: None,
             state_class: None,
@@ -137,45 +141,50 @@ impl Config {
 
         let sensors = [
             Entity {
+                key: "soc",
+                name: "State of Charge",
                 device_class: Some("battery"),
                 state_class: Some("measurement"),
                 unit_of_measurement: Some("%"),
-                value_template: Some("value_json.soc"),
-                unique_id: &self.unique_id("soc"),
-                name: "State of Charge",
                 ..base.clone()
             },
             Entity {
-                value_template: Some("value_json.v_pv_1"),
-                unique_id: &self.unique_id("v_pv_1"),
+                key: "v_pv_1",
                 name: "PV Voltage (String 1)",
                 ..voltage.clone()
             },
             Entity {
-                value_template: Some("value_json.v_pv_2"),
-                unique_id: &self.unique_id("v_pv_2"),
+                key: "v_pv_2",
                 name: "PV Voltage (String 2)",
                 ..voltage.clone()
             },
         ];
 
-        sensors.map(|sensor| mqtt::Message {
-            topic: self.ha_discovery_topic("sensor", &sensor.name),
-            retain: true,
-            payload: serde_json::to_string(&sensor).unwrap(),
+        sensors.map(|sensor| {
+            // fill in unique_id and value_template (if not set) which are derived from key
+            let f = &format!("{{{{ value_json.{} }}}}", sensor.key);
+            let value_template = sensor.value_template.or_else(|| Some(f));
+            let sensor = Entity {
+                unique_id: &self.unique_id(sensor.key),
+                value_template,
+                ..sensor
+            };
+
+            mqtt::Message {
+                topic: self.ha_discovery_topic("sensor", sensor.key),
+                retain: true,
+                payload: serde_json::to_string(&sensor).unwrap(),
+            }
         })
     }
 
     pub fn all(&self) -> Result<Vec<mqtt::Message>> {
-        let r = vec![
+        let mut r = vec![
             self.diagnostic("status", "Status", "input/0/parsed")?,
             self.diagnostic("fault_code", "Fault Code", "input/fault_code/parsed")?,
             self.diagnostic("warning_code", "Warning Code", "input/warning_code/parsed")?,
             self.apparent_power("s_eps", "Apparent EPS Power")?,
-            self.battery("soc", "Battery Percentage")?,
             self.duration("runtime", "Total Runtime")?,
-            self.voltage("v_pv_1", "Voltage (PV String 1)")?,
-            self.voltage("v_pv_2", "Voltage (PV String 2)")?,
             self.voltage("v_pv_3", "Voltage (PV String 3)")?,
             self.voltage("v_bat", "Battery Voltage")?,
             self.voltage("v_ac_r", "Grid Voltage")?,
@@ -258,6 +267,8 @@ impl Config {
             self.time_range("forced_discharge/2", "Forced Discharge Timeslot 2")?,
             self.time_range("forced_discharge/3", "Forced Discharge Timeslot 3")?,
         ];
+
+        r.append(&mut self.sensors().to_vec());
 
         Ok(r)
     }
