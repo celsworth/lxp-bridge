@@ -94,7 +94,6 @@ impl Config {
     pub fn all(&self) -> Result<Vec<mqtt::Message>> {
         let r = vec![
             self.diagnostic("status", "Status", "input/0/parsed")?,
-            self.diagnostic("internal_fault", "Internal Fault", "input/6/parsed")?,
             self.diagnostic("fault_code", "Fault Code", "input/fault_code/parsed")?,
             self.diagnostic("warning_code", "Warning Code", "input/warning_code/parsed")?,
             self.apparent_power("s_eps", "Apparent EPS Power")?,
