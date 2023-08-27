@@ -27,7 +27,7 @@ async fn all_has_v_pv_1() {
     assert!(r.unwrap().contains(&mqtt::Message {
         topic: "homeassistant/sensor/lxp_2222222222/v_pv_1/config".to_string(),
         retain: true,
-        payload: r#"{"name":"Voltage (PV String 1)","state_topic":"lxp/2222222222/inputs/all","unique_id":"lxp_2222222222_v_pv_1","state_class":"measurement","device_class":"voltage","value_template":"{{ value_json.v_pv_1 }}","unit_of_measurement":"V","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
+        payload: r#"{"unique_id":"lxp_2222222222_v_pv_1","name":"PV Voltage (String 1)","state_topic":"lxp/2222222222/inputs/all","state_class":"measurement","device_class":"voltage","value_template":"{{ value_json.v_pv_1 }}","unit_of_measurement":"V","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
     }));
 }
 
@@ -42,7 +42,7 @@ async fn all_has_p_pv() {
     assert!(r.unwrap().contains(&mqtt::Message {
         topic: "homeassistant/sensor/lxp_2222222222/p_pv/config".to_string(),
         retain: true,
-        payload: r#"{"name":"Power (PV Array)","state_topic":"lxp/2222222222/inputs/all","unique_id":"lxp_2222222222_p_pv","state_class":"measurement","device_class":"power","value_template":"{{ value_json.p_pv }}","unit_of_measurement":"W","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
+        payload: r#"{"unique_id":"lxp_2222222222_p_pv","name":"PV Power (Array)","state_topic":"lxp/2222222222/inputs/all","state_class":"measurement","device_class":"power","value_template":"{{ value_json.p_pv }}","unit_of_measurement":"W","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
     }));
 }
 
@@ -57,7 +57,7 @@ async fn all_has_e_pv_all() {
     assert!(r.unwrap().contains(&mqtt::Message {
         topic: "homeassistant/sensor/lxp_2222222222/e_pv_all/config".to_string(),
         retain: true,
-        payload: r#"{"name":"PV Generation (All time)","state_topic":"lxp/2222222222/inputs/all","unique_id":"lxp_2222222222_e_pv_all","state_class":"total_increasing","device_class":"energy","value_template":"{{ value_json.e_pv_all }}","unit_of_measurement":"kWh","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
+        payload: r#"{"unique_id":"lxp_2222222222_e_pv_all","name":"PV Generation (All time)","state_topic":"lxp/2222222222/inputs/all","state_class":"total_increasing","device_class":"energy","value_template":"{{ value_json.e_pv_all }}","unit_of_measurement":"kWh","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
     }));
 }
 
@@ -72,7 +72,7 @@ async fn all_has_fault_code() {
     assert!(r.unwrap().contains(&mqtt::Message {
         topic: "homeassistant/sensor/lxp_2222222222/fault_code/config".to_string(),
         retain: true,
-        payload: r#"{"name":"Fault Code","state_topic":"lxp/2222222222/input/fault_code/parsed","unique_id":"lxp_2222222222_fault_code","entity_category":"diagnostic","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
+        payload: r#"{"unique_id":"lxp_2222222222_fault_code","name":"Fault Code","state_topic":"lxp/2222222222/input/fault_code/parsed","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}ilability":{"topic":"lxp/LWT"}}"#.to_string()
     }));
 }
 

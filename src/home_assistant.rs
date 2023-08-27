@@ -51,6 +51,7 @@ pub struct Config {
     mqtt_config: config::Mqtt,
 }
 
+// https://www.home-assistant.io/integrations/sensor.mqtt/
 #[derive(Clone, Debug, Serialize)]
 pub struct Entity<'a> {
     // this is not serialised into the JSON output, just used as a transient store to
@@ -78,26 +79,6 @@ pub struct Entity<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     unit_of_measurement: Option<&'a str>,
 
-    device: Device,
-    availability: Availability,
-}
-
-// https://www.home-assistant.io/integrations/sensor.mqtt/
-#[derive(Debug, Serialize)]
-pub struct Sensor {
-    name: String,
-    state_topic: String,
-    unique_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    entity_category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    state_class: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    device_class: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    value_template: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    unit_of_measurement: Option<String>,
     device: Device,
     availability: Availability,
 }
@@ -521,8 +502,6 @@ impl Config {
 
     pub fn all(&self) -> Result<Vec<mqtt::Message>> {
         let mut r = vec![
-            self.diagnostic("fault_code", "Fault Code", "input/fault_code/parsed")?,
-            self.diagnostic("warning_code", "Warning Code", "input/warning_code/parsed")?,
             self.switch("ac_charge", "AC Charge")?,
             self.switch("charge_priority", "Charge Priority")?,
             self.switch("forced_discharge", "Forced Discharge")?,
@@ -578,32 +557,6 @@ impl Config {
             // has semantic meaning in MQTT, so must be changed
             name.replace('/', "_"),
         )
-    }
-
-    fn diagnostic(&self, name: &str, label: &str, topic_suffix: &str) -> Result<mqtt::Message> {
-        let config = Sensor {
-            entity_category: Some("diagnostic".to_owned()),
-            device_class: None,
-            state_class: None,
-            unit_of_measurement: None,
-            value_template: None,
-            state_topic: format!(
-                "{}/{}/{}",
-                self.mqtt_config.namespace(),
-                self.inverter.datalog(),
-                topic_suffix
-            ),
-            unique_id: format!("lxp_{}_{}", self.inverter.datalog(), name),
-            name: label.to_string(),
-            device: self.device(),
-            availability: self.availability(),
-        };
-
-        Ok(mqtt::Message {
-            topic: self.ha_discovery_topic("sensor", name),
-            retain: true,
-            payload: serde_json::to_string(&config)?,
-        })
     }
 
     fn switch(&self, name: &str, label: &str) -> Result<mqtt::Message> {
