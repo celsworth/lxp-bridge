@@ -23,12 +23,15 @@ pub struct Config {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Entity<'a> {
+    // this is not serialised into the JSON output, just used as a transient store to
+    // work out what unique_id and topic should be
     #[serde(skip)]
-    key: &'a str,
+    key: &'a str, // for example, soc
 
-    name: &'a str,
+    unique_id: &'a str, // lxp_XXXX_soc
+    name: &'a str,      // really more of a label? for example, "State of Charge"
+
     state_topic: &'a str,
-    unique_id: &'a str,
     #[serde(skip_serializing_if = "Option::is_none")]
     entity_category: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -113,21 +116,23 @@ impl Config {
         }
     }
 
-    pub fn sensors(&self) -> [mqtt::Message; 3] {
+    pub fn sensors(&self) -> Vec<mqtt::Message> {
         let base = Entity {
-            key: "PLACEHOLDER",
+            key: &String::default(),
+            unique_id: &String::default(),
+            name: &String::default(),
             entity_category: None,
             device_class: None,
             state_class: None,
             unit_of_measurement: None,
             value_template: None,
+            // TODO: might change this to an enum that defaults to InputsAll but can be replaced
+            // with a string for a specific topic?
             state_topic: &format!(
                 "{}/{}/inputs/all",
                 self.mqtt_config.namespace(),
                 self.inverter.datalog()
             ),
-            unique_id: "PLACEHOLDER",
-            name: "PLACEHOLDER",
             device: self.device(),
             availability: self.availability(),
         };
@@ -139,6 +144,23 @@ impl Config {
             ..base.clone()
         };
 
+        let frequency = Entity {
+            device_class: Some("frequency"),
+            state_class: Some("measurement"),
+            unit_of_measurement: Some("Hz"),
+            ..base.clone()
+        };
+
+        let power = Entity {
+            device_class: Some("power"),
+            state_class: Some("measurement"),
+            unit_of_measurement: Some("W"),
+            ..base.clone()
+        };
+
+        // now each entry in here should only have to specify specific overrides for each key.
+        // if we have multiple things sharing keys, consider whether to make a new variable to
+        // inherit from.
         let sensors = [
             Entity {
                 key: "soc",
@@ -147,6 +169,16 @@ impl Config {
                 state_class: Some("measurement"),
                 unit_of_measurement: Some("%"),
                 ..base.clone()
+            },
+            Entity {
+                key: "v_bat",
+                name: "Battery Voltage",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "v_ac_r",
+                name: "Grid Voltage",
+                ..voltage.clone()
             },
             Entity {
                 key: "v_pv_1",
@@ -158,46 +190,98 @@ impl Config {
                 name: "PV Voltage (String 2)",
                 ..voltage.clone()
             },
+            Entity {
+                key: "v_pv_3",
+                name: "PV Voltage (String 3)",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "f_ac",
+                name: "Grid Frequency",
+                ..frequency.clone()
+            },
+            Entity {
+                key: "f_eps",
+                name: "EPS Frequency",
+                ..frequency.clone()
+            },
+            Entity {
+                key: "s_eps",
+                name: "Apparent EPS Power",
+                device_class: Some("apparent_power"),
+                unit_of_measurement: Some("VA"),
+                ..power.clone()
+            },
+            Entity {
+                key: "p_pv",
+                name: "PV Power (Array)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_pv_1",
+                name: "PV Power (String 1)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_pv_2",
+                name: "PV Power (String 2)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_pv_3",
+                name: "PV Power (String 3)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_battery",
+                name: "Battery Power (discharge is negative)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_charge",
+                name: "Battery Charge",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_discharge",
+                name: "Battery Discharge",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_grid",
+                name: "Grid Power (export is negative)",
+                ..power.clone()
+            },
         ];
 
-        sensors.map(|sensor| {
-            // fill in unique_id and value_template (if not set) which are derived from key
-            let f = &format!("{{{{ value_json.{} }}}}", sensor.key);
-            let value_template = sensor.value_template.or_else(|| Some(f));
-            let sensor = Entity {
-                unique_id: &self.unique_id(sensor.key),
-                value_template,
-                ..sensor
-            };
+        sensors
+            .map(|sensor| {
+                // fill in unique_id and value_template (if not set) which are derived from key
+                let f = &format!("{{{{ value_json.{} }}}}", sensor.key);
+                let value_template = sensor.value_template.or_else(|| Some(f));
+                let sensor = Entity {
+                    unique_id: &self.unique_id(sensor.key),
+                    value_template,
+                    ..sensor
+                };
 
-            mqtt::Message {
-                topic: self.ha_discovery_topic("sensor", sensor.key),
-                retain: true,
-                payload: serde_json::to_string(&sensor).unwrap(),
-            }
-        })
+                mqtt::Message {
+                    topic: self.ha_discovery_topic("sensor", sensor.key),
+                    retain: true,
+                    payload: serde_json::to_string(&sensor).unwrap(),
+                }
+            })
+            .to_vec()
     }
 
     pub fn all(&self) -> Result<Vec<mqtt::Message>> {
         let mut r = vec![
+            // nota diagnostic
             self.diagnostic("status", "Status", "input/0/parsed")?,
             self.diagnostic("fault_code", "Fault Code", "input/fault_code/parsed")?,
             self.diagnostic("warning_code", "Warning Code", "input/warning_code/parsed")?,
-            self.apparent_power("s_eps", "Apparent EPS Power")?,
+            // is a diagnostic
             self.duration("runtime", "Total Runtime")?,
-            self.voltage("v_pv_3", "Voltage (PV String 3)")?,
-            self.voltage("v_bat", "Battery Voltage")?,
-            self.voltage("v_ac_r", "Grid Voltage")?,
-            self.frequency("f_ac", "Grid Frequency")?,
-            self.frequency("f_eps", "EPS Frequency")?,
-            self.power("p_pv", "Power (PV Array)")?,
-            self.power("p_pv_1", "Power (PV String 1)")?,
-            self.power("p_pv_2", "Power (PV String 2)")?,
-            self.power("p_pv_3", "Power (PV String 3)")?,
-            self.power("p_battery", "Battery Power (discharge is negative)")?,
-            self.power("p_charge", "Battery Charge")?,
-            self.power("p_discharge", "Battery Discharge")?,
-            self.power("p_grid", "Grid Power (export is negative)")?,
             self.power("p_to_user", "Power from Grid")?,
             self.power("p_to_grid", "Power to Grid")?,
             self.power("p_eps", "Active EPS Power")?,
@@ -268,7 +352,7 @@ impl Config {
             self.time_range("forced_discharge/3", "Forced Discharge Timeslot 3")?,
         ];
 
-        r.append(&mut self.sensors().to_vec());
+        r.append(&mut self.sensors());
 
         Ok(r)
     }
@@ -295,10 +379,6 @@ impl Config {
         )
     }
 
-    fn battery(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, Some("battery"), Some("measurement"), Some("%"))
-    }
-
     fn duration(&self, name: &str, label: &str) -> Result<mqtt::Message> {
         self.sensor(
             name,
@@ -306,16 +386,6 @@ impl Config {
             Some("duration"),
             Some("total_increasing"),
             Some("s"),
-        )
-    }
-
-    fn frequency(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(
-            name,
-            label,
-            Some("frequency"),
-            Some("measurement"),
-            Some("Hz"),
         )
     }
 
@@ -331,10 +401,6 @@ impl Config {
             Some("total_increasing"),
             Some("kWh"),
         )
-    }
-
-    fn voltage(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, Some("voltage"), Some("measurement"), Some("V"))
     }
 
     fn temperature(&self, name: &str, label: &str) -> Result<mqtt::Message> {

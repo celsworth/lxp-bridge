@@ -12,7 +12,7 @@ async fn all_has_soc() {
     assert!(r.unwrap().contains(&mqtt::Message {
         topic: "homeassistant/sensor/lxp_2222222222/soc/config".to_string(),
         retain: true,
-        payload: r#"{"name":"State of Charge","state_topic":"lxp/2222222222/inputs/all","unique_id":"lxp_2222222222_soc","state_class":"measurement","device_class":"battery","value_template":"{{ value_json.soc }}","unit_of_measurement":"%","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
+        payload: r#"{"unique_id":"lxp_2222222222_soc","name":"State of Charge","state_topic":"lxp/2222222222/inputs/all","state_class":"measurement","device_class":"battery","value_template":"{{ value_json.soc }}","unit_of_measurement":"%","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
     }));
 }
 
