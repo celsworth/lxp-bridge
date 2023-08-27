@@ -1,7 +1,37 @@
 use crate::prelude::*;
 use lxp::packet::Register;
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
+
+// ValueTemplate {{{
+#[derive(Clone, Debug, PartialEq)]
+pub enum ValueTemplate {
+    None,
+    Default, // "{{ value_json.$key }}"
+    String(String),
+}
+impl ValueTemplate {
+    pub fn from_default(key: &str) -> Self {
+        Self::String(format!("{{{{ value_json.{} }}}}", key))
+    }
+    pub fn is_none(&self) -> bool {
+        *self == Self::None
+    }
+    pub fn is_default(&self) -> bool {
+        *self == Self::Default
+    }
+}
+impl Serialize for ValueTemplate {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            ValueTemplate::String(str) => serializer.serialize_str(str),
+            _ => unreachable!(),
+        }
+    }
+} // }}}
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Availability {
@@ -43,6 +73,8 @@ pub struct Entity<'a> {
     state_class: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     device_class: Option<&'a str>,
+    #[serde(skip_serializing_if = "ValueTemplate::is_none")]
+    value_template: ValueTemplate,
     #[serde(skip_serializing_if = "Option::is_none")]
     unit_of_measurement: Option<&'a str>,
 
@@ -129,7 +161,7 @@ impl Config {
             device_class: None,
             state_class: None,
             unit_of_measurement: None,
-            value_template: None,
+            value_template: ValueTemplate::Default, // "{{ value_json.$key }}"
             // TODO: might change this to an enum that defaults to InputsAll but can be replaced
             // with a string for a specific topic?
             state_topic: &format!(
@@ -188,7 +220,7 @@ impl Config {
                     self.mqtt_config.namespace(),
                     self.inverter.datalog()
                 ),
-                value_template: None,
+                value_template: ValueTemplate::None,
                 ..base.clone()
             },
             Entity {
@@ -207,7 +239,7 @@ impl Config {
                     self.mqtt_config.namespace(),
                     self.inverter.datalog()
                 ),
-                value_template: None,
+                value_template: ValueTemplate::None,
                 ..base.clone()
             },
             Entity {
@@ -218,7 +250,7 @@ impl Config {
                     self.mqtt_config.namespace(),
                     self.inverter.datalog()
                 ),
-                value_template: None,
+                value_template: ValueTemplate::None,
                 ..base.clone()
             },
             Entity {
@@ -466,11 +498,12 @@ impl Config {
 
         sensors
             .map(|sensor| {
-                // fill in unique_id and value_template (if not set) which are derived from key
-                // FIXME: be nice not to run the format! unless we need it, but there's borrow
-                // issues since its a &str
-                let f = &format!("{{{{ value_json.{} }}}}", sensor.key);
-                let value_template = sensor.value_template.or_else(|| Some(f));
+                // fill in unique_id and value_template (if default) which are derived from key
+                let value_template = if sensor.value_template.is_default() {
+                    ValueTemplate::from_default(sensor.key)
+                } else {
+                    sensor.value_template
+                };
                 let sensor = Entity {
                     unique_id: &self.unique_id(sensor.key),
                     value_template,
