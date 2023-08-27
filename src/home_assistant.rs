@@ -215,6 +215,7 @@ impl Config {
             Entity {
                 key: "fault_code",
                 name: "Fault Code",
+                entity_category: Some("diagnostic"),
                 state_topic: &format!(
                     "{}/{}/input/fault_code/parsed",
                     self.mqtt_config.namespace(),
@@ -226,6 +227,7 @@ impl Config {
             Entity {
                 key: "warning_code",
                 name: "Warning Code",
+                entity_category: Some("diagnostic"),
                 state_topic: &format!(
                     "{}/{}/input/warning_code/parsed",
                     self.mqtt_config.namespace(),

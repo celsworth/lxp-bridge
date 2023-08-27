@@ -72,7 +72,7 @@ async fn all_has_fault_code() {
     assert!(r.unwrap().contains(&mqtt::Message {
         topic: "homeassistant/sensor/lxp_2222222222/fault_code/config".to_string(),
         retain: true,
-        payload: r#"{"unique_id":"lxp_2222222222_fault_code","name":"Fault Code","state_topic":"lxp/2222222222/input/fault_code/parsed","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}ilability":{"topic":"lxp/LWT"}}"#.to_string()
+        payload: r#"{"unique_id":"lxp_2222222222_fault_code","name":"Fault Code","state_topic":"lxp/2222222222/input/fault_code/parsed","entity_category":"diagnostic","device":{"manufacturer":"LuxPower","name":"lxp_2222222222","identifiers":["lxp_2222222222"]},"availability":{"topic":"lxp/LWT"}}"#.to_string()
     }));
 }
 
