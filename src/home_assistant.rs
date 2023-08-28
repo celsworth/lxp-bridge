@@ -487,16 +487,13 @@ impl Config {
         sensors
             .map(|sensor| {
                 // fill in unique_id and value_template (if default) which are derived from key
-                let value_template = if sensor.value_template.is_default() {
-                    ValueTemplate::from_default(sensor.key)
-                } else {
-                    sensor.value_template
-                };
-                let sensor = Entity {
+                let mut sensor = Entity {
                     unique_id: &self.unique_id(sensor.key),
-                    value_template,
                     ..sensor
                 };
+                if sensor.value_template.is_default() {
+                    sensor.value_template = ValueTemplate::from_default(sensor.key);
+                }
 
                 mqtt::Message {
                     topic: self.ha_discovery_topic("sensor", sensor.key),
