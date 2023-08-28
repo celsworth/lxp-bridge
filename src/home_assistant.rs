@@ -78,6 +78,8 @@ pub struct Entity<'a> {
     value_template: ValueTemplate,
     #[serde(skip_serializing_if = "Option::is_none")]
     unit_of_measurement: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icon: Option<&'a str>,
 
     device: Device,
     availability: Availability,
@@ -142,6 +144,7 @@ impl Config {
             device_class: None,
             state_class: None,
             unit_of_measurement: None,
+            icon: None,
             value_template: ValueTemplate::Default, // "{{ value_json.$key }}"
             // TODO: might change this to an enum that defaults to InputsAll but can be replaced
             // with a string for a specific topic?
@@ -222,6 +225,7 @@ impl Config {
                     self.inverter.datalog()
                 ),
                 value_template: ValueTemplate::None,
+                icon: Some("mdi:alert"),
                 ..base.clone()
             },
             Entity {
@@ -234,6 +238,7 @@ impl Config {
                     self.inverter.datalog()
                 ),
                 value_template: ValueTemplate::None,
+                icon: Some("mdi:alert-outline"),
                 ..base.clone()
             },
             Entity {
