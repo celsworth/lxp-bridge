@@ -222,7 +222,7 @@ async fn for_input_warning_codes() {
         device_function: lxp::packet::DeviceFunction::ReadInput,
         inverter: inverter.serial,
         register: 62,
-        values: [1, 0, 0, 0].to_vec(),
+        values: [0, 0, 0, 128].to_vec(),
     };
 
     assert_eq!(
@@ -231,17 +231,17 @@ async fn for_input_warning_codes() {
             mqtt::Message {
                 topic: "2222222222/input/62".to_owned(),
                 retain: false,
-                payload: "1".to_owned()
+                payload: "0".to_owned()
             },
             mqtt::Message {
                 topic: "2222222222/input/63".to_owned(),
                 retain: false,
-                payload: "0".to_owned()
+                payload: "32768".to_owned()
             },
             mqtt::Message {
                 topic: "2222222222/input/warning_code/parsed".to_owned(),
                 retain: false,
-                payload: "W000: Battery communication failure".to_owned()
+                payload: "W031: DCV high".to_owned()
             }
         ]
     );

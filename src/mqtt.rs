@@ -103,20 +103,20 @@ impl Message {
                 }
 
                 if register == 60 {
-                    fault_code |= value;
+                    fault_code |= value as u32;
                     fault_code_registers_seen = true;
                 }
                 if register == 61 {
-                    fault_code |= value << 8;
+                    fault_code |= (value as u32) << 16;
                     fault_code_registers_seen = true;
                 }
 
                 if register == 62 {
-                    warning_code |= value;
+                    warning_code |= value as u32;
                     warning_code_registers_seen = true;
                 }
                 if register == 63 {
-                    warning_code |= value << 8;
+                    warning_code |= (value as u32) << 16;
                     warning_code_registers_seen = true;
                 }
             }
