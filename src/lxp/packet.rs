@@ -1256,14 +1256,13 @@ impl StatusString {
 
 pub struct WarningCodeString;
 impl WarningCodeString {
-    pub fn from_value(value: u16) -> &'static str {
+    pub fn from_value(value: u32) -> &'static str {
         if value == 0 {
             return "OK";
         }
 
-        let arr = [0; 31];
-        arr.iter()
-            .position(|i| value & (1 << i) > 0)
+        (0..=31)
+            .find(|i| value & (1 << i) > 0)
             .map(Self::from_bit)
             .unwrap()
     }
@@ -1310,14 +1309,13 @@ impl WarningCodeString {
 
 pub struct FaultCodeString;
 impl FaultCodeString {
-    pub fn from_value(value: u16) -> &'static str {
+    pub fn from_value(value: u32) -> &'static str {
         if value == 0 {
             return "OK";
         }
 
-        let arr = [0; 31];
-        arr.iter()
-            .position(|i| value & (1 << i) > 0)
+        (0..=31)
+            .find(|i| value & (1 << i) > 0)
             .map(Self::from_bit)
             .unwrap()
     }
