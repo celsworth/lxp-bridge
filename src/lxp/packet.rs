@@ -1257,11 +1257,15 @@ impl StatusString {
 pub struct WarningCodeString;
 impl WarningCodeString {
     pub fn from_value(value: u16) -> &'static str {
+        if value == 0 {
+            return "OK";
+        }
+
         let arr = [0; 31];
         arr.iter()
             .position(|i| value & (1 << i) > 0)
             .map(Self::from_bit)
-            .unwrap_or("OK")
+            .unwrap()
     }
 
     fn from_bit(bit: usize) -> &'static str {
@@ -1307,11 +1311,15 @@ impl WarningCodeString {
 pub struct FaultCodeString;
 impl FaultCodeString {
     pub fn from_value(value: u16) -> &'static str {
+        if value == 0 {
+            return "OK";
+        }
+
         let arr = [0; 31];
         arr.iter()
             .position(|i| value & (1 << i) > 0)
             .map(Self::from_bit)
-            .unwrap_or("OK")
+            .unwrap()
     }
 
     fn from_bit(bit: usize) -> &'static str {
