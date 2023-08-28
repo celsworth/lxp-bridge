@@ -1304,3 +1304,53 @@ impl WarningCodeString {
         }
     }
 }
+
+pub struct FaultCodeString;
+impl FaultCodeString {
+    pub fn from_value(value: u16) -> &'static str {
+        let arr = [0; 31];
+        arr.iter()
+            .position(|i| value & (1 << i) > 0)
+            .and_then(|i| Some(Self::from_bit(i)))
+            .or(Some("OK"))
+            .unwrap()
+    }
+
+    fn from_bit(bit: usize) -> &'static str {
+        match bit {
+            0 => "E000: Internal communication fault 1",
+            1 => "E001: Model fault",
+            2 => "E002: BatOnMosFail",
+            3 => "E003: CT Fail",
+            4 => "E004: Reserved",
+            5 => "E005: Reserved",
+            6 => "E006: Reserved",
+            7 => "E007: Reserved",
+            8 => "E008: CAN communication error in parallel system",
+            9 => "E009: master lost in parallel system",
+            10 => "E010: multiple master units in parallel system",
+            11 => "E011: AC input inconsistent in parallel system",
+            12 => "E012: UPS short",
+            13 => "E013: Reverse current on UPS output",
+            14 => "E014: Bus short",
+            15 => "E015: Phase error in three phase system",
+            16 => "E016: Relay check fault",
+            17 => "E017: Internal communication fault 2",
+            18 => "E018: Internal communication fault 3",
+            19 => "E019: Bus voltage high",
+            20 => "E020: EPS connection fault",
+            21 => "E021: PV voltage high",
+            22 => "E022: Over current protection",
+            23 => "E023: Neutral fault",
+            24 => "E024: PV short",
+            25 => "E025: Radiator temperature over range",
+            26 => "E026: Internal fault",
+            27 => "E027: Sample inconsistent between Main CPU and redundant CPU",
+            28 => "E028: Reserved",
+            29 => "E029: Reserved",
+            30 => "E030: Reserved",
+            31 => "E031: Internal communication fault 4",
+            _ => todo!("Unknown Fault"),
+        }
+    }
+}

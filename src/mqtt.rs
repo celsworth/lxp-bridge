@@ -129,8 +129,13 @@ impl Message {
                 });
             }
 
-            // TODO deal with fault_code
-            debug!("fault_code = {}", fault_code);
+            if fault_code_registers_seen {
+                r.push(mqtt::Message {
+                    topic: format!("{}/input/fault_code/parsed", td.datalog),
+                    retain: false,
+                    payload: lxp::packet::FaultCodeString::from_value(fault_code).to_owned(),
+                });
+            }
         }
 
         match td.read_input() {
