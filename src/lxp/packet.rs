@@ -1260,9 +1260,8 @@ impl WarningCodeString {
         let arr = [0; 31];
         arr.iter()
             .position(|i| value & (1 << i) > 0)
-            .and_then(|i| Some(Self::from_bit(i)))
-            .or(Some("OK"))
-            .unwrap()
+            .map(Self::from_bit)
+            .unwrap_or("OK")
     }
 
     fn from_bit(bit: usize) -> &'static str {
@@ -1311,9 +1310,8 @@ impl FaultCodeString {
         let arr = [0; 31];
         arr.iter()
             .position(|i| value & (1 << i) > 0)
-            .and_then(|i| Some(Self::from_bit(i)))
-            .or(Some("OK"))
-            .unwrap()
+            .map(Self::from_bit)
+            .unwrap_or("OK")
     }
 
     fn from_bit(bit: usize) -> &'static str {
