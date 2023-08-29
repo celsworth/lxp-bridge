@@ -1228,3 +1228,133 @@ impl Parser {
         Ok(r)
     }
 }
+
+pub struct StatusString;
+impl StatusString {
+    pub fn from_value(status: u16) -> &'static str {
+        match status {
+            0x00 => "Standby",
+            0x02 => "FW Updating",
+            0x04 => "PV On-grid",
+            0x08 => "PV Charge",
+            0x0C => "PV Charge On-grid",
+            0x10 => "Battery On-grid",
+            0x11 => "Bypass",
+            0x14 => "PV & Battery On-grid",
+            0x19 => "PV Charge + Bypass",
+            0x20 => "AC Charge",
+            0x28 => "PV & AC Charge",
+            0x40 => "Battery Off-grid",
+            0x80 => "PV Off-grid",
+            0xC0 => "PV & Battery Off-grid",
+            0x88 => "PV Charge Off-grid",
+
+            _ => "Unknown",
+        }
+    }
+}
+
+pub struct WarningCodeString;
+impl WarningCodeString {
+    pub fn from_value(value: u32) -> &'static str {
+        if value == 0 {
+            return "OK";
+        }
+
+        (0..=31)
+            .find(|i| value & (1 << i) > 0)
+            .map(Self::from_bit)
+            .unwrap()
+    }
+
+    fn from_bit(bit: usize) -> &'static str {
+        match bit {
+            0 => "W000: Battery communication failure",
+            1 => "W001: AFCI communication failure",
+            2 => "W002: AFCI high",
+            3 => "W003: Meter communication failure",
+            4 => "W004: Both charge and discharge forbidden by battery",
+            5 => "W005: Auto test failed",
+            6 => "W006: Reserved",
+            7 => "W007: LCD communication failure",
+            8 => "W008: FW version mismatch",
+            9 => "W009: Fan stuck",
+            10 => "W010: Reserved",
+            11 => "W011: Parallel number out of range",
+            12 => "W012: Bat On Mos",
+            13 => "W013: Overtemperature (NTC reading is too high)",
+            14 => "W014: Reserved",
+            15 => "W015: Battery reverse connection",
+            16 => "W016: Grid power outage",
+            17 => "W017: Grid voltage out of range",
+            18 => "W018: Grid frequency out of range",
+            19 => "W019: Reserved",
+            20 => "W020: PV insulation low",
+            21 => "W021: Leakage current high",
+            22 => "W022: DCI high",
+            23 => "W023: PV short",
+            24 => "W024: Reserved",
+            25 => "W025: Battery voltage high",
+            26 => "W026: Battery voltage low",
+            27 => "W027: Battery open circuit",
+            28 => "W028: EPS overload",
+            29 => "W029: EPS voltage high",
+            30 => "W030: Meter reverse connection",
+            31 => "W031: DCV high",
+
+            _ => todo!("Unknown Warning"),
+        }
+    }
+}
+
+pub struct FaultCodeString;
+impl FaultCodeString {
+    pub fn from_value(value: u32) -> &'static str {
+        if value == 0 {
+            return "OK";
+        }
+
+        (0..=31)
+            .find(|i| value & (1 << i) > 0)
+            .map(Self::from_bit)
+            .unwrap()
+    }
+
+    fn from_bit(bit: usize) -> &'static str {
+        match bit {
+            0 => "E000: Internal communication fault 1",
+            1 => "E001: Model fault",
+            2 => "E002: BatOnMosFail",
+            3 => "E003: CT Fail",
+            4 => "E004: Reserved",
+            5 => "E005: Reserved",
+            6 => "E006: Reserved",
+            7 => "E007: Reserved",
+            8 => "E008: CAN communication error in parallel system",
+            9 => "E009: master lost in parallel system",
+            10 => "E010: multiple master units in parallel system",
+            11 => "E011: AC input inconsistent in parallel system",
+            12 => "E012: UPS short",
+            13 => "E013: Reverse current on UPS output",
+            14 => "E014: Bus short",
+            15 => "E015: Phase error in three phase system",
+            16 => "E016: Relay check fault",
+            17 => "E017: Internal communication fault 2",
+            18 => "E018: Internal communication fault 3",
+            19 => "E019: Bus voltage high",
+            20 => "E020: EPS connection fault",
+            21 => "E021: PV voltage high",
+            22 => "E022: Over current protection",
+            23 => "E023: Neutral fault",
+            24 => "E024: PV short",
+            25 => "E025: Radiator temperature over range",
+            26 => "E026: Internal fault",
+            27 => "E027: Sample inconsistent between Main CPU and redundant CPU",
+            28 => "E028: Reserved",
+            29 => "E029: Reserved",
+            30 => "E030: Reserved",
+            31 => "E031: Internal communication fault 4",
+            _ => todo!("Unknown Fault"),
+        }
+    }
+}

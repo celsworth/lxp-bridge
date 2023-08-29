@@ -1,14 +1,44 @@
 use crate::prelude::*;
 use lxp::packet::Register;
 
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 
-#[derive(Debug, Serialize)]
+// ValueTemplate {{{
+#[derive(Clone, Debug, PartialEq)]
+pub enum ValueTemplate {
+    None,
+    Default, // "{{ value_json.$key }}"
+    String(String),
+}
+impl ValueTemplate {
+    pub fn from_default(key: &str) -> Self {
+        Self::String(format!("{{{{ value_json.{} }}}}", key))
+    }
+    pub fn is_none(&self) -> bool {
+        *self == Self::None
+    }
+    pub fn is_default(&self) -> bool {
+        *self == Self::Default
+    }
+}
+impl Serialize for ValueTemplate {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            ValueTemplate::String(str) => serializer.serialize_str(str),
+            _ => unreachable!(),
+        }
+    }
+} // }}}
+
+#[derive(Clone, Debug, Serialize)]
 pub struct Availability {
     topic: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Device {
     manufacturer: String,
     name: String,
@@ -22,15 +52,35 @@ pub struct Config {
 }
 
 // https://www.home-assistant.io/integrations/sensor.mqtt/
-#[derive(Debug, Serialize)]
-pub struct Sensor {
-    device_class: String,
-    name: String,
-    state_topic: String,
-    state_class: String,
-    value_template: String,
-    unit_of_measurement: String,
-    unique_id: String,
+#[derive(Clone, Debug, Serialize)]
+pub struct Entity<'a> {
+    // this is not serialised into the JSON output, just used as a transient store to
+    // work out what unique_id and topic should be
+    #[serde(skip)]
+    key: &'a str, // for example, soc
+
+    unique_id: &'a str, // lxp_XXXX_soc
+    name: &'a str,      // really more of a label? for example, "State of Charge"
+
+    state_topic: &'a str,
+
+    // these are all skipped in the output if None. this lets us use the same struct for
+    // different types of entities, just our responsibility to make sure a sane set of attributes
+    // are populated. Could make subtypes to enforce the various attributes being set for different
+    // HA entity types but I think its not worth the extra complexity.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    entity_category: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    state_class: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    device_class: Option<&'a str>,
+    #[serde(skip_serializing_if = "ValueTemplate::is_none")]
+    value_template: ValueTemplate,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    unit_of_measurement: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    icon: Option<&'a str>,
+
     device: Device,
     availability: Availability,
 }
@@ -85,60 +135,377 @@ impl Config {
         }
     }
 
+    pub fn sensors(&self) -> Vec<mqtt::Message> {
+        let base = Entity {
+            key: &String::default(),
+            unique_id: &String::default(),
+            name: &String::default(),
+            entity_category: None,
+            device_class: None,
+            state_class: None,
+            unit_of_measurement: None,
+            icon: None,
+            value_template: ValueTemplate::Default, // "{{ value_json.$key }}"
+            // TODO: might change this to an enum that defaults to InputsAll but can be replaced
+            // with a string for a specific topic?
+            state_topic: &format!(
+                "{}/{}/inputs/all",
+                self.mqtt_config.namespace(),
+                self.inverter.datalog()
+            ),
+            device: self.device(),
+            availability: self.availability(),
+        };
+
+        let voltage = Entity {
+            device_class: Some("voltage"),
+            state_class: Some("measurement"),
+            unit_of_measurement: Some("V"),
+            ..base.clone()
+        };
+
+        let frequency = Entity {
+            device_class: Some("frequency"),
+            state_class: Some("measurement"),
+            unit_of_measurement: Some("Hz"),
+            ..base.clone()
+        };
+
+        let power = Entity {
+            device_class: Some("power"),
+            state_class: Some("measurement"),
+            unit_of_measurement: Some("W"),
+            ..base.clone()
+        };
+
+        let energy = Entity {
+            device_class: Some("energy"),
+            state_class: Some("total_increasing"),
+            unit_of_measurement: Some("kWh"),
+            ..base.clone()
+        };
+
+        let temperature = Entity {
+            device_class: Some("temperature"),
+            state_class: Some("measurement"),
+            unit_of_measurement: Some("°C"),
+            ..base.clone()
+        };
+
+        // now each entry in here should only have to specify specific overrides for each key.
+        // if we have multiple things sharing keys, consider whether to make a new variable to
+        // inherit from.
+        let sensors = [
+            Entity {
+                key: "status",
+                name: "Status",
+                state_topic: &format!(
+                    "{}/{}/input/0/parsed",
+                    self.mqtt_config.namespace(),
+                    self.inverter.datalog()
+                ),
+                value_template: ValueTemplate::None,
+                ..base.clone()
+            },
+            Entity {
+                key: "soc",
+                name: "State of Charge",
+                device_class: Some("battery"),
+                state_class: Some("measurement"),
+                unit_of_measurement: Some("%"),
+                ..base.clone()
+            },
+            Entity {
+                key: "fault_code",
+                name: "Fault Code",
+                entity_category: Some("diagnostic"),
+                state_topic: &format!(
+                    "{}/{}/input/fault_code/parsed",
+                    self.mqtt_config.namespace(),
+                    self.inverter.datalog()
+                ),
+                value_template: ValueTemplate::None,
+                icon: Some("mdi:alert"),
+                ..base.clone()
+            },
+            Entity {
+                key: "warning_code",
+                name: "Warning Code",
+                entity_category: Some("diagnostic"),
+                state_topic: &format!(
+                    "{}/{}/input/warning_code/parsed",
+                    self.mqtt_config.namespace(),
+                    self.inverter.datalog()
+                ),
+                value_template: ValueTemplate::None,
+                icon: Some("mdi:alert-outline"),
+                ..base.clone()
+            },
+            Entity {
+                key: "v_bat",
+                name: "Battery Voltage",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "v_ac_r",
+                name: "Grid Voltage",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "v_pv_1",
+                name: "PV Voltage (String 1)",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "v_pv_2",
+                name: "PV Voltage (String 2)",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "v_pv_3",
+                name: "PV Voltage (String 3)",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "f_ac",
+                name: "Grid Frequency",
+                ..frequency.clone()
+            },
+            Entity {
+                key: "f_eps",
+                name: "EPS Frequency",
+                ..frequency.clone()
+            },
+            Entity {
+                key: "s_eps",
+                name: "Apparent EPS Power",
+                device_class: Some("apparent_power"),
+                unit_of_measurement: Some("VA"),
+                ..power.clone()
+            },
+            Entity {
+                key: "p_pv",
+                name: "PV Power (Array)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_pv_1",
+                name: "PV Power (String 1)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_pv_2",
+                name: "PV Power (String 2)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_pv_3",
+                name: "PV Power (String 3)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_battery",
+                name: "Battery Power (discharge is negative)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_charge",
+                name: "Battery Charge",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_discharge",
+                name: "Battery Discharge",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_grid",
+                name: "Grid Power (export is negative)",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_to_user",
+                name: "Power from Grid",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_to_grid",
+                name: "Power to Grid",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_eps",
+                name: "Active EPS Power",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_inv",
+                name: "Inverter Power",
+                ..power.clone()
+            },
+            Entity {
+                key: "p_rec",
+                name: "AC Charge Power",
+                ..power.clone()
+            },
+            Entity {
+                key: "e_pv_all",
+                name: "PV Generation (All time)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_pv_all_1",
+                name: "PV Generation (All time) (String 1)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_pv_all_2",
+                name: "PV Generation (All time) (String 2)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_pv_all_3",
+                name: "PV Generation (All time) (String 3)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_pv_day",
+                name: "PV Generation (Today))",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_pv_day_1",
+                name: "PV Generation (Today) (String 1)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_pv_day_2",
+                name: "PV Generation (Today) (String 2)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_pv_day_3",
+                name: "PV Generation (Today) (String 3)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_chg_all",
+                name: "Battery Charge (All time)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_chg_day",
+                name: "Battery Charge (Today)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_dischg_all",
+                name: "Battery Discharge (All time)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_dischg_day",
+                name: "Battery Discharge (Today)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_to_user_all",
+                name: "Energy from Grid (All time)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_to_user_day",
+                name: "Energy from Grid (Today)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_to_grid_all",
+                name: "Energy to Grid (All time)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_to_grid_day",
+                name: "Energy to Grid (Today)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_eps_all",
+                name: "Energy from EPS (All time)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_eps_day",
+                name: "Energy from EPS (Today)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_rec_all",
+                name: "Energy of AC Charging (All time)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_rec_day",
+                name: "Energy of AC Charging (Today)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_inv_all",
+                name: "Energy of Inverter (All time)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "e_inv_day",
+                name: "Energy of Inverter (Today)",
+                ..energy.clone()
+            },
+            Entity {
+                key: "t_inner",
+                name: "Inverter Temperature",
+                ..temperature.clone()
+            },
+            Entity {
+                key: "t_rad_1",
+                name: "Radiator 1 Temperature",
+                ..temperature.clone()
+            },
+            Entity {
+                key: "t_rad_2",
+                name: "Radiator 2 Temperature",
+                ..temperature.clone()
+            },
+            Entity {
+                key: "runtime",
+                name: "Total Runtime",
+                entity_category: Some("diagnostic"),
+                device_class: Some("duration"),
+                state_class: Some("total_increasing"),
+                unit_of_measurement: Some("s"),
+                ..base.clone()
+            },
+        ];
+
+        sensors
+            .map(|sensor| {
+                // fill in unique_id and value_template (if default) which are derived from key
+                let mut sensor = Entity {
+                    unique_id: &self.unique_id(sensor.key),
+                    ..sensor
+                };
+                if sensor.value_template.is_default() {
+                    sensor.value_template = ValueTemplate::from_default(sensor.key);
+                }
+
+                mqtt::Message {
+                    topic: self.ha_discovery_topic("sensor", sensor.key),
+                    retain: true,
+                    payload: serde_json::to_string(&sensor).unwrap(),
+                }
+            })
+            .to_vec()
+    }
+
     pub fn all(&self) -> Result<Vec<mqtt::Message>> {
-        let r = vec![
-            self.generic("status", "Status")?,
-            self.generic("internal_fault", "Internal Fault")?,
-            self.generic("warning_code", "Warning Code")?,
-            self.generic("fault_code", "Fault Code")?,
-            self.apparent_power("s_eps", "Apparent EPS Power")?,
-            self.battery("soc", "Battery Percentage")?,
-            self.duration("runtime", "Total Runtime")?,
-            self.voltage("v_pv_1", "Voltage (PV String 1)")?,
-            self.voltage("v_pv_2", "Voltage (PV String 2)")?,
-            self.voltage("v_pv_3", "Voltage (PV String 3)")?,
-            self.voltage("v_bat", "Battery Voltage")?,
-            self.voltage("v_ac_r", "Grid Voltage")?,
-            self.frequency("f_ac", "Grid Frequency")?,
-            self.frequency("f_eps", "EPS Frequency")?,
-            self.power("p_pv", "Power (PV Array)")?,
-            self.power("p_pv_1", "Power (PV String 1)")?,
-            self.power("p_pv_2", "Power (PV String 2)")?,
-            self.power("p_pv_3", "Power (PV String 3)")?,
-            self.power("p_battery", "Battery Power (discharge is negative)")?,
-            self.power("p_charge", "Battery Charge")?,
-            self.power("p_discharge", "Battery Discharge")?,
-            self.power("p_grid", "Grid Power (export is negative)")?,
-            self.power("p_to_user", "Power from Grid")?,
-            self.power("p_to_grid", "Power to Grid")?,
-            self.power("p_eps", "Active EPS Power")?,
-            self.power("p_inv", "Inverter Power")?,
-            self.power("p_rec", "AC Charge Power")?,
-            self.energy("e_pv_all", "PV Generation (All time)")?,
-            self.energy("e_pv_all_1", "PV Generation (All time) (String 1)")?,
-            self.energy("e_pv_all_2", "PV Generation (All time) (String 2)")?,
-            self.energy("e_pv_all_3", "PV Generation (All time) (String 3)")?,
-            self.energy("e_pv_day", "PV Generation (Today)")?,
-            self.energy("e_pv_day_1", "PV Generation (Today) (String 1)")?,
-            self.energy("e_pv_day_2", "PV Generation (Today) (String 2)")?,
-            self.energy("e_pv_day_3", "PV Generation (Today) (String 3)")?,
-            self.energy("e_chg_all", "Battery Charge (All time)")?,
-            self.energy("e_chg_day", "Battery Charge (Today)")?,
-            self.energy("e_dischg_all", "Battery Discharge (All time)")?,
-            self.energy("e_dischg_day", "Battery Discharge (Today)")?,
-            self.energy("e_to_user_all", "Energy from Grid (All time)")?,
-            self.energy("e_to_user_day", "Energy from Grid (Today)")?,
-            self.energy("e_to_grid_all", "Energy to Grid (All time)")?,
-            self.energy("e_to_grid_day", "Energy to Grid (Today)")?,
-            self.energy("e_eps_all", "Energy from EPS (All time)")?,
-            self.energy("e_eps_day", "Energy from EPS (Today)")?,
-            self.energy("e_rec_all", "Energy of AC charging (All time)")?,
-            self.energy("e_rec_day", "Energy of AC charging (Today)")?,
-            self.energy("e_inv_all", "Energy of Inverter (All time)")?,
-            self.energy("e_inv_day", "Energy of Inverter (Today)")?,
-            self.temperature("t_inner", "Inverter Temperature")?,
-            self.temperature("t_rad_1", "Radiator 1 Temperature")?,
-            self.temperature("t_rad_2", "Radiator 2 Temperature")?,
+        let mut r = vec![
             self.switch("ac_charge", "AC Charge")?,
             self.switch("charge_priority", "Charge Priority")?,
             self.switch("forced_discharge", "Forced Discharge")?,
@@ -179,6 +546,8 @@ impl Config {
             self.time_range("forced_discharge/3", "Forced Discharge Timeslot 3")?,
         ];
 
+        r.append(&mut self.sensors());
+
         Ok(r)
     }
 
@@ -192,73 +561,6 @@ impl Config {
             // has semantic meaning in MQTT, so must be changed
             name.replace('/', "_"),
         )
-    }
-
-    fn generic(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "None", "measurement", "")
-    }
-
-    fn apparent_power(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "apparent_power", "measurement", "VA")
-    }
-
-    fn battery(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "battery", "measurement", "%")
-    }
-
-    fn duration(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "duration", "total_increasing", "s")
-    }
-
-    fn frequency(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "frequency", "measurement", "Hz")
-    }
-
-    fn power(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "power", "measurement", "W")
-    }
-
-    fn energy(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "energy", "total_increasing", "kWh")
-    }
-
-    fn voltage(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "voltage", "measurement", "V")
-    }
-
-    fn temperature(&self, name: &str, label: &str) -> Result<mqtt::Message> {
-        self.sensor(name, label, "temperature", "measurement", "°C")
-    }
-
-    fn sensor(
-        &self,
-        name: &str,
-        label: &str,
-        device_class: &str,
-        state_class: &str,
-        unit_of_measurement: &str,
-    ) -> Result<mqtt::Message> {
-        let config = Sensor {
-            device_class: device_class.to_owned(),
-            state_class: state_class.to_owned(),
-            unit_of_measurement: unit_of_measurement.to_owned(),
-            value_template: format!("{{{{ value_json.{} }}}}", name),
-            state_topic: format!(
-                "{}/{}/inputs/all",
-                self.mqtt_config.namespace(),
-                self.inverter.datalog()
-            ),
-            unique_id: format!("lxp_{}_{}", self.inverter.datalog(), name),
-            name: label.to_string(),
-            device: self.device(),
-            availability: self.availability(),
-        };
-
-        Ok(mqtt::Message {
-            topic: self.ha_discovery_topic("sensor", name),
-            retain: true,
-            payload: serde_json::to_string(&config)?,
-        })
     }
 
     fn switch(&self, name: &str, label: &str) -> Result<mqtt::Message> {
@@ -349,6 +651,10 @@ impl Config {
             retain: true,
             payload: serde_json::to_string(&config)?,
         })
+    }
+
+    fn unique_id(&self, name: &str) -> String {
+        format!("lxp_{}_{}", self.inverter.datalog(), name)
     }
 
     fn device(&self) -> Device {

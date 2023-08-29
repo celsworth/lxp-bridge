@@ -168,9 +168,146 @@ async fn for_input() {
                 payload: "0".to_owned()
             },
             mqtt::Message {
+                topic: "2222222222/input/0/parsed".to_owned(),
+                retain: false,
+                payload: "Standby".to_owned()
+            },
+            mqtt::Message {
                 topic: "2222222222/input/1".to_owned(),
                 retain: false,
                 payload: "0".to_owned()
+            },
+        ]
+    );
+}
+
+#[tokio::test]
+#[cfg_attr(not(feature = "mocks"), ignore)]
+async fn for_input_warning_codes() {
+    common_setup();
+
+    let inverter = Factory::inverter();
+
+    let packet = lxp::packet::TranslatedData {
+        datalog: inverter.datalog,
+        device_function: lxp::packet::DeviceFunction::ReadInput,
+        inverter: inverter.serial,
+        register: 62,
+        values: [0, 0, 0, 0].to_vec(),
+    };
+
+    assert_eq!(
+        mqtt::Message::for_input(packet, true).unwrap(),
+        vec![
+            mqtt::Message {
+                topic: "2222222222/input/62".to_owned(),
+                retain: false,
+                payload: "0".to_owned()
+            },
+            mqtt::Message {
+                topic: "2222222222/input/63".to_owned(),
+                retain: false,
+                payload: "0".to_owned()
+            },
+            mqtt::Message {
+                topic: "2222222222/input/warning_code/parsed".to_owned(),
+                retain: false,
+                payload: "OK".to_owned()
+            }
+        ]
+    );
+
+    let packet = lxp::packet::TranslatedData {
+        datalog: inverter.datalog,
+        device_function: lxp::packet::DeviceFunction::ReadInput,
+        inverter: inverter.serial,
+        register: 62,
+        values: [0, 0, 0, 128].to_vec(),
+    };
+
+    assert_eq!(
+        mqtt::Message::for_input(packet, true).unwrap(),
+        vec![
+            mqtt::Message {
+                topic: "2222222222/input/62".to_owned(),
+                retain: false,
+                payload: "0".to_owned()
+            },
+            mqtt::Message {
+                topic: "2222222222/input/63".to_owned(),
+                retain: false,
+                payload: "32768".to_owned()
+            },
+            mqtt::Message {
+                topic: "2222222222/input/warning_code/parsed".to_owned(),
+                retain: false,
+                payload: "W031: DCV high".to_owned()
+            }
+        ]
+    );
+}
+
+#[tokio::test]
+#[cfg_attr(not(feature = "mocks"), ignore)]
+async fn for_input_fault_codes() {
+    common_setup();
+
+    let inverter = Factory::inverter();
+
+    let packet = lxp::packet::TranslatedData {
+        datalog: inverter.datalog,
+        device_function: lxp::packet::DeviceFunction::ReadInput,
+        inverter: inverter.serial,
+        register: 60,
+        values: [0, 0, 0, 0].to_vec(),
+    };
+
+    assert_eq!(
+        mqtt::Message::for_input(packet, true).unwrap(),
+        vec![
+            mqtt::Message {
+                topic: "2222222222/input/60".to_owned(),
+                retain: false,
+                payload: "0".to_owned()
+            },
+            mqtt::Message {
+                topic: "2222222222/input/61".to_owned(),
+                retain: false,
+                payload: "0".to_owned()
+            },
+            mqtt::Message {
+                topic: "2222222222/input/fault_code/parsed".to_owned(),
+                retain: false,
+                payload: "OK".to_owned()
+            }
+        ]
+    );
+
+    let packet = lxp::packet::TranslatedData {
+        datalog: inverter.datalog,
+        device_function: lxp::packet::DeviceFunction::ReadInput,
+        inverter: inverter.serial,
+        register: 60,
+        values: [1, 0, 0, 0].to_vec(),
+    };
+
+    assert_eq!(
+        mqtt::Message::for_input(packet, true).unwrap(),
+        vec![
+            mqtt::Message {
+                topic: "2222222222/input/60".to_owned(),
+                retain: false,
+                payload: "1".to_owned()
+            },
+            mqtt::Message {
+                topic: "2222222222/input/61".to_owned(),
+                retain: false,
+                payload: "0".to_owned()
+            },
+            mqtt::Message {
+                topic: "2222222222/input/fault_code/parsed".to_owned(),
+                retain: false,
+                payload: "E000: Internal communication fault 1".to_owned()
             }
         ]
     );

@@ -82,11 +82,58 @@ impl Message {
         let mut r = Vec::new();
 
         if publish_individual {
+            let mut fault_code_registers_seen = false;
+            let mut fault_code = 0;
+            let mut warning_code_registers_seen = false;
+            let mut warning_code = 0;
+
             for (register, value) in td.pairs() {
                 r.push(mqtt::Message {
                     topic: format!("{}/input/{}", td.datalog, register),
                     retain: false,
                     payload: serde_json::to_string(&value)?,
+                });
+
+                if register == 0 {
+                    r.push(mqtt::Message {
+                        topic: format!("{}/input/{}/parsed", td.datalog, register),
+                        retain: false,
+                        payload: lxp::packet::StatusString::from_value(value).to_owned(),
+                    });
+                }
+
+                if register == 60 {
+                    fault_code |= value as u32;
+                    fault_code_registers_seen = true;
+                }
+                if register == 61 {
+                    fault_code |= (value as u32) << 16;
+                    fault_code_registers_seen = true;
+                }
+
+                if register == 62 {
+                    warning_code |= value as u32;
+                    warning_code_registers_seen = true;
+                }
+                if register == 63 {
+                    warning_code |= (value as u32) << 16;
+                    warning_code_registers_seen = true;
+                }
+            }
+
+            if warning_code_registers_seen {
+                r.push(mqtt::Message {
+                    topic: format!("{}/input/warning_code/parsed", td.datalog),
+                    retain: false,
+                    payload: lxp::packet::WarningCodeString::from_value(warning_code).to_owned(),
+                });
+            }
+
+            if fault_code_registers_seen {
+                r.push(mqtt::Message {
+                    topic: format!("{}/input/fault_code/parsed", td.datalog),
+                    retain: false,
+                    payload: lxp::packet::FaultCodeString::from_value(fault_code).to_owned(),
                 });
             }
         }
@@ -198,7 +245,7 @@ impl Message {
     }
 
     // not entirely happy with this return type but it avoids needing to expose a struct for now
-    pub fn payload_start_end_time(&self) -> Result<[u8; 4]> {
+    fn payload_start_end_time(&self) -> Result<[u8; 4]> {
         use serde::Deserialize;
         #[derive(Deserialize)]
         struct StartEndTime {
@@ -222,17 +269,17 @@ impl Message {
         ])
     }
 
-    pub fn payload_int_or_1(&self) -> Result<u16> {
+    fn payload_int_or_1(&self) -> Result<u16> {
         self.payload_int().or(Ok(1))
     }
 
-    pub fn payload_int(&self) -> Result<u16> {
+    fn payload_int(&self) -> Result<u16> {
         self.payload
             .parse()
             .map_err(|err| anyhow!("payload_int: {}", err))
     }
 
-    pub fn payload_bool(&self) -> bool {
+    fn payload_bool(&self) -> bool {
         matches!(
             self.payload.to_ascii_lowercase().as_str(),
             "1" | "t" | "true" | "on" | "y" | "yes"
