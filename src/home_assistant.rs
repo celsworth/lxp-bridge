@@ -267,6 +267,11 @@ impl Config {
                 ..voltage.clone()
             },
             Entity {
+                key: "v_eps_r",
+                name: "EPS Voltage",
+                ..voltage.clone()
+            },
+            Entity {
                 key: "f_ac",
                 name: "Grid Frequency",
                 ..frequency.clone()
@@ -471,6 +476,11 @@ impl Config {
             Entity {
                 key: "t_rad_2",
                 name: "Radiator 2 Temperature",
+                ..temperature.clone()
+            },
+            Entity {
+                key: "t_bat",
+                name: "Battery Temperature",
                 ..temperature.clone()
             },
             Entity {
