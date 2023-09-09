@@ -7,6 +7,9 @@ use {futures::TryStreamExt, sqlx::Row};
 fn assert_str_eq(input: &str, expected: &str) {
     assert_eq!(input, expected);
 }
+fn assert_u16_eq(input: i32, expected: u16) {
+    assert_eq!(input as u16, expected);
+}
 fn assert_i16_eq(input: i32, expected: i16) {
     assert_eq!(input as i16, expected);
 }
@@ -49,17 +52,17 @@ async fn sqlite_insertion() {
             if let Some(row) = rows.try_next().await? {
                 let ria = Factory::read_input_all();
                 // really this should test a whole lot more columns, but tedious
-                assert_i16_eq(row.get("status"), ria.status);
+                assert_u16_eq(row.get("status"), ria.status);
                 assert_i16_eq(row.get("p_grid"), ria.p_grid);
                 assert_i16_eq(row.get("p_battery"), ria.p_battery);
-                assert_i16_eq(row.get("p_discharge"), ria.p_discharge);
+                assert_u16_eq(row.get("p_discharge"), ria.p_discharge);
                 assert_f64_eq(row.get("e_to_user_day"), ria.e_to_user_day);
                 assert_f64_eq(row.get("e_pv_all"), ria.e_pv_all);
-                assert_i16_eq(row.get("t_rad_2"), ria.t_rad_2);
-                assert_i16_eq(row.get("bms_event_1"), ria.bms_event_1);
-                assert_i16_eq(row.get("bms_event_2"), ria.bms_event_2);
-                assert_i16_eq(row.get("bms_fw_update_state"), ria.bms_fw_update_state);
-                assert_i16_eq(row.get("cycle_count"), ria.cycle_count);
+                assert_u16_eq(row.get("t_rad_2"), ria.t_rad_2);
+                assert_u16_eq(row.get("bms_event_1"), ria.bms_event_1);
+                assert_u16_eq(row.get("bms_event_2"), ria.bms_event_2);
+                assert_u16_eq(row.get("bms_fw_update_state"), ria.bms_fw_update_state);
+                assert_u16_eq(row.get("cycle_count"), ria.cycle_count);
                 assert_f64_eq(row.get("vbat_inv"), ria.vbat_inv);
                 assert_str_eq(row.get("datalog"), "1234567890");
                 break;

@@ -8,7 +8,7 @@ use lxp::{
 pub struct UpdateHold {
     channels: Channels,
     inverter: config::Inverter,
-    register: i16,
+    register: u16,
     bit: lxp::packet::RegisterBit,
     enable: bool,
 }
@@ -22,7 +22,7 @@ impl UpdateHold {
         enable: bool,
     ) -> Self
     where
-        U: Into<i16>,
+        U: Into<u16>,
     {
         Self {
             channels,
@@ -55,7 +55,7 @@ impl UpdateHold {
         }
 
         let packet = receiver.wait_for_reply(&packet).await?;
-        let bit = i16::from(self.bit.clone());
+        let bit = u16::from(self.bit.clone());
         let value = if self.enable {
             packet.value() | (bit as u16)
         } else {

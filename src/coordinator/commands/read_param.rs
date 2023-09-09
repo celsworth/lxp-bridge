@@ -5,13 +5,13 @@ use lxp::inverter::WaitForReply;
 pub struct ReadParam {
     channels: Channels,
     inverter: config::Inverter,
-    register: i16,
+    register: u16,
 }
 
 impl ReadParam {
     pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U) -> Self
     where
-        U: Into<i16>,
+        U: Into<u16>,
     {
         Self {
             channels,

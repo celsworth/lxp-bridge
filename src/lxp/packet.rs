@@ -16,14 +16,14 @@ pub enum ReadInput {
 #[derive(PartialEq, Clone, Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
 pub struct ReadInputAll {
-    pub status: i16,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    pub status: u16,
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_pv_1: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_pv_2: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_pv_3: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_bat: f64,
 
     pub soc: i8,
@@ -32,73 +32,73 @@ pub struct ReadInputAll {
     pub internal_fault: u16,
 
     #[nom(Ignore)]
-    pub p_pv: i16,
-    pub p_pv_1: i16,
-    pub p_pv_2: i16,
-    pub p_pv_3: i16,
+    pub p_pv: u16,
+    pub p_pv_1: u16,
+    pub p_pv_2: u16,
+    pub p_pv_3: u16,
     #[nom(Ignore)]
     pub p_battery: i16,
-    pub p_charge: i16,
-    pub p_discharge: i16,
+    pub p_charge: u16,
+    pub p_discharge: u16,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_ac_r: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_ac_s: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_ac_t: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub f_ac: f64,
 
-    pub p_inv: i16,
-    pub p_rec: i16,
+    pub p_inv: u16,
+    pub p_rec: u16,
 
     #[nom(SkipBefore(2))] // IinvRMS
-    #[nom(Parse = "Utils::le_i16_div1000")]
+    #[nom(Parse = "Utils::le_u16_div1000")]
     pub pf: f64,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_eps_r: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_eps_s: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_eps_t: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub f_eps: f64,
-    pub p_eps: i16,
-    pub s_eps: i16,
+    pub p_eps: u16,
+    pub s_eps: u16,
     #[nom(Ignore)]
     pub p_grid: i16,
-    pub p_to_grid: i16,
-    pub p_to_user: i16,
+    pub p_to_grid: u16,
+    pub p_to_user: u16,
 
     #[nom(Ignore)]
     pub e_pv_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_pv_day_1: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_pv_day_2: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_pv_day_3: f64,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_inv_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_rec_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_chg_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_dischg_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_eps_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_to_grid_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_to_user_day: f64,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_bus_1: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_bus_2: f64,
 
     #[nom(Ignore)]
@@ -128,60 +128,60 @@ pub struct ReadInputAll {
     pub fault_code: u32,
     pub warning_code: u32,
 
-    pub t_inner: i16,
-    pub t_rad_1: i16,
-    pub t_rad_2: i16,
-    pub t_bat: i16,
+    pub t_inner: u16,
+    pub t_rad_1: u16,
+    pub t_rad_2: u16,
+    pub t_bat: u16,
     #[nom(SkipBefore(2))] // reserved - radiator 3?
     pub runtime: u32,
     // 18 bytes of auto_test stuff here I'm not doing yet
     #[nom(SkipBefore(18))] // auto_test stuff, TODO..
     #[nom(SkipBefore(2))] // bat_brand, bat_com_type
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub max_chg_curr: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub max_dischg_curr: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub charge_volt_ref: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub dischg_cut_volt: f64,
 
-    pub bat_status_0: i16,
-    pub bat_status_1: i16,
-    pub bat_status_2: i16,
-    pub bat_status_3: i16,
-    pub bat_status_4: i16,
-    pub bat_status_5: i16,
-    pub bat_status_6: i16,
-    pub bat_status_7: i16,
-    pub bat_status_8: i16,
-    pub bat_status_9: i16,
-    pub bat_status_inv: i16,
+    pub bat_status_0: u16,
+    pub bat_status_1: u16,
+    pub bat_status_2: u16,
+    pub bat_status_3: u16,
+    pub bat_status_4: u16,
+    pub bat_status_5: u16,
+    pub bat_status_6: u16,
+    pub bat_status_7: u16,
+    pub bat_status_8: u16,
+    pub bat_status_9: u16,
+    pub bat_status_inv: u16,
 
-    pub bat_count: i16,
-    pub bat_capacity: i16,
+    pub bat_count: u16,
+    pub bat_capacity: u16,
 
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub bat_current: f64,
 
-    pub bms_event_1: i16, // FaultCode_BMS
-    pub bms_event_2: i16, // WarningCode_BMS
+    pub bms_event_1: u16, // FaultCode_BMS
+    pub bms_event_2: u16, // WarningCode_BMS
 
     // TODO: probably floats but need non-zero sample data to check. just guessing at the div100.
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub max_cell_voltage: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub min_cell_voltage: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub max_cell_temp: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub min_cell_temp: f64,
 
-    pub bms_fw_update_state: i16,
+    pub bms_fw_update_state: u16,
 
-    pub cycle_count: i16,
+    pub cycle_count: u16,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub vbat_inv: f64,
 
     // 14 bytes I'm not sure what they are; possibly generator stuff
@@ -197,14 +197,14 @@ pub struct ReadInputAll {
 #[derive(Clone, Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
 pub struct ReadInput1 {
-    pub status: i16,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    pub status: u16,
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_pv_1: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_pv_2: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_pv_3: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_bat: f64,
 
     pub soc: i8,
@@ -213,73 +213,73 @@ pub struct ReadInput1 {
     pub internal_fault: u16,
 
     #[nom(Ignore)]
-    pub p_pv: i16,
-    pub p_pv_1: i16,
-    pub p_pv_2: i16,
-    pub p_pv_3: i16,
+    pub p_pv: u16,
+    pub p_pv_1: u16,
+    pub p_pv_2: u16,
+    pub p_pv_3: u16,
     #[nom(Ignore)]
     pub p_battery: i16,
-    pub p_charge: i16,
-    pub p_discharge: i16,
+    pub p_charge: u16,
+    pub p_discharge: u16,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_ac_r: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_ac_s: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_ac_t: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub f_ac: f64,
 
-    pub p_inv: i16,
-    pub p_rec: i16,
+    pub p_inv: u16,
+    pub p_rec: u16,
 
     #[nom(SkipBefore(2))] // IinvRMS
-    #[nom(Parse = "Utils::le_i16_div1000")]
+    #[nom(Parse = "Utils::le_u16_div1000")]
     pub pf: f64,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_eps_r: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_eps_s: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_eps_t: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub f_eps: f64,
-    pub p_eps: i16,
-    pub s_eps: i16,
+    pub p_eps: u16,
+    pub s_eps: u16,
     #[nom(Ignore)]
     pub p_grid: i16,
-    pub p_to_grid: i16,
-    pub p_to_user: i16,
+    pub p_to_grid: u16,
+    pub p_to_user: u16,
 
     #[nom(Ignore)]
     pub e_pv_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_pv_day_1: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_pv_day_2: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_pv_day_3: f64,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_inv_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_rec_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_chg_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_dischg_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_eps_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_to_grid_day: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub e_to_user_day: f64,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_bus_1: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub v_bus_2: f64,
 
     #[nom(Parse = "Utils::current_time_for_nom")]
@@ -319,10 +319,10 @@ pub struct ReadInput2 {
     pub fault_code: u32,
     pub warning_code: u32,
 
-    pub t_inner: i16,
-    pub t_rad_1: i16,
-    pub t_rad_2: i16,
-    pub t_bat: i16,
+    pub t_inner: u16,
+    pub t_rad_1: u16,
+    pub t_rad_2: u16,
+    pub t_bat: u16,
 
     #[nom(SkipBefore(2))] // reserved
     pub runtime: u32,
@@ -339,51 +339,51 @@ pub struct ReadInput2 {
 #[nom(LittleEndian)]
 pub struct ReadInput3 {
     #[nom(SkipBefore(2))] // bat_brand, bat_com_type
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub max_chg_curr: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub max_dischg_curr: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub charge_volt_ref: f64,
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub dischg_cut_volt: f64,
 
-    pub bat_status_0: i16,
-    pub bat_status_1: i16,
-    pub bat_status_2: i16,
-    pub bat_status_3: i16,
-    pub bat_status_4: i16,
-    pub bat_status_5: i16,
-    pub bat_status_6: i16,
-    pub bat_status_7: i16,
-    pub bat_status_8: i16,
-    pub bat_status_9: i16,
-    pub bat_status_inv: i16,
+    pub bat_status_0: u16,
+    pub bat_status_1: u16,
+    pub bat_status_2: u16,
+    pub bat_status_3: u16,
+    pub bat_status_4: u16,
+    pub bat_status_5: u16,
+    pub bat_status_6: u16,
+    pub bat_status_7: u16,
+    pub bat_status_8: u16,
+    pub bat_status_9: u16,
+    pub bat_status_inv: u16,
 
-    pub bat_count: i16,
-    pub bat_capacity: i16,
+    pub bat_count: u16,
+    pub bat_capacity: u16,
 
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub bat_current: f64,
 
-    pub bms_event_1: i16,
-    pub bms_event_2: i16,
+    pub bms_event_1: u16,
+    pub bms_event_2: u16,
 
     // TODO: probably floats but need non-zero sample data to check. just guessing at the div100.
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub max_cell_voltage: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub min_cell_voltage: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub max_cell_temp: f64,
-    #[nom(Parse = "Utils::le_i16_div100")]
+    #[nom(Parse = "Utils::le_u16_div100")]
     pub min_cell_temp: f64,
 
-    pub bms_fw_update_state: i16,
+    pub bms_fw_update_state: u16,
 
-    pub cycle_count: i16,
+    pub cycle_count: u16,
 
-    #[nom(Parse = "Utils::le_i16_div10")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub vbat_inv: f64,
 
     // following are for influx capability only
@@ -544,7 +544,7 @@ pub enum DeviceFunction {
 } // }}}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
-#[repr(i16)]
+#[repr(u16)]
 pub enum Register {
     Register21 = 21,             // not sure of a better name for this one..
     ChargePowerPercentCmd = 64,  // System Charge Rate (%)
@@ -560,7 +560,7 @@ pub enum Register {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
-#[repr(i16)]
+#[repr(u16)]
 pub enum RegisterBit {
     // Register 21
     AcChargeEnable = 1 << 7,
@@ -651,11 +651,11 @@ pub trait PacketCommon {
     fn set_datalog(&mut self, datalog: Serial);
     fn inverter(&self) -> Option<Serial>;
     fn set_inverter(&mut self, serial: Serial);
-    fn protocol(&self) -> i16;
+    fn protocol(&self) -> u16;
     fn tcp_function(&self) -> TcpFunction;
     fn bytes(&self) -> Vec<u8>;
 
-    fn register(&self) -> i16 {
+    fn register(&self) -> u16 {
         unimplemented!("register() not implemented");
     }
     fn value(&self) -> u16 {
@@ -668,7 +668,7 @@ impl TcpFrameFactory {
     pub fn build(data: &Packet) -> Vec<u8> {
         let data_bytes = data.bytes();
         let data_length = data_bytes.len() as u8;
-        let frame_length = (18 + data_length) as i16;
+        let frame_length = (18 + data_length) as u16;
 
         // debug!("data_length={}, frame_length={}", data_length, frame_length);
 
@@ -735,7 +735,7 @@ impl Heartbeat {
 }
 
 impl PacketCommon for Heartbeat {
-    fn protocol(&self) -> i16 {
+    fn protocol(&self) -> u16 {
         2
     }
 
@@ -770,15 +770,15 @@ pub struct TranslatedData {
     pub datalog: Serial,
     pub device_function: DeviceFunction, // ReadHold or ReadInput etc..
     pub inverter: Serial,                // inverter serial
-    pub register: i16,                   // first register of values
-    pub values: Vec<u8>,                 // undecoded, since can be i16 or u32s?
+    pub register: u16,                   // first register of values
+    pub values: Vec<u8>,                 // undecoded, since can be u16 or u32s?
 }
 impl TranslatedData {
-    pub fn pairs(&self) -> Vec<(i16, u16)> {
+    pub fn pairs(&self) -> Vec<(u16, u16)> {
         self.values
             .chunks(2)
             .enumerate()
-            .map(|(pos, value)| (self.register + pos as i16, Utils::u16ify(value, 0)))
+            .map(|(pos, value)| (self.register + pos as u16, Utils::u16ify(value, 0)))
             .collect()
     }
 
@@ -798,8 +798,8 @@ impl TranslatedData {
         match ReadInputAll::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.p_grid = r.p_to_user - r.p_to_grid;
-                r.p_battery = r.p_charge - r.p_discharge;
+                r.p_grid = (r.p_to_user - r.p_to_grid) as i16;
+                r.p_battery = (r.p_charge - r.p_discharge) as i16;
                 r.e_pv_day = Utils::round(r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3, 1);
                 r.e_pv_all = Utils::round(r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3, 1);
                 r.datalog = self.datalog;
@@ -813,8 +813,8 @@ impl TranslatedData {
         match ReadInput1::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.p_grid = r.p_to_user - r.p_to_grid;
-                r.p_battery = r.p_charge - r.p_discharge;
+                r.p_grid = (r.p_to_user - r.p_to_grid) as i16;
+                r.p_battery = (r.p_charge - r.p_discharge) as i16;
                 r.e_pv_day = Utils::round(r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3, 1);
                 r.datalog = self.datalog;
                 Ok(r)
@@ -850,7 +850,7 @@ impl TranslatedData {
             bail!("TranslatedData::decode packet too short");
         }
 
-        let protocol = Utils::i16ify(input, 2);
+        let protocol = Utils::u16ify(input, 2);
         let datalog = Serial::new(&input[8..18])?;
 
         let data = &input[20..len - 2];
@@ -867,7 +867,7 @@ impl TranslatedData {
         //let address = data[0]; // 0=client, 1=inverter?
         let device_function = DeviceFunction::try_from(data[1])?;
         let inverter = Serial::new(&data[2..12])?;
-        let register = Utils::i16ify(data, 12);
+        let register = Utils::u16ify(data, 12);
 
         let mut value_len = 2;
         let mut value_offset = 14;
@@ -898,7 +898,7 @@ impl TranslatedData {
 
     fn has_value_length_byte(
         source: PacketSource,
-        protocol: i16,
+        protocol: u16,
         device_function: DeviceFunction,
     ) -> bool {
         use DeviceFunction::*;
@@ -918,7 +918,7 @@ impl TranslatedData {
 }
 
 impl PacketCommon for TranslatedData {
-    fn protocol(&self) -> i16 {
+    fn protocol(&self) -> u16 {
         if self.device_function == DeviceFunction::WriteMulti {
             2
         } else {
@@ -957,7 +957,7 @@ impl PacketCommon for TranslatedData {
         data[14..16].copy_from_slice(&self.register.to_le_bytes());
 
         if self.device_function == DeviceFunction::WriteMulti {
-            let register_count = self.pairs().len() as i16;
+            let register_count = self.pairs().len() as u16;
             data.extend_from_slice(&register_count.to_le_bytes());
         }
 
@@ -974,7 +974,7 @@ impl PacketCommon for TranslatedData {
         data.append(&mut m);
 
         // the first two bytes are the data length, excluding checksum which we'll add next
-        let data_length = data.len() as i16;
+        let data_length = data.len() as u16;
         data[0..2].copy_from_slice(&data_length.to_le_bytes());
 
         // checksum does not include the first two bytes (data length)
@@ -983,7 +983,7 @@ impl PacketCommon for TranslatedData {
         data
     }
 
-    fn register(&self) -> i16 {
+    fn register(&self) -> u16 {
         self.register
     }
 
@@ -1001,15 +1001,15 @@ impl PacketCommon for TranslatedData {
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct ReadParam {
     pub datalog: Serial,
-    pub register: i16,   // first register of values
-    pub values: Vec<u8>, // undecoded, since can be i16 or i32s?
+    pub register: u16,   // first register of values
+    pub values: Vec<u8>, // undecoded, since can be u16 or i32s?
 }
 impl ReadParam {
-    pub fn pairs(&self) -> Vec<(i16, i16)> {
+    pub fn pairs(&self) -> Vec<(u16, u16)> {
         self.values
             .chunks(2)
             .enumerate()
-            .map(|(pos, value)| (self.register + pos as i16, Utils::i16ify(value, 0)))
+            .map(|(pos, value)| (self.register + pos as u16, Utils::u16ify(value, 0)))
             .collect()
     }
 
@@ -1019,17 +1019,17 @@ impl ReadParam {
             bail!("ReadParam::decode packet too short");
         }
 
-        let protocol = Utils::i16ify(input, 2);
+        let protocol = Utils::u16ify(input, 2);
         let datalog = Serial::new(&input[8..18])?;
 
         let data = &input[18..];
-        let register = Utils::i16ify(data, 0);
+        let register = Utils::u16ify(data, 0);
 
         let mut value_len = 2;
         let mut value_offset = 2;
 
         if Self::has_value_length_bytes(protocol) {
-            value_len = Utils::i16ify(data, value_offset) as usize;
+            value_len = Utils::u16ify(data, value_offset) as usize;
             value_offset += 2;
         }
 
@@ -1050,13 +1050,13 @@ impl ReadParam {
         })
     }
 
-    fn has_value_length_bytes(protocol: i16) -> bool {
+    fn has_value_length_bytes(protocol: u16) -> bool {
         protocol == 2
     }
 }
 
 impl PacketCommon for ReadParam {
-    fn protocol(&self) -> i16 {
+    fn protocol(&self) -> u16 {
         2
     }
 
@@ -1079,7 +1079,7 @@ impl PacketCommon for ReadParam {
         vec![self.register() as u8, 0]
     }
 
-    fn register(&self) -> i16 {
+    fn register(&self) -> u16 {
         self.register
     }
 
@@ -1097,15 +1097,15 @@ impl PacketCommon for ReadParam {
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct WriteParam {
     pub datalog: Serial,
-    pub register: i16,   // first register of values
-    pub values: Vec<u8>, // undecoded, since can be i16 or i32s?
+    pub register: u16,   // first register of values
+    pub values: Vec<u8>, // undecoded, since can be u16 or i32s?
 }
 impl WriteParam {
-    pub fn pairs(&self) -> Vec<(i16, i16)> {
+    pub fn pairs(&self) -> Vec<(u16, u16)> {
         self.values
             .chunks(2)
             .enumerate()
-            .map(|(pos, value)| (self.register + pos as i16, Utils::i16ify(value, 0)))
+            .map(|(pos, value)| (self.register + pos as u16, Utils::u16ify(value, 0)))
             .collect()
     }
 
@@ -1115,17 +1115,17 @@ impl WriteParam {
             bail!("WriteParam::decode packet too short");
         }
 
-        let protocol = Utils::i16ify(input, 2);
+        let protocol = Utils::u16ify(input, 2);
         let datalog = Serial::new(&input[8..18])?;
 
         let data = &input[18..];
-        let register = i16::from(data[0]);
+        let register = u16::from(data[0]);
 
         let mut value_len = 2;
         let mut value_offset = 1;
 
         if Self::has_value_length_bytes(protocol) {
-            value_len = Utils::i16ify(data, value_offset) as usize;
+            value_len = Utils::u16ify(data, value_offset) as usize;
             value_offset += 2;
         }
 
@@ -1146,13 +1146,13 @@ impl WriteParam {
         })
     }
 
-    fn has_value_length_bytes(_protocol: i16) -> bool {
+    fn has_value_length_bytes(_protocol: u16) -> bool {
         false
     }
 }
 
 impl PacketCommon for WriteParam {
-    fn protocol(&self) -> i16 {
+    fn protocol(&self) -> u16 {
         2
     }
 
@@ -1176,7 +1176,7 @@ impl PacketCommon for WriteParam {
 
         data[0..2].copy_from_slice(&self.register.to_le_bytes());
 
-        let len = self.values.len() as i16;
+        let len = self.values.len() as u16;
         data.extend_from_slice(&len.to_le_bytes());
 
         let mut m = Vec::new();
@@ -1188,7 +1188,7 @@ impl PacketCommon for WriteParam {
         data
     }
 
-    fn register(&self) -> i16 {
+    fn register(&self) -> u16 {
         self.register
     }
 

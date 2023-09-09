@@ -8,7 +8,7 @@ async fn happy_path() {
     let inverter = Factory::inverter();
     let channels = Channels::new();
 
-    let register = 0 as i16;
+    let register = 0 as u16;
 
     let subject = coordinator::commands::read_param::ReadParam::new(
         channels.clone(),
@@ -46,7 +46,7 @@ async fn no_reply() {
     let inverter = Factory::inverter();
     let channels = Channels::new();
 
-    let register = 0 as i16;
+    let register = 0 as u16;
 
     let subject = coordinator::commands::read_param::ReadParam::new(
         channels.clone(),
@@ -78,7 +78,7 @@ async fn inverter_not_receiving() {
     let inverter = Factory::inverter();
     let channels = Channels::new();
 
-    let register = 0 as i16;
+    let register = 0 as u16;
 
     let subject = coordinator::commands::read_param::ReadParam::new(
         channels.clone(),

@@ -8,7 +8,7 @@ async fn happy_path() {
     let inverter = Factory::inverter();
     let channels = Channels::new();
 
-    let register = lxp::packet::Register::Register21 as i16;
+    let register = lxp::packet::Register::Register21 as u16;
     let bit = lxp::packet::RegisterBit::AcChargeEnable;
     let enable = true;
 
@@ -100,7 +100,7 @@ async fn no_reply() {
     let inverter = Factory::inverter();
     let channels = Channels::new();
 
-    let register = lxp::packet::Register::Register21 as i16;
+    let register = lxp::packet::Register::Register21 as u16;
     let bit = lxp::packet::RegisterBit::AcChargeEnable;
     let enable = true;
 
