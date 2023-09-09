@@ -4,6 +4,8 @@
 * Add `p_battery` and `p_grid` inputs keys to show net power flows (#183)
 * Avoid floating point maths oddities in e_pv_day and e_pv_all calculations (#185)
 * Add internal_fault/warning_code/fault_code keys (#189, #190, #191)
+* Revert to unsigned integers for inverter registers/values (#196)
+
 
 # 0.11.0 - 16th July 2023
 
