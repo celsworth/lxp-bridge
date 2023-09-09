@@ -179,6 +179,24 @@ async fn for_input() {
             },
         ]
     );
+
+    // test u16 handling on a ReadInputs2 structure
+    let packet = lxp::packet::TranslatedData {
+        datalog: inverter.datalog,
+        device_function: lxp::packet::DeviceFunction::ReadInput,
+        inverter: inverter.serial,
+        register: 80,
+        values: [255; 80].to_vec(),
+    };
+
+    assert_eq!(
+        mqtt::Message::for_input(packet, false).unwrap(),
+        vec![mqtt::Message {
+            topic: "2222222222/inputs/3".to_owned(),
+            retain: false,
+            payload: r#"{"max_chg_curr":655.35,"max_dischg_curr":655.35,"charge_volt_ref":6553.5,"dischg_cut_volt":6553.5,"bat_status_0":65535,"bat_status_1":65535,"bat_status_2":65535,"bat_status_3":65535,"bat_status_4":65535,"bat_status_5":65535,"bat_status_6":65535,"bat_status_7":65535,"bat_status_8":65535,"bat_status_9":65535,"bat_status_inv":65535,"bat_count":65535,"bat_capacity":65535,"bat_current":655.35,"bms_event_1":65535,"bms_event_2":65535,"max_cell_voltage":655.35,"min_cell_voltage":655.35,"max_cell_temp":655.35,"min_cell_temp":655.35,"bms_fw_update_state":65535,"cycle_count":65535,"vbat_inv":6553.5,"time":1646370367,"datalog":"2222222222"}"#.to_owned()
+        },]
+    );
 }
 
 #[tokio::test]

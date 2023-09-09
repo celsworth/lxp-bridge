@@ -20,14 +20,14 @@ struct MqttReplyPayload {
 }
 
 pub enum Action {
-    AcCharge(i16),
-    AcFirst(i16),
-    ChargePriority(i16),
-    ForcedDischarge(i16),
+    AcCharge(u16),
+    AcFirst(u16),
+    ChargePriority(u16),
+    ForcedDischarge(u16),
 }
 
 impl Action {
-    fn register(&self) -> Result<i16> {
+    fn register(&self) -> Result<u16> {
         use Action::*;
         match self {
             AcCharge(1) => Ok(68),
@@ -160,7 +160,7 @@ impl SetTimeRegister {
         Ok(())
     }
 
-    async fn set_register(&self, register: i16, values: &[u8]) -> Result<()> {
+    async fn set_register(&self, register: u16, values: &[u8]) -> Result<()> {
         let packet = Packet::TranslatedData(TranslatedData {
             datalog: self.inverter.datalog(),
             device_function: DeviceFunction::WriteSingle,

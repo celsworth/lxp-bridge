@@ -8,7 +8,7 @@ async fn happy_path() {
     let inverter = Factory::inverter();
     let channels = Channels::new();
 
-    let register = 5 as i16;
+    let register = 5 as u16;
     let value = 10 as u16;
 
     let subject = coordinator::commands::set_hold::SetHold::new(
@@ -50,7 +50,7 @@ async fn bad_reply() {
     let inverter = Factory::inverter();
     let channels = Channels::new();
 
-    let register = 5 as i16;
+    let register = 5 as u16;
     let value = 10 as u16;
 
     let subject = coordinator::commands::set_hold::SetHold::new(
@@ -95,7 +95,7 @@ async fn no_reply() {
     let inverter = Factory::inverter();
     let channels = Channels::new();
 
-    let register = 5 as i16;
+    let register = 5 as u16;
     let value = 10 as u16;
 
     let subject = coordinator::commands::set_hold::SetHold::new(
@@ -129,7 +129,7 @@ async fn inverter_not_receiving() {
     let inverter = Factory::inverter();
     let channels = Channels::new();
 
-    let register = 5 as i16;
+    let register = 5 as u16;
     let value = 10 as u16;
 
     let subject = coordinator::commands::set_hold::SetHold::new(

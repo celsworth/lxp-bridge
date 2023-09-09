@@ -5,14 +5,14 @@ use lxp::inverter::WaitForReply;
 pub struct WriteParam {
     channels: Channels,
     inverter: config::Inverter,
-    register: i16,
+    register: u16,
     value: u16,
 }
 
 impl WriteParam {
     pub fn new<U>(channels: Channels, inverter: config::Inverter, register: U, value: u16) -> Self
     where
-        U: Into<i16>,
+        U: Into<u16>,
     {
         Self {
             channels,
