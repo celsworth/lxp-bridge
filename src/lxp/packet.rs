@@ -611,7 +611,7 @@ impl Register21Bits {
             sw_seamless_en: Self::is_bit_set(data, 1 << 8),
             set_to_standby: Self::is_bit_set(data, 1 << 9),
             forced_discharge_en: Self::is_bit_set(data, 1 << 10),
-            charge_priority_en: Self::is_bit_set(data, 1 << 1),
+            charge_priority_en: Self::is_bit_set(data, 1 << 11),
             iso_en: Self::is_bit_set(data, 1 << 12),
             gfci_en: Self::is_bit_set(data, 1 << 13),
             dci_en: Self::is_bit_set(data, 1 << 14),
