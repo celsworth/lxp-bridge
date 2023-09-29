@@ -67,6 +67,22 @@ async fn for_hold_21() {
              mqtt::Message { topic: "2222222222/hold/21/bits".to_owned(), retain: true, payload: "{\"eps_en\":\"OFF\",\"ovf_load_derate_en\":\"OFF\",\"drms_en\":\"ON\",\"lvrt_en\":\"ON\",\"anti_island_en\":\"OFF\",\"neutral_detect_en\":\"OFF\",\"grid_on_power_ss_en\":\"OFF\",\"ac_charge_en\":\"OFF\",\"sw_seamless_en\":\"OFF\",\"set_to_standby\":\"ON\",\"forced_discharge_en\":\"OFF\",\"charge_priority_en\":\"OFF\",\"iso_en\":\"OFF\",\"gfci_en\":\"ON\",\"dci_en\":\"OFF\",\"feed_in_grid_en\":\"OFF\"}".to_owned() }
         ]
     );
+
+    // really should do every bit but thats very tedious.. lets just do this one for now
+    let packet = lxp::packet::TranslatedData {
+        datalog: inverter.datalog(),
+        device_function: lxp::packet::DeviceFunction::ReadHold,
+        inverter: inverter.serial(),
+        register: 21,
+        values: vec![0, 8],
+    };
+
+    assert_eq!(
+        mqtt::Message::for_hold(packet).unwrap(),
+        vec![mqtt::Message { topic: "2222222222/hold/21".to_owned(), retain: true, payload: "2048".to_owned() },
+             mqtt::Message { topic: "2222222222/hold/21/bits".to_owned(), retain: true, payload: "{\"eps_en\":\"OFF\",\"ovf_load_derate_en\":\"OFF\",\"drms_en\":\"OFF\",\"lvrt_en\":\"OFF\",\"anti_island_en\":\"OFF\",\"neutral_detect_en\":\"OFF\",\"grid_on_power_ss_en\":\"OFF\",\"ac_charge_en\":\"OFF\",\"sw_seamless_en\":\"OFF\",\"set_to_standby\":\"OFF\",\"forced_discharge_en\":\"OFF\",\"charge_priority_en\":\"ON\",\"iso_en\":\"OFF\",\"gfci_en\":\"OFF\",\"dci_en\":\"OFF\",\"feed_in_grid_en\":\"OFF\"}".to_owned() }
+        ]
+    );
 }
 
 #[tokio::test]
