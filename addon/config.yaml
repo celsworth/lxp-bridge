@@ -8,6 +8,7 @@ init: false
 startup: application
 stage: experimental
 options:
+  loglevel: info
   inverters:
   - enabled: true
     host: ""
@@ -33,6 +34,7 @@ options:
     password: ""
     database: "lxp"
 schema:
+  loglevel: list(trace,debug,info,warn,error,off)
   inverters:
   - enabled: bool
     host: str
