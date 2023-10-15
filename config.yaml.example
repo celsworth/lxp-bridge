@@ -42,6 +42,4 @@ influx:
 
 scheduler:
   enabled: false
-  timesync:
-    enabled: false
-    cron: "0 0 * * *"
+  timesync_cron: "0 0 * * *"

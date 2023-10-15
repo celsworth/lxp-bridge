@@ -199,33 +199,15 @@ pub struct Scheduler {
     #[serde(default = "Config::default_enabled")]
     pub enabled: bool,
 
-    pub timesync: Crontab,
+    pub timesync_cron: Option<String>,
 }
 impl Scheduler {
     pub fn enabled(&self) -> bool {
         self.enabled
     }
 
-    pub fn timesync(&self) -> &Crontab {
-        &self.timesync
-    }
-} // }}}
-
-// Crontab {{{
-#[derive(Clone, Debug, Deserialize)]
-pub struct Crontab {
-    #[serde(default = "Config::default_enabled")]
-    pub enabled: bool,
-
-    pub cron: String,
-}
-impl Crontab {
-    pub fn enabled(&self) -> bool {
-        self.enabled
-    }
-
-    pub fn cron(&self) -> &str {
-        &self.cron
+    pub fn timesync_cron(&self) -> &Option<String> {
+        &self.timesync_cron
     }
 } // }}}
 
