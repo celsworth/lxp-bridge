@@ -1,6 +1,6 @@
 # 0.13.0 - Unreleased
 
-* **BREAKING** Simplify scheduler.timesync configuration to appease HA (#209)
+* **BREAKING CHANGE**: Simplify scheduler.timesync configuration to appease HA (#209)
 
 
 # 0.12.0 - 29th September 2023
