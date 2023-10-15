@@ -1,6 +1,6 @@
 [package]
 name = "lxp-bridge"
-version = "0.12.0"
+version = "0.13.0-dev"
 authors = ["Chris Elsworth <chris@cae.me.uk>"]
 edition = "2021"
 repository = "https://github.com/celsworth/lxp-bridge"
