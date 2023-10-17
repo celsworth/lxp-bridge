@@ -1,3 +1,8 @@
+# 0.13.0 - Unreleased
+
+* Attempt to fix unsigned maths overflow (#211)
+
+
 # 0.12.0 - 29th September 2023
 
 * Add more sensors to HomeAssistant autodiscovery (#181, #194, @Sboshoff76)
