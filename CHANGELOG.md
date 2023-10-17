@@ -1,5 +1,6 @@
 # 0.13.0 - Unreleased
 
+* **BREAKING CHANGE**: Simplify scheduler.timesync configuration to appease HA (#209)
 * Attempt to fix unsigned maths overflow (#211)
 
 

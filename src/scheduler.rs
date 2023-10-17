@@ -29,9 +29,9 @@ impl Scheduler {
 
         info!("scheduler starting");
 
-        if scheduler.timesync().enabled() {
+        if let Some(timesync_cron) = scheduler.timesync_cron() {
             // sticking to Utc here avoids some "invalid date" panics around DST changes
-            while let Ok(next) = parse(scheduler.timesync().cron(), &Utils::utc()) {
+            while let Ok(next) = parse(timesync_cron, &Utils::utc()) {
                 let sleep = next - Utils::utc();
 
                 // localtime is only used for display
@@ -41,6 +41,8 @@ impl Scheduler {
                 tokio::time::sleep(sleep.to_std()?).await;
                 self.timesync().await?;
             }
+        } else {
+            info!("timesync_cron config not found, skipping");
         }
 
         info!("scheduler exiting");
