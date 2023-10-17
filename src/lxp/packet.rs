@@ -37,7 +37,7 @@ pub struct ReadInputAll {
     pub p_pv_2: u16,
     pub p_pv_3: u16,
     #[nom(Ignore)]
-    pub p_battery: i16,
+    pub p_battery: i32,
     pub p_charge: u16,
     pub p_discharge: u16,
 
@@ -68,7 +68,7 @@ pub struct ReadInputAll {
     pub p_eps: u16,
     pub s_eps: u16,
     #[nom(Ignore)]
-    pub p_grid: i16,
+    pub p_grid: i32,
     pub p_to_grid: u16,
     pub p_to_user: u16,
 
@@ -218,7 +218,7 @@ pub struct ReadInput1 {
     pub p_pv_2: u16,
     pub p_pv_3: u16,
     #[nom(Ignore)]
-    pub p_battery: i16,
+    pub p_battery: i32,
     pub p_charge: u16,
     pub p_discharge: u16,
 
@@ -249,7 +249,7 @@ pub struct ReadInput1 {
     pub p_eps: u16,
     pub s_eps: u16,
     #[nom(Ignore)]
-    pub p_grid: i16,
+    pub p_grid: i32,
     pub p_to_grid: u16,
     pub p_to_user: u16,
 
@@ -798,8 +798,8 @@ impl TranslatedData {
         match ReadInputAll::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.p_grid = (r.p_to_user - r.p_to_grid) as i16;
-                r.p_battery = (r.p_charge - r.p_discharge) as i16;
+                r.p_grid = r.p_to_user as i32 - r.p_to_grid as i32;
+                r.p_battery = r.p_charge as i32 - r.p_discharge as i32;
                 r.e_pv_day = Utils::round(r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3, 1);
                 r.e_pv_all = Utils::round(r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3, 1);
                 r.datalog = self.datalog;
@@ -813,8 +813,8 @@ impl TranslatedData {
         match ReadInput1::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.p_grid = (r.p_to_user - r.p_to_grid) as i16;
-                r.p_battery = (r.p_charge - r.p_discharge) as i16;
+                r.p_grid = r.p_to_user as i32 - r.p_to_grid as i32;
+                r.p_battery = r.p_charge as i32 - r.p_discharge as i32;
                 r.e_pv_day = Utils::round(r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3, 1);
                 r.datalog = self.datalog;
                 Ok(r)
