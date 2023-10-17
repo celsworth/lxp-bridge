@@ -13,6 +13,9 @@ fn assert_u16_eq(input: i32, expected: u16) {
 fn assert_i16_eq(input: i32, expected: i16) {
     assert_eq!(input as i16, expected);
 }
+fn assert_i32_eq(input: i32, expected: i32) {
+    assert_eq!(input, expected);
+}
 fn assert_f64_eq(input: f64, expected: f64) {
     assert_eq!(input, expected);
 }
@@ -53,8 +56,8 @@ async fn sqlite_insertion() {
                 let ria = Factory::read_input_all();
                 // really this should test a whole lot more columns, but tedious
                 assert_u16_eq(row.get("status"), ria.status);
-                assert_i16_eq(row.get("p_grid"), ria.p_grid);
-                assert_i16_eq(row.get("p_battery"), ria.p_battery);
+                assert_i32_eq(row.get("p_grid"), ria.p_grid);
+                assert_i32_eq(row.get("p_battery"), ria.p_battery);
                 assert_u16_eq(row.get("p_discharge"), ria.p_discharge);
                 assert_f64_eq(row.get("e_to_user_day"), ria.e_to_user_day);
                 assert_f64_eq(row.get("e_pv_all"), ria.e_pv_all);
