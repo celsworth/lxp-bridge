@@ -36,6 +36,9 @@ options:
     username: ""
     password: ""
     database: "lxp"
+  scheduler:
+    enabled: yes
+    timesync_cron: "0 0 * * *"
 schema:
   loglevel: list(trace|debug|info|warn|error|off)
   inverters:
@@ -62,3 +65,6 @@ schema:
     username: str
     password: password
     database: str
+  scheduler:
+    enabled: bool
+    timesync_cron: str
