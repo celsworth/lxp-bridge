@@ -178,6 +178,13 @@ impl Config {
             ..base.clone()
         };
 
+        let current = Entity {
+            device_class: Some("current"),
+            state_class: Some("measurement"),
+            unit_of_measurement: Some("A"),
+            ..base.clone()
+        };
+
         let energy = Entity {
             device_class: Some("energy"),
             state_class: Some("total_increasing"),
@@ -482,6 +489,16 @@ impl Config {
                 key: "t_bat",
                 name: "Battery Temperature",
                 ..temperature.clone()
+            },
+            Entity {
+                key: "max_chg_curr",
+                name: "Max Charge Current",
+                ..current.clone()
+            },
+            Entity {
+                key: "max_dischg_curr",
+                name: "Max Discharge Current",
+                ..current.clone()
             },
             Entity {
                 key: "runtime",

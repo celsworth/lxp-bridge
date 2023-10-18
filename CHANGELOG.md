@@ -2,6 +2,7 @@
 
 * **BREAKING CHANGE**: Simplify scheduler.timesync configuration to appease HA (#209)
 * Attempt to fix unsigned maths overflow (#211)
+* Expose max_chg_curr and max_dischg_curr to HA (#212)
 
 
 # 0.12.0 - 29th September 2023
