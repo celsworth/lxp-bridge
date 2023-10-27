@@ -1,4 +1,4 @@
-# 0.13.0 - Unreleased
+# 0.13.0 - 27th October 2023
 
 * **BREAKING CHANGE**: Simplify scheduler.timesync configuration to appease HA (#209)
 * Attempt to fix unsigned maths overflow (#211)
