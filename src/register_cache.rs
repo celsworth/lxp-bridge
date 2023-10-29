@@ -3,7 +3,7 @@ use crate::prelude::*;
 // this just needs to be bigger than the max register we'll see
 const REGISTER_COUNT: usize = 256;
 
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(Clone, Debug)]
 pub enum ChannelData {
     ReadRegister(u16, Rc<RefCell<oneshot::Sender<u16>>>),
     RegisterData(u16, u16),

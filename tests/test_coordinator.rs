@@ -35,10 +35,12 @@ async fn publishes_read_hold_mqtt() {
             .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
 
         // verify register_cache is set
-        assert_eq!(
-            to_register_cache.recv().await?,
-            register_cache::ChannelData::RegisterData(12, 1558)
-        );
+        let register_cache::ChannelData::RegisterData(a, b) = to_register_cache.recv().await?
+        else {
+            unreachable!()
+        };
+        assert_eq!(a, 12);
+        assert_eq!(b, 1558);
 
         // verify MQTT output
         assert_eq!(
@@ -192,10 +194,12 @@ async fn complete_path_read_hold_command() {
         );
 
         // verify register_cache is set
-        assert_eq!(
-            to_register_cache.recv().await?,
-            register_cache::ChannelData::RegisterData(12, 1558)
-        );
+        let register_cache::ChannelData::RegisterData(a, b) = to_register_cache.recv().await?
+        else {
+            unreachable!()
+        };
+        assert_eq!(a, 12);
+        assert_eq!(b, 1558);
 
         coordinator.stop();
 
