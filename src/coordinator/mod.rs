@@ -396,6 +396,14 @@ impl Coordinator {
                     }
                     Err(x) => warn!("ignoring {:?}", x),
                 }
+            } else if td.device_function == DeviceFunction::ReadHold
+                || td.device_function == DeviceFunction::WriteSingle
+            {
+                let channel_data =
+                    register_cache::ChannelData::RegisterData(td.register, td.value());
+                if self.channels.to_register_cache.send(channel_data).is_err() {
+                    bail!("send(to_register_cache) failed - channel closed?");
+                }
             }
         }
 
