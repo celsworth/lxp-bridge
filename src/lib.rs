@@ -48,7 +48,7 @@ pub async fn app() -> Result<()> {
     let scheduler = Scheduler::new(config.clone(), channels.clone());
     let mqtt = Mqtt::new(config.clone(), channels.clone());
     let influx = Influx::new(config.clone(), channels.clone());
-    let register_cache = RegisterCache::new(config.clone(), channels.clone());
+    let register_cache = RegisterCache::new(channels.clone());
     let coordinator = Coordinator::new(config.clone(), channels.clone());
 
     let inverters = config

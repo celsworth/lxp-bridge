@@ -39,13 +39,8 @@ impl Coordinator {
     async fn mqtt_receiver(&self) -> Result<()> {
         let mut receiver = self.channels.from_mqtt.subscribe();
 
-        loop {
-            match receiver.recv().await? {
-                mqtt::ChannelData::Shutdown => break,
-                mqtt::ChannelData::Message(message) => {
-                    let _ = self.process_message(message).await;
-                }
-            }
+        while let mqtt::ChannelData::Message(message) = receiver.recv().await? {
+            let _ = self.process_message(message).await;
         }
 
         Ok(())
