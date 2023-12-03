@@ -198,6 +198,8 @@ impl Inverter {
 
     // inverter -> coordinator
     async fn receiver(&self, mut socket: tokio::net::tcp::OwnedReadHalf) -> Result<()> {
+        use std::time::Duration;
+        use tokio::time::timeout;
         use {bytes::BytesMut, tokio_util::codec::Decoder};
 
         let mut buf = BytesMut::new();
@@ -205,10 +207,12 @@ impl Inverter {
 
         loop {
             // read_buf appends to buf rather than overwrite existing data
-            let len = socket.read_buf(&mut buf).await?;
-
-            // TODO: reconnect if nothing for 5 minutes?
-            // or maybe send our own heartbeats?
+            let future = socket.read_buf(&mut buf);
+            let read_timeout = self.config().read_timeout();
+            let len = match timeout(Duration::from_millis(read_timeout * 1000), future).await {
+                Ok(r) => r?,
+                Err(_) => bail!("no data for {} seconds", read_timeout),
+            };
 
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
