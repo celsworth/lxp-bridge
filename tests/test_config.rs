@@ -86,6 +86,7 @@ fn enabled_inverters() {
             serial: example_serial(),
             heartbeats: None,
             publish_holdings_on_connect: None,
+            read_timeout: None,
         },
         config::Inverter {
             enabled: true,
@@ -95,6 +96,7 @@ fn enabled_inverters() {
             serial: example_serial(),
             heartbeats: None,
             publish_holdings_on_connect: None,
+            read_timeout: None,
         },
     ]);
 
@@ -114,6 +116,7 @@ fn inverters_for_message() {
             serial: example_serial(),
             heartbeats: None,
             publish_holdings_on_connect: None,
+            read_timeout: None,
         },
         config::Inverter {
             enabled: false,
@@ -123,6 +126,7 @@ fn inverters_for_message() {
             serial: example_serial(),
             heartbeats: None,
             publish_holdings_on_connect: None,
+            read_timeout: None,
         },
     ]);
 

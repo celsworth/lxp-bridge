@@ -1,3 +1,8 @@
+# Unreleased
+
+* Reconnect to inverter after 15 minutes of not receiving any data (#223)
+
+
 # 0.13.0 - 27th October 2023
 
 * **BREAKING CHANGE**: Simplify scheduler.timesync configuration to appease HA (#209)
