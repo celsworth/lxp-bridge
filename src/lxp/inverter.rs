@@ -209,10 +209,14 @@ impl Inverter {
             // read_buf appends to buf rather than overwrite existing data
             let future = socket.read_buf(&mut buf);
             let read_timeout = self.config().read_timeout();
-            let len = match timeout(Duration::from_millis(read_timeout * 1000), future).await {
-                Ok(r) => r?,
-                Err(_) => bail!("no data for {} seconds", read_timeout),
-            };
+            let len = if read_timeout > 0 {
+                match timeout(Duration::from_millis(read_timeout * 1000), future).await {
+                    Ok(r) => r,
+                    Err(_) => bail!("no data for {} seconds", read_timeout),
+                }
+            } else {
+                future.await
+            }?;
 
             if len == 0 {
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
