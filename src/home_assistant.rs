@@ -501,6 +501,26 @@ impl Config {
                 ..current.clone()
             },
             Entity {
+                key: "min_cell_voltage",
+                name: "Min Cell Voltage (BMS)",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "max_cell_voltage",
+                name: "Max Cell Voltage (BMS)",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "min_cell_temp",
+                name: "Min Cell Temperature (BMS)",
+                ..temperature.clone()
+            },
+            Entity {
+                key: "max_cell_temp",
+                name: "Max Cell Temperature (BMS)",
+                ..temperature.clone()
+            },
+            Entity {
                 key: "runtime",
                 name: "Total Runtime",
                 entity_category: Some("diagnostic"),
