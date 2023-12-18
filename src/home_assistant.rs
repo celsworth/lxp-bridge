@@ -558,13 +558,10 @@ impl Config {
             self.switch("forced_discharge", "Forced Discharge")?,
             self.number_percent(Register::ChargePowerPercentCmd, "System Charge Rate (%)")?,
             self.number_percent(Register::DischgPowerPercentCmd, "System Discharge Rate (%)")?,
-            // TODO: is this one actually a percentage?
-            // self.number_percent(
-            //    Register::AcChargePowerCmd,
-            //    "Grid Charge Rate (%)",
-            // )?,
+            self.number_percent(Register::AcChargePowerCmd, "AC Charge Rate (%)")?,
             self.number_percent(Register::AcChargeSocLimit, "AC Charge Limit %")?,
-            self.number_percent(Register::ForcedChargeSocLimit, "Forced Charge Limit %")?,
+            self.number_percent(Register::ChargePriorityPowerCmd, "Charge Priority Rate (%)")?,
+            self.number_percent(Register::ChargePrioritySocLimit, "Charge Priority Limit %")?,
             self.number_percent(Register::ForcedDischgSocLimit, "Forced Discharge Limit %")?,
             self.number_percent(Register::DischgCutOffSocEod, "Discharge Cutoff %")?,
             self.number_percent(
