@@ -1,6 +1,7 @@
 # Unreleased
 
 * Reconnect to inverter after 15 minutes of not receiving any data (#223)
+* Fix max/min cell temperature/voltage decoding as reported from BMS (#227)
 
 
 # 0.13.0 - 27th October 2023
