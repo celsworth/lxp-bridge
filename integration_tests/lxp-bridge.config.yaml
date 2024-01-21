@@ -1,0 +1,40 @@
+inverters:
+- enabled: true
+  host: 127.0.0.1
+  port: 8000
+  serial: 5555555555
+  datalog: 2222222222
+  heartbeats: true
+  # FIXME: get the specs passing with this enabled
+  # Proximate issue: the messages to the inverter to read the holding registers
+  # are not accounted for by the existing code
+  publish_holdings_on_connect: false
+
+databases:
+- enabled: true
+  url: sqlite://tmp/db/lxp.db
+
+mqtt:
+  enabled: true
+  host: localhost
+  port: 1883
+  username:
+  password:
+  namespace: lxp
+  homeassistant:
+    enabled: true
+    prefix: homeassistant
+  publish_individual_input: true
+
+influx:
+  enabled: true
+  url: http://localhost:8086
+  username:
+  password:
+  database: lxp
+
+scheduler:
+  enabled: false
+  timesync:
+    enabled: false
+    cron: "0 0 * * *"
