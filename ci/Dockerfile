@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM rust:latest as builder
+FROM --platform=$BUILDPLATFORM rust:1.71.1 as builder
 ARG TARGETPLATFORM
 WORKDIR /usr/src/lxp-bridge
 COPY Cargo.toml .
