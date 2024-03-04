@@ -87,6 +87,7 @@ impl Coordinator {
             ReadInputs(inverter, 1) => self.read_inputs(inverter, 0_u16, 40).await,
             ReadInputs(inverter, 2) => self.read_inputs(inverter, 40_u16, 40).await,
             ReadInputs(inverter, 3) => self.read_inputs(inverter, 80_u16, 40).await,
+            ReadInputs(inverter, 4) => self.read_inputs(inverter, 120_u16, 40).await,
             ReadInputs(_, _) => unreachable!(),
             ReadInput(inverter, register, count) => {
                 self.read_inputs(inverter, register, count).await
@@ -377,10 +378,11 @@ impl Coordinator {
 
                     Ok(ReadInput::ReadInput1(r1)) => entry.set_read_input_1(r1),
                     Ok(ReadInput::ReadInput2(r2)) => entry.set_read_input_2(r2),
-                    Ok(ReadInput::ReadInput3(r3)) => {
-                        let datalog = r3.datalog;
+                    Ok(ReadInput::ReadInput3(r3)) => entry.set_read_input_3(r3),
+                    Ok(ReadInput::ReadInput4(r4)) => {
+                        let datalog = r4.datalog;
 
-                        entry.set_read_input_3(r3);
+                        entry.set_read_input_4(r4);
 
                         if let Some(input) = entry.to_input_all() {
                             if self.config.mqtt().enabled() {

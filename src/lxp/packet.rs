@@ -10,6 +10,7 @@ pub enum ReadInput {
     ReadInput1(ReadInput1),
     ReadInput2(ReadInput2),
     ReadInput3(ReadInput3),
+    ReadInput4(ReadInput4),
 }
 
 // {{{ ReadInputAll
@@ -186,6 +187,20 @@ pub struct ReadInputAll {
 
     // 14 bytes I'm not sure what they are; possibly generator stuff
     #[nom(SkipBefore(14))]
+    // something about half bus voltage
+    #[nom(SkipBefore(2))]
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub v_gen: f64,
+    #[nom(Parse = "Utils::le_u16_div100")]
+    pub f_gen: f64,
+    pub p_gen: u16,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub e_gen_day: f64,
+    #[nom(Parse = "Utils::le_u32_div10")]
+    pub e_gen_all: f64,
+
+    // EPS data; unsure what this is
+
     // following are for influx capability only
     #[nom(Parse = "Utils::current_time_for_nom")]
     pub time: UnixTime,
@@ -393,12 +408,32 @@ pub struct ReadInput3 {
     pub datalog: Serial,
 } // }}}
 
+#[derive(Clone, Debug, Serialize, Nom)]
+#[nom(LittleEndian)]
+pub struct ReadInput4 {
+    // something about half bus voltage
+    #[nom(SkipBefore(2))]
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub v_gen: f64,
+    #[nom(Parse = "Utils::le_u16_div100")]
+    pub f_gen: f64,
+    pub p_gen: u16,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub e_gen_day: f64,
+    #[nom(Parse = "Utils::le_u32_div10")]
+    pub e_gen_all: f64,
+    // EPS data; unsure what this is
+    #[nom(Ignore)]
+    pub datalog: Serial,
+}
+
 // {{{ ReadInputs
 #[derive(Default, Clone, Debug)]
 pub struct ReadInputs {
     read_input_1: Option<ReadInput1>,
     read_input_2: Option<ReadInput2>,
     read_input_3: Option<ReadInput3>,
+    read_input_4: Option<ReadInput4>,
 }
 
 impl ReadInputs {
@@ -411,14 +446,18 @@ impl ReadInputs {
     pub fn set_read_input_3(&mut self, i: ReadInput3) {
         self.read_input_3 = Some(i);
     }
+    pub fn set_read_input_4(&mut self, i: ReadInput4) {
+        self.read_input_4 = Some(i);
+    }
 
     pub fn to_input_all(&self) -> Option<ReadInputAll> {
         match (
             self.read_input_1.as_ref(),
             self.read_input_2.as_ref(),
             self.read_input_3.as_ref(),
+            self.read_input_4.as_ref(),
         ) {
-            (Some(ri1), Some(ri2), Some(ri3)) => Some(ReadInputAll {
+            (Some(ri1), Some(ri2), Some(ri3), Some(ri4)) => Some(ReadInputAll {
                 status: ri1.status,
                 v_pv_1: ri1.v_pv_1,
                 v_pv_2: ri1.v_pv_2,
@@ -508,6 +547,11 @@ impl ReadInputs {
                 bms_fw_update_state: ri3.bms_fw_update_state,
                 cycle_count: ri3.cycle_count,
                 vbat_inv: ri3.vbat_inv,
+                v_gen: ri4.v_gen,
+                f_gen: ri4.f_gen,
+                p_gen: ri4.p_gen,
+                e_gen_day: ri4.e_gen_day,
+                e_gen_all: ri4.e_gen_all,
                 datalog: ri1.datalog,
                 time: ri1.time.clone(),
             }),
@@ -791,6 +835,7 @@ impl TranslatedData {
             (0, 80) => Ok(ReadInput::ReadInput1(self.read_input1()?)),
             (40, 80) => Ok(ReadInput::ReadInput2(self.read_input2()?)),
             (80, 80) => Ok(ReadInput::ReadInput3(self.read_input3()?)),
+            (120, 80) => Ok(ReadInput::ReadInput4(self.read_input4()?)),
             (r1, r2) => bail!("unhandled ReadInput register={} len={}", r1, r2),
         }
     }
@@ -837,6 +882,16 @@ impl TranslatedData {
 
     fn read_input3(&self) -> Result<ReadInput3> {
         match ReadInput3::parse(&self.values) {
+            Ok((_, mut r)) => {
+                r.datalog = self.datalog;
+                Ok(r)
+            }
+            Err(_) => Err(anyhow!("meh")),
+        }
+    }
+
+    fn read_input4(&self) -> Result<ReadInput4> {
+        match ReadInput4::parse(&self.values) {
             Ok((_, mut r)) => {
                 r.datalog = self.datalog;
                 Ok(r)
