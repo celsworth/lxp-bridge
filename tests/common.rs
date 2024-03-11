@@ -23,6 +23,7 @@ impl Factory {
             serial: Serial::from_str("5555555555").unwrap(),
             heartbeats: None,
             publish_holdings_on_connect: None,
+            read_timeout: None,
         }
     }
 

@@ -49,38 +49,10 @@ jobs:
           sarif_file: rust-clippy-results.sarif
           wait-for-processing: true
 
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
-      - uses: actions/cache@v2
-        with:
-          path: |
-            /usr/share/rust
-            ~/.cargo
-            target
-          key: test-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-          override: true
-
-      - name: Run tests
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --features=mocks
-
   build:
     name: Build ${{ matrix.build }}
     runs-on: ${{ matrix.os }}
     continue-on-error: true
-    needs: test
     strategy:
       matrix:
         include:

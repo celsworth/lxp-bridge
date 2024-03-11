@@ -501,6 +501,26 @@ impl Config {
                 ..current.clone()
             },
             Entity {
+                key: "min_cell_voltage",
+                name: "Min Cell Voltage (BMS)",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "max_cell_voltage",
+                name: "Max Cell Voltage (BMS)",
+                ..voltage.clone()
+            },
+            Entity {
+                key: "min_cell_temp",
+                name: "Min Cell Temperature (BMS)",
+                ..temperature.clone()
+            },
+            Entity {
+                key: "max_cell_temp",
+                name: "Max Cell Temperature (BMS)",
+                ..temperature.clone()
+            },
+            Entity {
                 key: "runtime",
                 name: "Total Runtime",
                 entity_category: Some("diagnostic"),
@@ -538,13 +558,10 @@ impl Config {
             self.switch("forced_discharge", "Forced Discharge")?,
             self.number_percent(Register::ChargePowerPercentCmd, "System Charge Rate (%)")?,
             self.number_percent(Register::DischgPowerPercentCmd, "System Discharge Rate (%)")?,
-            // TODO: is this one actually a percentage?
-            // self.number_percent(
-            //    Register::AcChargePowerCmd,
-            //    "Grid Charge Rate (%)",
-            // )?,
+            self.number_percent(Register::AcChargePowerCmd, "AC Charge Rate (%)")?,
             self.number_percent(Register::AcChargeSocLimit, "AC Charge Limit %")?,
-            self.number_percent(Register::ForcedChargeSocLimit, "Forced Charge Limit %")?,
+            self.number_percent(Register::ChargePriorityPowerCmd, "Charge Priority Rate (%)")?,
+            self.number_percent(Register::ChargePrioritySocLimit, "Charge Priority Limit %")?,
             self.number_percent(Register::ForcedDischgSocLimit, "Forced Discharge Limit %")?,
             self.number_percent(Register::DischgCutOffSocEod, "Discharge Cutoff %")?,
             self.number_percent(

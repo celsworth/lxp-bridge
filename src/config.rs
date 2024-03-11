@@ -35,6 +35,7 @@ pub struct Inverter {
 
     pub heartbeats: Option<bool>,
     pub publish_holdings_on_connect: Option<bool>,
+    pub read_timeout: Option<u64>,
 }
 impl Inverter {
     pub fn enabled(&self) -> bool {
@@ -63,6 +64,10 @@ impl Inverter {
 
     pub fn publish_holdings_on_connect(&self) -> bool {
         self.publish_holdings_on_connect == Some(true)
+    }
+
+    pub fn read_timeout(&self) -> u64 {
+        self.read_timeout.unwrap_or(900) // 15 minutes
     }
 } // }}}
 
