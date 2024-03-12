@@ -138,9 +138,9 @@ pub struct ReadInputAll {
     // 18 bytes of auto_test stuff here I'm not doing yet
     #[nom(SkipBefore(18))] // auto_test stuff, TODO..
     #[nom(SkipBefore(2))] // bat_brand, bat_com_type
-    #[nom(Parse = "Utils::le_u16_div100")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub max_chg_curr: f64,
-    #[nom(Parse = "Utils::le_u16_div100")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub max_dischg_curr: f64,
     #[nom(Parse = "Utils::le_u16_div10")]
     pub charge_volt_ref: f64,
