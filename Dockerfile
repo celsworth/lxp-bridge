@@ -14,7 +14,7 @@ COPY db db
 RUN cargo install --path .
 
 
-FROM debian:bullseye-slim
-RUN apt-get update && apt-get install -y libssl1.1 && rm -rf /var/lib/apt/lists/*
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /usr/local/cargo/bin/lxp-bridge /usr/local/bin/lxp-bridge
 ENTRYPOINT ["lxp-bridge", "-c", "/etc/config.yaml"]
