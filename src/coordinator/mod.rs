@@ -410,7 +410,7 @@ impl Coordinator {
             // returns a Vec of messages to send. could be none;
             // not every packet produces an MQ message (eg, heartbeats),
             // and some produce >1 (multi-register ReadHold)
-            match Self::packet_to_messages(packet, self.config.mqtt().publish_individual_input()) {
+            match Self::packet_to_messages(packet) {
                 Ok(messages) => {
                     for message in messages {
                         let message = mqtt::ChannelData::Message(message);
@@ -505,14 +505,13 @@ impl Coordinator {
     }
 
     fn packet_to_messages(
-        packet: Packet,
-        publish_individual_input: bool,
+        packet: Packet
     ) -> Result<Vec<mqtt::Message>> {
         match packet {
             Packet::Heartbeat(_) => Ok(Vec::new()), // always no message
             Packet::TranslatedData(td) => match td.device_function {
                 DeviceFunction::ReadHold => mqtt::Message::for_hold(td),
-                DeviceFunction::ReadInput => mqtt::Message::for_input(td, publish_individual_input),
+                DeviceFunction::ReadInput => mqtt::Message::for_input(td),
                 DeviceFunction::WriteSingle => mqtt::Message::for_hold(td),
                 DeviceFunction::WriteMulti => Ok(Vec::new()), // TODO, for_hold might just work
             },
