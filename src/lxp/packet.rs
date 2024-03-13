@@ -138,9 +138,9 @@ pub struct ReadInputAll {
     // 18 bytes of auto_test stuff here I'm not doing yet
     #[nom(SkipBefore(18))] // auto_test stuff, TODO..
     #[nom(SkipBefore(2))] // bat_brand, bat_com_type
-    #[nom(Parse = "Utils::le_u16_div100")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub max_chg_curr: f64,
-    #[nom(Parse = "Utils::le_u16_div100")]
+    #[nom(Parse = "Utils::le_u16_div10")]
     pub max_dischg_curr: f64,
     #[nom(Parse = "Utils::le_u16_div10")]
     pub charge_volt_ref: f64,
@@ -198,6 +198,22 @@ pub struct ReadInputAll {
     pub e_gen_day: f64,
     #[nom(Parse = "Utils::le_u32_div10")]
     pub e_gen_all: f64,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub v_eps_l1: f64,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub v_eps_l2: f64,
+    pub p_eps_l1: u16,
+    pub p_eps_l2: u16,
+    pub s_eps_l1: u16,
+    pub s_eps_l2: u16,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub e_eps_l1_day: f64,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub e_eps_l2_day: f64,
+    #[nom(Parse = "Utils::le_u32_div10")]
+    pub e_eps_l1_all: f64,
+    #[nom(Parse = "Utils::le_u32_div10")]
+    pub e_eps_l2_all: f64,
 
     // EPS data; unsure what this is
 
@@ -422,6 +438,22 @@ pub struct ReadInput4 {
     pub e_gen_day: f64,
     #[nom(Parse = "Utils::le_u32_div10")]
     pub e_gen_all: f64,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub v_eps_l1: f64,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub v_eps_l2: f64,
+    pub p_eps_l1: u16,
+    pub p_eps_l2: u16,
+    pub s_eps_l1: u16,
+    pub s_eps_l2: u16,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub e_eps_l1_day: f64,
+    #[nom(Parse = "Utils::le_u16_div10")]
+    pub e_eps_l2_day: f64,
+    #[nom(Parse = "Utils::le_u32_div10")]
+    pub e_eps_l1_all: f64,
+    #[nom(Parse = "Utils::le_u32_div10")]
+    pub e_eps_l2_all: f64,
     // EPS data; unsure what this is
     #[nom(Ignore)]
     pub datalog: Serial,
@@ -552,6 +584,16 @@ impl ReadInputs {
                 p_gen: ri4.p_gen,
                 e_gen_day: ri4.e_gen_day,
                 e_gen_all: ri4.e_gen_all,
+                v_eps_l1: ri4.v_eps_l1,
+                v_eps_l2: ri4.v_eps_l2,
+                p_eps_l1: ri4.p_eps_l1,
+                p_eps_l2: ri4.p_eps_l2,
+                s_eps_l1: ri4.s_eps_l1,
+                s_eps_l2: ri4.s_eps_l2,
+                e_eps_l1_day: ri4.e_eps_l1_day,
+                e_eps_l2_day: ri4.e_eps_l2_day,
+                e_eps_l1_all: ri4.e_eps_l1_all,
+                e_eps_l2_all: ri4.e_eps_l2_all,
                 datalog: ri1.datalog,
                 time: ri1.time.clone(),
             }),
