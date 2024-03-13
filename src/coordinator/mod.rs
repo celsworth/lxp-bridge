@@ -365,8 +365,21 @@ impl Coordinator {
                     self.cache_register(register_cache::Register::Input(register), value)?;
                 }
 
-                let t = lxp::register_parser::ParseInputs::new(td.pairs());
-                let _ = t.parse();
+                // temp bodge to get parsed messages on MQTT
+                if self.config.mqtt().enabled() {
+                    let t = lxp::register_parser::ParseInputs::new(td.pairs());
+                    for (key, parsed_value) in t.parse()? {
+                        let m = mqtt::Message {
+                            topic: format!("{}/input/{}", td.datalog, key),
+                            retain: false,
+                            payload: parsed_value.to_string(),
+                        };
+                        let channel_data = mqtt::ChannelData::Message(m);
+                        if self.channels.to_mqtt.send(channel_data).is_err() {
+                            bail!("send(to_mqtt) failed - channel closed?");
+                        }
+                    }
+                }
 
                 let entry = inputs_store
                     .entry(td.datalog)
@@ -507,9 +520,7 @@ impl Coordinator {
         Ok(())
     }
 
-    fn packet_to_messages(
-        packet: Packet
-    ) -> Result<Vec<mqtt::Message>> {
+    fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
         match packet {
             Packet::Heartbeat(_) => Ok(Vec::new()), // always no message
             Packet::TranslatedData(td) => match td.device_function {

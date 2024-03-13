@@ -9,6 +9,16 @@ pub enum ParsedValue {
     String(&'static str),
 }
 
+impl ParsedValue {
+    pub fn to_string(&self) -> String {
+        match self {
+            Self::Integer(i) => i.to_string(),
+            Self::Float(f) => f.to_string(),
+            Self::String(s) => s.to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ParseInputs {
     pairs: Vec<(u16, u16)>,
@@ -151,9 +161,15 @@ impl ParseInputs {
                 132 => vec![("s_eps_l2", Self::parse_u32_1(v))],
                 133 => vec![("e_eps_l1_day", Self::parse_f64_1(v, 10))],
                 134 => vec![("e_eps_l2_day", Self::parse_f64_1(v, 10))],
-                135 => vec![("e_eps_l1_all", Self::parse_f64_2(v, self.value_for(136), 10))],
+                135 => vec![(
+                    "e_eps_l1_all",
+                    Self::parse_f64_2(v, self.value_for(136), 10),
+                )],
                 136 => vec![], // done in 135
-                137 => vec![("e_eps_l2_all", Self::parse_f64_2(v, self.value_for(138), 10))],
+                137 => vec![(
+                    "e_eps_l2_all",
+                    Self::parse_f64_2(v, self.value_for(138), 10),
+                )],
                 138 => vec![], // done in 137
 
                 139..=255 => vec![], // ignore everything else for now
