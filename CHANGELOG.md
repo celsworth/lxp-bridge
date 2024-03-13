@@ -1,6 +1,7 @@
 # 0.99.0 (road-to-1-0 branch)
 
 * Cache Hold/Input registers internally as they're seen for later use (#248)
+* Remove publish_individual_input configuration option (now they always are) (#250)
 
 
 

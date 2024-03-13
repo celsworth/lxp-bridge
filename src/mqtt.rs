@@ -73,69 +73,64 @@ impl Message {
         })
     }
 
-    pub fn for_input(
-        td: lxp::packet::TranslatedData,
-        publish_individual: bool,
-    ) -> Result<Vec<Message>> {
+    pub fn for_input(td: lxp::packet::TranslatedData) -> Result<Vec<Message>> {
         use lxp::packet::ReadInput;
 
         let mut r = Vec::new();
 
-        if publish_individual {
-            let mut fault_code_registers_seen = false;
-            let mut fault_code = 0;
-            let mut warning_code_registers_seen = false;
-            let mut warning_code = 0;
+        let mut fault_code_registers_seen = false;
+        let mut fault_code = 0;
+        let mut warning_code_registers_seen = false;
+        let mut warning_code = 0;
 
-            for (register, value) in td.pairs() {
+        for (register, value) in td.pairs() {
+            r.push(mqtt::Message {
+                topic: format!("{}/input/{}", td.datalog, register),
+                retain: false,
+                payload: serde_json::to_string(&value)?,
+            });
+
+            if register == 0 {
                 r.push(mqtt::Message {
-                    topic: format!("{}/input/{}", td.datalog, register),
+                    topic: format!("{}/input/{}/parsed", td.datalog, register),
                     retain: false,
-                    payload: serde_json::to_string(&value)?,
-                });
-
-                if register == 0 {
-                    r.push(mqtt::Message {
-                        topic: format!("{}/input/{}/parsed", td.datalog, register),
-                        retain: false,
-                        payload: lxp::packet::StatusString::from_value(value).to_owned(),
-                    });
-                }
-
-                if register == 60 {
-                    fault_code |= value as u32;
-                    fault_code_registers_seen = true;
-                }
-                if register == 61 {
-                    fault_code |= (value as u32) << 16;
-                    fault_code_registers_seen = true;
-                }
-
-                if register == 62 {
-                    warning_code |= value as u32;
-                    warning_code_registers_seen = true;
-                }
-                if register == 63 {
-                    warning_code |= (value as u32) << 16;
-                    warning_code_registers_seen = true;
-                }
-            }
-
-            if warning_code_registers_seen {
-                r.push(mqtt::Message {
-                    topic: format!("{}/input/warning_code/parsed", td.datalog),
-                    retain: false,
-                    payload: lxp::packet::WarningCodeString::from_value(warning_code).to_owned(),
+                    payload: lxp::packet::StatusString::from_value(value).to_owned(),
                 });
             }
 
-            if fault_code_registers_seen {
-                r.push(mqtt::Message {
-                    topic: format!("{}/input/fault_code/parsed", td.datalog),
-                    retain: false,
-                    payload: lxp::packet::FaultCodeString::from_value(fault_code).to_owned(),
-                });
+            if register == 60 {
+                fault_code |= value as u32;
+                fault_code_registers_seen = true;
             }
+            if register == 61 {
+                fault_code |= (value as u32) << 16;
+                fault_code_registers_seen = true;
+            }
+
+            if register == 62 {
+                warning_code |= value as u32;
+                warning_code_registers_seen = true;
+            }
+            if register == 63 {
+                warning_code |= (value as u32) << 16;
+                warning_code_registers_seen = true;
+            }
+        }
+
+        if warning_code_registers_seen {
+            r.push(mqtt::Message {
+                topic: format!("{}/input/warning_code/parsed", td.datalog),
+                retain: false,
+                payload: lxp::packet::WarningCodeString::from_value(warning_code).to_owned(),
+            });
+        }
+
+        if fault_code_registers_seen {
+            r.push(mqtt::Message {
+                topic: format!("{}/input/fault_code/parsed", td.datalog),
+                retain: false,
+                payload: lxp::packet::FaultCodeString::from_value(fault_code).to_owned(),
+            });
         }
 
         match td.read_input() {
