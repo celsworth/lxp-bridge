@@ -9,6 +9,7 @@ pub mod lxp;
 pub mod mqtt;
 pub mod options;
 pub mod prelude;
+pub mod register_cache;
 pub mod scheduler;
 pub mod unixtime;
 pub mod utils;
@@ -47,6 +48,7 @@ pub async fn app() -> Result<()> {
     let scheduler = Scheduler::new(config.clone(), channels.clone());
     let mqtt = Mqtt::new(config.clone(), channels.clone());
     let influx = Influx::new(config.clone(), channels.clone());
+    let register_cache = RegisterCache::new(channels.clone());
     let coordinator = Coordinator::new(config.clone(), channels.clone());
 
     let inverters = config
@@ -67,6 +69,7 @@ pub async fn app() -> Result<()> {
         scheduler.start(),
         mqtt.start(),
         influx.start(),
+        register_cache.start(),
         coordinator.start()
     )?;
 

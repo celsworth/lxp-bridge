@@ -11,8 +11,6 @@ pub enum ChannelData {
     Shutdown,
 }
 
-pub type Sender = broadcast::Sender<ChannelData>;
-
 pub struct Influx {
     config: ConfigWrapper,
     channels: Channels,

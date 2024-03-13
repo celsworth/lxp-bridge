@@ -39,13 +39,8 @@ impl Coordinator {
     async fn mqtt_receiver(&self) -> Result<()> {
         let mut receiver = self.channels.from_mqtt.subscribe();
 
-        loop {
-            match receiver.recv().await? {
-                mqtt::ChannelData::Shutdown => break,
-                mqtt::ChannelData::Message(message) => {
-                    let _ = self.process_message(message).await;
-                }
-            }
+        while let mqtt::ChannelData::Message(message) = receiver.recv().await? {
+            let _ = self.process_message(message).await;
         }
 
         Ok(())
@@ -397,6 +392,14 @@ impl Coordinator {
                         }
                     }
                     Err(x) => warn!("ignoring {:?}", x),
+                }
+            } else if td.device_function == DeviceFunction::ReadHold
+                || td.device_function == DeviceFunction::WriteSingle
+            {
+                let channel_data =
+                    register_cache::ChannelData::RegisterData(td.register, td.value());
+                if self.channels.to_register_cache.send(channel_data).is_err() {
+                    bail!("send(to_register_cache) failed - channel closed?");
                 }
             }
         }

@@ -9,7 +9,7 @@ pub use std::{
 pub use {
     anyhow::{anyhow, bail, Error, Result},
     log::{debug, error, info, trace, warn},
-    tokio::sync::broadcast,
+    tokio::sync::{broadcast, oneshot},
 };
 
 pub use crate::{
@@ -27,6 +27,7 @@ pub use crate::{
     },
     mqtt::{self, Mqtt},
     options::Options,
+    register_cache::{self, RegisterCache},
     scheduler::Scheduler,
     unixtime::UnixTime,
     utils::Utils,

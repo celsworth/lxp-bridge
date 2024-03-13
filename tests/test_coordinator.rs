@@ -20,6 +20,7 @@ async fn publishes_read_hold_mqtt() {
         let mut to_influx = channels.to_influx.subscribe();
         let mut to_mqtt = channels.to_mqtt.subscribe();
         let mut to_db = channels.to_database.subscribe();
+        let mut to_register_cache = channels.to_register_cache.subscribe();
 
         // simulate ReadHold in from inverter
         let packet = Packet::TranslatedData(lxp::packet::TranslatedData {
@@ -32,6 +33,14 @@ async fn publishes_read_hold_mqtt() {
         channels
             .from_inverter
             .send(lxp::inverter::ChannelData::Packet(packet.clone()))?;
+
+        // verify register_cache is set
+        let register_cache::ChannelData::RegisterData(a, b) = to_register_cache.recv().await?
+        else {
+            unreachable!()
+        };
+        assert_eq!(a, 12);
+        assert_eq!(b, 1558);
 
         // verify MQTT output
         assert_eq!(
@@ -126,6 +135,7 @@ async fn complete_path_read_hold_command() {
     let tf = async {
         let mut to_inverter = channels.to_inverter.subscribe();
         let mut to_mqtt = channels.to_mqtt.subscribe();
+        let mut to_register_cache = channels.to_register_cache.subscribe();
 
         // simulate:
         //   mqtt incoming "read this hold" command
@@ -182,6 +192,14 @@ async fn complete_path_read_hold_command() {
                 payload: "OK".to_owned()
             })
         );
+
+        // verify register_cache is set
+        let register_cache::ChannelData::RegisterData(a, b) = to_register_cache.recv().await?
+        else {
+            unreachable!()
+        };
+        assert_eq!(a, 12);
+        assert_eq!(b, 1558);
 
         coordinator.stop();
 
