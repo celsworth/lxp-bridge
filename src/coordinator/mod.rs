@@ -365,6 +365,9 @@ impl Coordinator {
                     self.cache_register(register_cache::Register::Input(register), value)?;
                 }
 
+                let t = lxp::register_parser::ParseInputs::new(td.pairs());
+                let _ = t.parse();
+
                 let entry = inputs_store
                     .entry(td.datalog)
                     .or_insert_with(ReadInputs::default);
