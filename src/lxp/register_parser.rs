@@ -104,7 +104,59 @@ impl ParseInputs {
                 68 => vec![], // reserved
                 69 => vec![("runtime", Self::parse_u32_2(v, self.value_for(70)))],
                 70 => vec![],      // done in 69
-                71..=79 => vec![], // TODO
+                71..=79 => vec![], // TODO, rest of ReadInput2
+
+                80 => vec![], // bat_brand & bat_com_type
+                81 => vec![("max_chg_curr", Self::parse_f64_1(v, 100))],
+                82 => vec![("max_dischg_curr", Self::parse_f64_1(v, 100))],
+                83 => vec![("charge_volt_ref", Self::parse_f64_1(v, 10))],
+                84 => vec![("dischg_cut_volt", Self::parse_f64_1(v, 10))],
+                85 => vec![("bat_status_0", Self::parse_u32_1(v))],
+                86 => vec![("bat_status_1", Self::parse_u32_1(v))],
+                87 => vec![("bat_status_2", Self::parse_u32_1(v))],
+                88 => vec![("bat_status_3", Self::parse_u32_1(v))],
+                89 => vec![("bat_status_4", Self::parse_u32_1(v))],
+                90 => vec![("bat_status_5", Self::parse_u32_1(v))],
+                91 => vec![("bat_status_6", Self::parse_u32_1(v))],
+                92 => vec![("bat_status_7", Self::parse_u32_1(v))],
+                93 => vec![("bat_status_8", Self::parse_u32_1(v))],
+                94 => vec![("bat_status_9", Self::parse_u32_1(v))],
+                95 => vec![("bat_status_inv", Self::parse_u32_1(v))],
+                96 => vec![("bat_count", Self::parse_u32_1(v))],
+                97 => vec![("bat_capacity", Self::parse_u32_1(v))],
+                98 => vec![("bat_current", Self::parse_f64_1(v, 100))],
+                99 => vec![("bms_event_1", Self::parse_u32_1(v))],
+                100 => vec![("bms_event_2", Self::parse_u32_1(v))],
+                101 => vec![("max_cell_voltage", Self::parse_f64_1(v, 1000))],
+                102 => vec![("min_cell_voltage", Self::parse_f64_1(v, 1000))],
+                103 => vec![("max_cell_temp", Self::parse_f64_1(v, 10))],
+                104 => vec![("min_cell_temp", Self::parse_f64_1(v, 10))],
+                105 => vec![("bms_fw_update_state", Self::parse_u32_1(v))],
+                106 => vec![("cycle_count", Self::parse_u32_1(v))],
+                107 => vec![("vbat_inv", Self::parse_f64_1(v, 10))],
+                108..=119 => vec![], // TODO, rest of ReadInput3
+
+                120 => vec![], // half bus voltage?
+                121 => vec![("v_gen", Self::parse_f64_1(v, 10))],
+                122 => vec![("f_gen", Self::parse_f64_1(v, 100))],
+                123 => vec![("p_gen", Self::parse_u32_1(v))],
+                124 => vec![("e_gen_day", Self::parse_f64_1(v, 10))],
+                125 => vec![("e_gen_all", Self::parse_f64_2(v, self.value_for(126), 10))],
+                126 => vec![], // done in 125
+                127 => vec![("v_eps_l1", Self::parse_f64_1(v, 10))],
+                128 => vec![("v_eps_l2", Self::parse_f64_1(v, 10))],
+                129 => vec![("p_eps_l1", Self::parse_u32_1(v))],
+                130 => vec![("p_eps_l2", Self::parse_u32_1(v))],
+                131 => vec![("s_eps_l1", Self::parse_u32_1(v))],
+                132 => vec![("s_eps_l2", Self::parse_u32_1(v))],
+                133 => vec![("e_eps_l1_day", Self::parse_f64_1(v, 10))],
+                134 => vec![("e_eps_l2_day", Self::parse_f64_1(v, 10))],
+                135 => vec![("e_eps_l1_all", Self::parse_f64_2(v, self.value_for(136), 10))],
+                136 => vec![], // done in 135
+                137 => vec![("e_eps_l2_all", Self::parse_f64_2(v, self.value_for(138), 10))],
+                138 => vec![], // done in 137
+
+                139..=255 => vec![], // ignore everything else for now
 
                 _ => bail!("unhandled register {}", r),
             };
