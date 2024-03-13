@@ -361,6 +361,10 @@ impl Coordinator {
             if td.device_function == DeviceFunction::ReadInput {
                 use lxp::packet::{ReadInput, ReadInputs};
 
+                for (register, value) in td.pairs() {
+                    self.cache_register(register_cache::Register::Input(register), value)?;
+                }
+
                 let entry = inputs_store
                     .entry(td.datalog)
                     .or_insert_with(ReadInputs::default);
@@ -396,10 +400,8 @@ impl Coordinator {
             } else if td.device_function == DeviceFunction::ReadHold
                 || td.device_function == DeviceFunction::WriteSingle
             {
-                let channel_data =
-                    register_cache::ChannelData::RegisterData(td.register, td.value());
-                if self.channels.to_register_cache.send(channel_data).is_err() {
-                    bail!("send(to_register_cache) failed - channel closed?");
+                for (register, value) in td.pairs() {
+                    self.cache_register(register_cache::Register::Hold(register), value)?;
                 }
             }
         }
@@ -517,5 +519,15 @@ impl Coordinator {
             Packet::ReadParam(rp) => mqtt::Message::for_param(rp),
             Packet::WriteParam(_) => Ok(Vec::new()), // ignoring for now
         }
+    }
+
+    fn cache_register(&self, register: register_cache::Register, value: u16) -> Result<()> {
+        let channel_data = register_cache::ChannelData::RegisterData(register, value);
+
+        if self.channels.to_register_cache.send(channel_data).is_err() {
+            bail!("send(to_register_cache) failed - channel closed?");
+        }
+
+        Ok(())
     }
 }

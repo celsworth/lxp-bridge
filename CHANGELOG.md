@@ -1,4 +1,10 @@
-# Unreleased
+# 0.99.0 (road-to-1-0 branch)
+
+* Cache Hold/Input registers internally as they're seen for later use (#248)
+
+
+
+# Unreleased (rolled into 0.99.0)
 
 * Reconnect to inverter after 15 minutes of not receiving any data (#223)
 * Fix max/min cell temperature/voltage decoding as reported from BMS (#227)
