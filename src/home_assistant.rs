@@ -146,13 +146,7 @@ impl Config {
             unit_of_measurement: None,
             icon: None,
             value_template: ValueTemplate::Default, // "{{ value_json.$key }}"
-            // TODO: might change this to an enum that defaults to InputsAll but can be replaced
-            // with a string for a specific topic?
-            state_topic: &format!(
-                "{}/{}/inputs/all",
-                self.mqtt_config.namespace(),
-                self.inverter.datalog()
-            ),
+            state_topic: &String::default(),
             device: self.device(),
             availability: self.availability(),
         };
@@ -206,11 +200,6 @@ impl Config {
             Entity {
                 key: "status",
                 name: "Status",
-                state_topic: &format!(
-                    "{}/{}/input/0/parsed",
-                    self.mqtt_config.namespace(),
-                    self.inverter.datalog()
-                ),
                 value_template: ValueTemplate::None,
                 ..base.clone()
             },
@@ -226,11 +215,6 @@ impl Config {
                 key: "fault_code",
                 name: "Fault Code",
                 entity_category: Some("diagnostic"),
-                state_topic: &format!(
-                    "{}/{}/input/fault_code/parsed",
-                    self.mqtt_config.namespace(),
-                    self.inverter.datalog()
-                ),
                 value_template: ValueTemplate::None,
                 icon: Some("mdi:alert"),
                 ..base.clone()
@@ -239,11 +223,6 @@ impl Config {
                 key: "warning_code",
                 name: "Warning Code",
                 entity_category: Some("diagnostic"),
-                state_topic: &format!(
-                    "{}/{}/input/warning_code/parsed",
-                    self.mqtt_config.namespace(),
-                    self.inverter.datalog()
-                ),
                 value_template: ValueTemplate::None,
                 icon: Some("mdi:alert-outline"),
                 ..base.clone()
@@ -615,6 +594,13 @@ impl Config {
                 // fill in unique_id and value_template (if default) which are derived from key
                 let mut sensor = Entity {
                     unique_id: &self.unique_id(sensor.key),
+                    state_topic: &format!(
+                        "{}/{}/input/{}/parsed",
+                        self.mqtt_config.namespace(),
+                        self.inverter.datalog(),
+                        sensor.key
+                    ),
+
                     ..sensor
                 };
                 if sensor.value_template.is_default() {
