@@ -269,7 +269,6 @@ impl Parser {
             start: format!("{:02}:{:02}", start[0], start[1]),
             end: format!("{:02}:{:02}", end[0], end[1]),
         };
-        debug!("{:?}", payload);
 
         Ok(ParsedValue::StringOwned(serde_json::to_string(&payload)?))
     }
