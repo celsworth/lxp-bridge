@@ -355,31 +355,41 @@ impl Coordinator {
                 warn!("got a Param packet! {:?}", td);
             }
 
+            match td.device_function {
+                DeviceFunction::WriteMulti => {}
+                DeviceFunction::ReadInput => {
+                    for (register, value) in td.pairs() {
+                        self.cache_register(register_cache::Register::Input(register), value)?;
+                    }
+
+                    // temp bodge to get parsed messages on MQTT
+                    if self.config.mqtt().enabled() {
+                        let parser = lxp::register_parser::ParseInputs::new(td.pairs());
+                        for (key, parsed_value) in parser.parse_inputs()? {
+                            let m = mqtt::Message {
+                                topic: format!("{}/input/{}", td.datalog, key),
+                                retain: false,
+                                payload: parsed_value.to_string(),
+                            };
+                            let channel_data = mqtt::ChannelData::Message(m);
+                            if self.channels.to_mqtt.send(channel_data).is_err() {
+                                bail!("send(to_mqtt) failed - channel closed?");
+                            }
+                        }
+                    }
+                }
+                DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
+                    for (register, value) in td.pairs() {
+                        self.cache_register(register_cache::Register::Hold(register), value)?;
+                    }
+                }
+            }
+
             // inputs_store handling. If we've received any ReadInput, update inputs_store
             // with the contents. If we got the third (of three) packets, send out the combined
             // MQTT message with all the data.
             if td.device_function == DeviceFunction::ReadInput {
                 use lxp::packet::{ReadInput, ReadInputs};
-
-                for (register, value) in td.pairs() {
-                    self.cache_register(register_cache::Register::Input(register), value)?;
-                }
-
-                // temp bodge to get parsed messages on MQTT
-                if self.config.mqtt().enabled() {
-                    let t = lxp::register_parser::ParseInputs::new(td.pairs());
-                    for (key, parsed_value) in t.parse_inputs()? {
-                        let m = mqtt::Message {
-                            topic: format!("{}/input/{}", td.datalog, key),
-                            retain: false,
-                            payload: parsed_value.to_string(),
-                        };
-                        let channel_data = mqtt::ChannelData::Message(m);
-                        if self.channels.to_mqtt.send(channel_data).is_err() {
-                            bail!("send(to_mqtt) failed - channel closed?");
-                        }
-                    }
-                }
 
                 let entry = inputs_store
                     .entry(td.datalog)
@@ -412,12 +422,6 @@ impl Coordinator {
                         }
                     }
                     Err(x) => warn!("ignoring {:?}", x),
-                }
-            } else if td.device_function == DeviceFunction::ReadHold
-                || td.device_function == DeviceFunction::WriteSingle
-            {
-                for (register, value) in td.pairs() {
-                    self.cache_register(register_cache::Register::Hold(register), value)?;
                 }
             }
         }
