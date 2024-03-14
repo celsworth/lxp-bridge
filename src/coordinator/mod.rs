@@ -368,7 +368,7 @@ impl Coordinator {
                 // temp bodge to get parsed messages on MQTT
                 if self.config.mqtt().enabled() {
                     let t = lxp::register_parser::ParseInputs::new(td.pairs());
-                    for (key, parsed_value) in t.parse()? {
+                    for (key, parsed_value) in t.parse_inputs()? {
                         let m = mqtt::Message {
                             topic: format!("{}/input/{}", td.datalog, key),
                             retain: false,

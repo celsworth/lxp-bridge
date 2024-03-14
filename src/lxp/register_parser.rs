@@ -31,145 +31,133 @@ impl ParseInputs {
 
     // given a set of raw input registers from td.pairs(), decode what we can
     // and return a list of "JSON Key" -> ParsedValue
-    pub fn parse(&self) -> Result<Vec<(&'static str, ParsedValue)>> {
+    pub fn parse_inputs(&self) -> Result<Vec<(&'static str, ParsedValue)>> {
         let mut ret = vec![];
 
         for (r, v) in self.pairs.clone() {
             let e = match r {
-                0 => vec![("status", Self::parse_status(v))],
-                1 => vec![("v_pv_1", Self::parse_f64_1(v, 10))],
-                2 => vec![("v_pv_2", Self::parse_f64_1(v, 10))],
-                3 => vec![("v_pv_3", Self::parse_f64_1(v, 10))],
-                4 => vec![("v_bat", Self::parse_f64_1(v, 10))],
-                5 => vec![("soc", Self::parse_u32_l(v)), ("soh", Self::parse_u32_h(v))],
+                0 => vec![("status", self.parse_status(v))],
+                1 => vec![("v_pv_1", self.parse_f64_1(v, 10))],
+                2 => vec![("v_pv_2", self.parse_f64_1(v, 10))],
+                3 => vec![("v_pv_3", self.parse_f64_1(v, 10))],
+                4 => vec![("v_bat", self.parse_f64_1(v, 10))],
+                5 => vec![("soc", self.parse_u32_l(v)), ("soh", self.parse_u32_h(v))],
                 6 => vec![], // reserved
-                7 => vec![("p_pv_1", Self::parse_u32_1(v))],
-                8 => vec![("p_pv_2", Self::parse_u32_1(v))],
-                9 => vec![("p_pv_3", Self::parse_u32_1(v))],
-                10 => vec![("p_charge", Self::parse_u32_1(v))],
-                11 => vec![("p_discharge", Self::parse_u32_1(v))],
-                12 => vec![("v_ac_r", Self::parse_f64_1(v, 10))],
-                13 => vec![("v_ac_s", Self::parse_f64_1(v, 10))],
-                14 => vec![("v_ac_t", Self::parse_f64_1(v, 10))],
-                15 => vec![("f_ac", Self::parse_f64_1(v, 100))],
-                16 => vec![("p_inv", Self::parse_u32_1(v))],
-                17 => vec![("p_rec", Self::parse_u32_1(v))],
+                7 => vec![("p_pv_1", self.parse_u32_1(v))],
+                8 => vec![("p_pv_2", self.parse_u32_1(v))],
+                9 => vec![("p_pv_3", self.parse_u32_1(v))],
+                10 => vec![("p_charge", self.parse_u32_1(v))],
+                11 => vec![("p_discharge", self.parse_u32_1(v))],
+                12 => vec![("v_ac_r", self.parse_f64_1(v, 10))],
+                13 => vec![("v_ac_s", self.parse_f64_1(v, 10))],
+                14 => vec![("v_ac_t", self.parse_f64_1(v, 10))],
+                15 => vec![("f_ac", self.parse_f64_1(v, 100))],
+                16 => vec![("p_inv", self.parse_u32_1(v))],
+                17 => vec![("p_rec", self.parse_u32_1(v))],
                 18 => vec![], // IinvRMS, 0.01A
-                19 => vec![("pf", Self::parse_f64_1(v, 1000))],
-                20 => vec![("v_eps_r", Self::parse_f64_1(v, 10))],
-                21 => vec![("v_eps_s", Self::parse_f64_1(v, 10))],
-                22 => vec![("v_eps_t", Self::parse_f64_1(v, 10))],
-                23 => vec![("f_eps", Self::parse_f64_1(v, 100))],
-                24 => vec![("p_eps", Self::parse_u32_1(v))],
-                25 => vec![("s_eps", Self::parse_u32_1(v))],
-                26 => vec![("p_to_grid", Self::parse_u32_1(v))],
-                27 => vec![("p_to_user", Self::parse_u32_1(v))],
-                28 => vec![("e_pv_day_1", Self::parse_f64_1(v, 10))],
-                29 => vec![("e_pv_day_2", Self::parse_f64_1(v, 10))],
-                30 => vec![("e_pv_day_3", Self::parse_f64_1(v, 10))],
-                31 => vec![("e_inv_day", Self::parse_f64_1(v, 10))],
-                32 => vec![("e_rec_day", Self::parse_f64_1(v, 10))],
-                33 => vec![("e_chg_day", Self::parse_f64_1(v, 10))],
-                34 => vec![("e_dischg_day", Self::parse_f64_1(v, 10))],
-                35 => vec![("e_eps_day", Self::parse_f64_1(v, 10))],
-                36 => vec![("e_to_grid_day", Self::parse_f64_1(v, 10))],
-                37 => vec![("e_to_user_day", Self::parse_f64_1(v, 10))],
-                38 => vec![("v_bus_1", Self::parse_f64_1(v, 10))],
-                39 => vec![("v_bus_2", Self::parse_f64_1(v, 10))],
+                19 => vec![("pf", self.parse_f64_1(v, 1000))],
+                20 => vec![("v_eps_r", self.parse_f64_1(v, 10))],
+                21 => vec![("v_eps_s", self.parse_f64_1(v, 10))],
+                22 => vec![("v_eps_t", self.parse_f64_1(v, 10))],
+                23 => vec![("f_eps", self.parse_f64_1(v, 100))],
+                24 => vec![("p_eps", self.parse_u32_1(v))],
+                25 => vec![("s_eps", self.parse_u32_1(v))],
+                26 => vec![("p_to_grid", self.parse_u32_1(v))],
+                27 => vec![("p_to_user", self.parse_u32_1(v))],
+                28 => vec![("e_pv_day_1", self.parse_f64_1(v, 10))],
+                29 => vec![("e_pv_day_2", self.parse_f64_1(v, 10))],
+                30 => vec![("e_pv_day_3", self.parse_f64_1(v, 10))],
+                31 => vec![("e_inv_day", self.parse_f64_1(v, 10))],
+                32 => vec![("e_rec_day", self.parse_f64_1(v, 10))],
+                33 => vec![("e_chg_day", self.parse_f64_1(v, 10))],
+                34 => vec![("e_dischg_day", self.parse_f64_1(v, 10))],
+                35 => vec![("e_eps_day", self.parse_f64_1(v, 10))],
+                36 => vec![("e_to_grid_day", self.parse_f64_1(v, 10))],
+                37 => vec![("e_to_user_day", self.parse_f64_1(v, 10))],
+                38 => vec![("v_bus_1", self.parse_f64_1(v, 10))],
+                39 => vec![("v_bus_2", self.parse_f64_1(v, 10))],
 
-                40 => vec![("e_pv_all_1", Self::parse_f64_2(v, self.value_for(41), 10))],
+                40 => vec![("e_pv_all_1", self.parse_f64_2(v, self.value_for(41), 10))],
                 41 => vec![], // done in 40
-                42 => vec![("e_pv_all_2", Self::parse_f64_2(v, self.value_for(43), 10))],
+                42 => vec![("e_pv_all_2", self.parse_f64_2(v, self.value_for(43), 10))],
                 43 => vec![], // done in 42
-                44 => vec![("e_pv_all_3", Self::parse_f64_2(v, self.value_for(45), 10))],
+                44 => vec![("e_pv_all_3", self.parse_f64_2(v, self.value_for(45), 10))],
                 45 => vec![], // done in 44
-                46 => vec![("e_inv_all", Self::parse_f64_2(v, self.value_for(47), 10))],
+                46 => vec![("e_inv_all", self.parse_f64_2(v, self.value_for(47), 10))],
                 47 => vec![], // done in 46
-                48 => vec![("e_rec_all", Self::parse_f64_2(v, self.value_for(49), 10))],
+                48 => vec![("e_rec_all", self.parse_f64_2(v, self.value_for(49), 10))],
                 49 => vec![], // done in 48
-                50 => vec![("e_chg_all", Self::parse_f64_2(v, self.value_for(51), 10))],
+                50 => vec![("e_chg_all", self.parse_f64_2(v, self.value_for(51), 10))],
                 51 => vec![], // done in 40
-                52 => vec![("e_dischg_all", Self::parse_f64_2(v, self.value_for(53), 10))],
+                52 => vec![("e_dischg_all", self.parse_f64_2(v, self.value_for(53), 10))],
                 53 => vec![], // done in 52
-                54 => vec![("e_eps_all", Self::parse_f64_2(v, self.value_for(55), 10))],
+                54 => vec![("e_eps_all", self.parse_f64_2(v, self.value_for(55), 10))],
                 55 => vec![], // done in 54
-                56 => vec![(
-                    "e_to_grid_all",
-                    Self::parse_f64_2(v, self.value_for(57), 10),
-                )],
+                56 => vec![("e_to_grid_all", self.parse_f64_2(v, self.value_for(57), 10))],
                 57 => vec![], // done in 56
-                58 => vec![(
-                    "e_to_user_all",
-                    Self::parse_f64_2(v, self.value_for(59), 10),
-                )],
+                58 => vec![("e_to_user_all", self.parse_f64_2(v, self.value_for(59), 10))],
                 59 => vec![], // done in 58
-                60 => vec![("fault_code", Self::parse_fault(v, self.value_for(61)))],
+                60 => vec![("fault_code", self.parse_fault(v, self.value_for(61)))],
                 61 => vec![], // done in 60
-                62 => vec![("warning_code", Self::parse_warning(v, self.value_for(63)))],
+                62 => vec![("warning_code", self.parse_warning(v, self.value_for(63)))],
                 63 => vec![], // done in 62
-                64 => vec![("t_inner", Self::parse_u32_1(v))],
-                65 => vec![("t_rad_1", Self::parse_u32_1(v))],
-                66 => vec![("t_rad_2", Self::parse_u32_1(v))],
-                67 => vec![("t_bat", Self::parse_u32_1(v))],
+                64 => vec![("t_inner", self.parse_u32_1(v))],
+                65 => vec![("t_rad_1", self.parse_u32_1(v))],
+                66 => vec![("t_rad_2", self.parse_u32_1(v))],
+                67 => vec![("t_bat", self.parse_u32_1(v))],
                 68 => vec![], // reserved
-                69 => vec![("runtime", Self::parse_u32_2(v, self.value_for(70)))],
+                69 => vec![("runtime", self.parse_u32_2(v, self.value_for(70)))],
                 70 => vec![],      // done in 69
                 71..=79 => vec![], // TODO, rest of ReadInput2
 
                 80 => vec![], // bat_brand & bat_com_type
-                81 => vec![("max_chg_curr", Self::parse_f64_1(v, 100))],
-                82 => vec![("max_dischg_curr", Self::parse_f64_1(v, 100))],
-                83 => vec![("charge_volt_ref", Self::parse_f64_1(v, 10))],
-                84 => vec![("dischg_cut_volt", Self::parse_f64_1(v, 10))],
-                85 => vec![("bat_status_0", Self::parse_u32_1(v))],
-                86 => vec![("bat_status_1", Self::parse_u32_1(v))],
-                87 => vec![("bat_status_2", Self::parse_u32_1(v))],
-                88 => vec![("bat_status_3", Self::parse_u32_1(v))],
-                89 => vec![("bat_status_4", Self::parse_u32_1(v))],
-                90 => vec![("bat_status_5", Self::parse_u32_1(v))],
-                91 => vec![("bat_status_6", Self::parse_u32_1(v))],
-                92 => vec![("bat_status_7", Self::parse_u32_1(v))],
-                93 => vec![("bat_status_8", Self::parse_u32_1(v))],
-                94 => vec![("bat_status_9", Self::parse_u32_1(v))],
-                95 => vec![("bat_status_inv", Self::parse_u32_1(v))],
-                96 => vec![("bat_count", Self::parse_u32_1(v))],
-                97 => vec![("bat_capacity", Self::parse_u32_1(v))],
-                98 => vec![("bat_current", Self::parse_f64_1(v, 100))],
-                99 => vec![("bms_event_1", Self::parse_u32_1(v))],
-                100 => vec![("bms_event_2", Self::parse_u32_1(v))],
-                101 => vec![("max_cell_voltage", Self::parse_f64_1(v, 1000))],
-                102 => vec![("min_cell_voltage", Self::parse_f64_1(v, 1000))],
-                103 => vec![("max_cell_temp", Self::parse_f64_1(v, 10))],
-                104 => vec![("min_cell_temp", Self::parse_f64_1(v, 10))],
-                105 => vec![("bms_fw_update_state", Self::parse_u32_1(v))],
-                106 => vec![("cycle_count", Self::parse_u32_1(v))],
-                107 => vec![("vbat_inv", Self::parse_f64_1(v, 10))],
+                81 => vec![("max_chg_curr", self.parse_f64_1(v, 100))],
+                82 => vec![("max_dischg_curr", self.parse_f64_1(v, 100))],
+                83 => vec![("charge_volt_ref", self.parse_f64_1(v, 10))],
+                84 => vec![("dischg_cut_volt", self.parse_f64_1(v, 10))],
+                85 => vec![("bat_status_0", self.parse_u32_1(v))],
+                86 => vec![("bat_status_1", self.parse_u32_1(v))],
+                87 => vec![("bat_status_2", self.parse_u32_1(v))],
+                88 => vec![("bat_status_3", self.parse_u32_1(v))],
+                89 => vec![("bat_status_4", self.parse_u32_1(v))],
+                90 => vec![("bat_status_5", self.parse_u32_1(v))],
+                91 => vec![("bat_status_6", self.parse_u32_1(v))],
+                92 => vec![("bat_status_7", self.parse_u32_1(v))],
+                93 => vec![("bat_status_8", self.parse_u32_1(v))],
+                94 => vec![("bat_status_9", self.parse_u32_1(v))],
+                95 => vec![("bat_status_inv", self.parse_u32_1(v))],
+                96 => vec![("bat_count", self.parse_u32_1(v))],
+                97 => vec![("bat_capacity", self.parse_u32_1(v))],
+                98 => vec![("bat_current", self.parse_f64_1(v, 100))],
+                99 => vec![("bms_event_1", self.parse_u32_1(v))],
+                100 => vec![("bms_event_2", self.parse_u32_1(v))],
+                101 => vec![("max_cell_voltage", self.parse_f64_1(v, 1000))],
+                102 => vec![("min_cell_voltage", self.parse_f64_1(v, 1000))],
+                103 => vec![("max_cell_temp", self.parse_f64_1(v, 10))],
+                104 => vec![("min_cell_temp", self.parse_f64_1(v, 10))],
+                105 => vec![("bms_fw_update_state", self.parse_u32_1(v))],
+                106 => vec![("cycle_count", self.parse_u32_1(v))],
+                107 => vec![("vbat_inv", self.parse_f64_1(v, 10))],
                 108..=119 => vec![], // TODO, rest of ReadInput3
 
                 120 => vec![], // half bus voltage?
-                121 => vec![("v_gen", Self::parse_f64_1(v, 10))],
-                122 => vec![("f_gen", Self::parse_f64_1(v, 100))],
-                123 => vec![("p_gen", Self::parse_u32_1(v))],
-                124 => vec![("e_gen_day", Self::parse_f64_1(v, 10))],
-                125 => vec![("e_gen_all", Self::parse_f64_2(v, self.value_for(126), 10))],
+                121 => vec![("v_gen", self.parse_f64_1(v, 10))],
+                122 => vec![("f_gen", self.parse_f64_1(v, 100))],
+                123 => vec![("p_gen", self.parse_u32_1(v))],
+                124 => vec![("e_gen_day", self.parse_f64_1(v, 10))],
+                125 => vec![("e_gen_all", self.parse_f64_2(v, self.value_for(126), 10))],
                 126 => vec![], // done in 125
-                127 => vec![("v_eps_l1", Self::parse_f64_1(v, 10))],
-                128 => vec![("v_eps_l2", Self::parse_f64_1(v, 10))],
-                129 => vec![("p_eps_l1", Self::parse_u32_1(v))],
-                130 => vec![("p_eps_l2", Self::parse_u32_1(v))],
-                131 => vec![("s_eps_l1", Self::parse_u32_1(v))],
-                132 => vec![("s_eps_l2", Self::parse_u32_1(v))],
-                133 => vec![("e_eps_l1_day", Self::parse_f64_1(v, 10))],
-                134 => vec![("e_eps_l2_day", Self::parse_f64_1(v, 10))],
-                135 => vec![(
-                    "e_eps_l1_all",
-                    Self::parse_f64_2(v, self.value_for(136), 10),
-                )],
+                127 => vec![("v_eps_l1", self.parse_f64_1(v, 10))],
+                128 => vec![("v_eps_l2", self.parse_f64_1(v, 10))],
+                129 => vec![("p_eps_l1", self.parse_u32_1(v))],
+                130 => vec![("p_eps_l2", self.parse_u32_1(v))],
+                131 => vec![("s_eps_l1", self.parse_u32_1(v))],
+                132 => vec![("s_eps_l2", self.parse_u32_1(v))],
+                133 => vec![("e_eps_l1_day", self.parse_f64_1(v, 10))],
+                134 => vec![("e_eps_l2_day", self.parse_f64_1(v, 10))],
+                135 => vec![("e_eps_l1_all", self.parse_f64_2(v, self.value_for(136), 10))],
                 136 => vec![], // done in 135
-                137 => vec![(
-                    "e_eps_l2_all",
-                    Self::parse_f64_2(v, self.value_for(138), 10),
-                )],
+                137 => vec![("e_eps_l2_all", self.parse_f64_2(v, self.value_for(138), 10))],
                 138 => vec![], // done in 137
 
                 139..=255 => vec![], // ignore everything else for now
@@ -185,62 +173,64 @@ impl ParseInputs {
         Ok(ret)
     }
 
-    fn parse_status(value: u16) -> ParsedValue {
+    fn parse_status(&self, value: u16) -> ParsedValue {
         ParsedValue::String(StatusString::from_value(value))
     }
 
-    fn parse_fault(v1: u16, v2: u16) -> ParsedValue {
+    fn parse_fault(&self, v1: u16, v2: u16) -> ParsedValue {
         let value: u32 = (v1 as u32) | (v2 as u32) << 16;
         ParsedValue::String(FaultCodeString::from_value(value))
     }
 
-    fn parse_warning(v1: u16, v2: u16) -> ParsedValue {
+    fn parse_warning(&self, v1: u16, v2: u16) -> ParsedValue {
         let value: u32 = (v1 as u32) | (v2 as u32) << 16;
         ParsedValue::String(WarningCodeString::from_value(value))
     }
 
     // one register input, using low half, u32 output
-    fn parse_u32_l(v1: u16) -> ParsedValue {
+    fn parse_u32_l(&self, v1: u16) -> ParsedValue {
         let r: u32 = (v1 & 0xffff) as u32;
         ParsedValue::Integer(r)
     }
 
     // one register input, using high half, u32 output
-    fn parse_u32_h(v1: u16) -> ParsedValue {
+    fn parse_u32_h(&self, v1: u16) -> ParsedValue {
         let r: u32 = (v1 >> 8) as u32;
         ParsedValue::Integer(r)
     }
 
     // one register input, u32 output
-    fn parse_u32_1(v1: u16) -> ParsedValue {
+    fn parse_u32_1(&self, v1: u16) -> ParsedValue {
         let r: u32 = v1 as u32;
         ParsedValue::Integer(r)
     }
 
     // two register input, u32 output
-    fn parse_u32_2(v1: u16, v2: u16) -> ParsedValue {
+    fn parse_u32_2(&self, v1: u16, v2: u16) -> ParsedValue {
         let r: u32 = (v1 as u32) | (v2 as u32) << 16;
         ParsedValue::Integer(r)
     }
 
     // one register input, f64 output
-    fn parse_f64_1(v1: u16, divider: u32) -> ParsedValue {
+    fn parse_f64_1(&self, v1: u16, divider: u32) -> ParsedValue {
         let r: u32 = v1 as u32;
         ParsedValue::Float(r as f64 / divider as f64)
     }
 
     // two register input, f64 output
-    fn parse_f64_2(v1: u16, v2: u16, divider: u32) -> ParsedValue {
+    fn parse_f64_2(&self, v1: u16, v2: u16, divider: u32) -> ParsedValue {
         let r: u32 = (v1 as u32) | (v2 as u32) << 16;
         ParsedValue::Float(r as f64 / divider as f64)
     }
 
     fn value_for(&self, register: u16) -> u16 {
-        self.pairs
-            .clone()
-            .into_iter()
-            .find(|(r, _v)| *r == register)
-            .map_or(0, |(_r, v)| v)
+        for (r, v) in &self.pairs {
+            if *r == register {
+                return v.clone();
+            };
+        }
+
+        0
     }
 }
 
