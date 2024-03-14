@@ -269,11 +269,14 @@ impl Coordinator {
         commands::time_register_ops::SetTimeRegister::new(
             self.channels.clone(),
             inverter.clone(),
-            action,
+            action.clone(),
             values,
         )
         .run()
-        .await
+        .await?;
+
+        // after setting, issue a ReadTimeRegister so we can send a new message out
+        self.read_time_register(inverter, action).await
     }
 
     async fn set_hold<U>(&self, inverter: config::Inverter, register: U, value: u16) -> Result<()>
@@ -482,11 +485,11 @@ impl Coordinator {
         Ok(())
     }
 
-    fn publish_message(&self, topic: String, payload: String) -> Result<()> {
+    fn publish_message(&self, topic: String, payload: String, retain: bool) -> Result<()> {
         let m = mqtt::Message {
             topic,
             payload,
-            retain: false,
+            retain,
         };
         let channel_data = mqtt::ChannelData::Message(m);
         if self.channels.to_mqtt.send(channel_data).is_err() {
@@ -500,6 +503,7 @@ impl Coordinator {
             self.publish_message(
                 format!("{}/hold/{}", td.datalog, register),
                 serde_json::to_string(&value)?,
+                true,
             )?;
         }
 
@@ -511,6 +515,7 @@ impl Coordinator {
             self.publish_message(
                 format!("{}/input/{}", td.datalog, register),
                 serde_json::to_string(&value)?,
+                false,
             )?;
         }
 
@@ -523,15 +528,11 @@ impl Coordinator {
         parsed_inputs: &lxp::register_parser::ParsedData,
         topic_fragment: &str,
     ) -> Result<()> {
-        let m = mqtt::Message {
-            topic: format!("{}/inputs/{}", td.datalog, topic_fragment),
-            retain: false,
-            payload: serde_json::to_string(&parsed_inputs)?,
-        };
-        let channel_data = mqtt::ChannelData::Message(m);
-        if self.channels.to_mqtt.send(channel_data).is_err() {
-            bail!("send(to_mqtt) failed - channel closed?");
-        }
+        self.publish_message(
+            format!("{}/inputs/{}", td.datalog, topic_fragment),
+            serde_json::to_string(&parsed_inputs)?,
+            false,
+        )?;
 
         Ok(())
     }
@@ -545,6 +546,7 @@ impl Coordinator {
             self.publish_message(
                 format!("{}/input/{}/parsed", td.datalog, key),
                 parsed_value.to_string(),
+                false,
             )?;
         }
 
@@ -558,8 +560,11 @@ impl Coordinator {
     ) -> Result<()> {
         for (key, parsed_value) in parsed_inputs.clone() {
             self.publish_message(
-                format!("{}/hold/{}", td.datalog, key),
+                // no "hold" here, it's done in parse_holds if required!
+                // (some don't, like ac_charge/1)
+                format!("{}/{}", td.datalog, key),
                 parsed_value.to_string(),
+                true,
             )?;
         }
 

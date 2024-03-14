@@ -10,6 +10,7 @@
 * Remove publish_individual_input configuration option (now they always are) (#250)
 * Convert HA to use individual inputs messages (#253)
 * New configuration open publish_inputs_all_trigger (#256)
+* Move time register messages into new parser (start+end times for AC Charge etc) (#259)
 
 
 # 0.13.0 - 27th October 2023
