@@ -2,7 +2,7 @@
 
 * Cache Hold/Input registers internally as they're seen for later use (#248)
 * Remove publish_individual_input configuration option (now they always are) (#250)
-
+* BREAKING CHANGE (temporary, maybe): inputs/1 /2 /3 /all messages removed (#252)
 
 
 # Unreleased (rolled into 0.99.0)

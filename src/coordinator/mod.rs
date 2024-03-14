@@ -317,13 +317,10 @@ impl Coordinator {
 
         let mut receiver = self.channels.from_inverter.subscribe();
 
-        let mut inputs_store = InputsStore::new();
-
         loop {
             match receiver.recv().await? {
                 Packet(packet) => {
-                    self.process_inverter_packet(packet, &mut inputs_store)
-                        .await?;
+                    self.process_inverter_packet(packet).await?;
                 }
                 Connected(serial) => {
                     if let Err(e) = self.inverter_connected(serial).await {
@@ -339,11 +336,7 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn process_inverter_packet(
-        &self,
-        packet: lxp::packet::Packet,
-        inputs_store: &mut InputsStore,
-    ) -> Result<()> {
+    async fn process_inverter_packet(&self, packet: lxp::packet::Packet) -> Result<()> {
         debug!("RX: {:?}", packet);
 
         if let Packet::TranslatedData(td) = &packet {
@@ -364,6 +357,22 @@ impl Coordinator {
 
                     // temp bodge to get parsed messages on MQTT
                     if self.config.mqtt().enabled() {
+                        // publish raw messages
+                        for (register, value) in td.pairs() {
+                            let m = mqtt::Message {
+                                topic: format!("{}/input/{}", td.datalog, register),
+                                retain: false,
+                                payload: serde_json::to_string(&value)?,
+                            };
+                            let channel_data = mqtt::ChannelData::Message(m);
+                            if self.channels.to_mqtt.send(channel_data).is_err() {
+                                bail!("send(to_mqtt) failed - channel closed?");
+                            }
+                        }
+
+                        // TODO: inputs/1/2/3/all
+
+                        // publish parsed messages
                         let parser = lxp::register_parser::ParseInputs::new(td.pairs());
                         for (key, parsed_value) in parser.parse_inputs()? {
                             let m = mqtt::Message {
@@ -382,67 +391,6 @@ impl Coordinator {
                     for (register, value) in td.pairs() {
                         self.cache_register(register_cache::Register::Hold(register), value)?;
                     }
-                }
-            }
-
-            // inputs_store handling. If we've received any ReadInput, update inputs_store
-            // with the contents. If we got the third (of three) packets, send out the combined
-            // MQTT message with all the data.
-            if td.device_function == DeviceFunction::ReadInput {
-                use lxp::packet::{ReadInput, ReadInputs};
-
-                let entry = inputs_store
-                    .entry(td.datalog)
-                    .or_insert_with(ReadInputs::default);
-
-                match td.read_input() {
-                    Ok(ReadInput::ReadInputAll(r_all)) => {
-                        // no need for MQTT here, done below
-                        self.save_input_all(r_all).await?
-                    }
-
-                    Ok(ReadInput::ReadInput1(r1)) => entry.set_read_input_1(r1),
-                    Ok(ReadInput::ReadInput2(r2)) => entry.set_read_input_2(r2),
-                    Ok(ReadInput::ReadInput3(r3)) => entry.set_read_input_3(r3),
-                    Ok(ReadInput::ReadInput4(r4)) => {
-                        let datalog = r4.datalog;
-
-                        entry.set_read_input_4(r4);
-
-                        if let Some(input) = entry.to_input_all() {
-                            if self.config.mqtt().enabled() {
-                                let message = mqtt::Message::for_input_all(&input, datalog)?;
-                                let channel_data = mqtt::ChannelData::Message(message);
-                                if self.channels.to_mqtt.send(channel_data).is_err() {
-                                    bail!("send(to_mqtt) failed - channel closed?");
-                                }
-                            }
-
-                            self.save_input_all(Box::new(input)).await?;
-                        }
-                    }
-                    Err(x) => warn!("ignoring {:?}", x),
-                }
-            }
-        }
-
-        if self.config.mqtt().enabled() {
-            // returns a Vec of messages to send. could be none;
-            // not every packet produces an MQ message (eg, heartbeats),
-            // and some produce >1 (multi-register ReadHold)
-            match Self::packet_to_messages(packet) {
-                Ok(messages) => {
-                    for message in messages {
-                        let message = mqtt::ChannelData::Message(message);
-                        if self.channels.to_mqtt.send(message).is_err() {
-                            bail!("send(to_mqtt) failed - channel closed?");
-                        }
-                    }
-                }
-                Err(e) => {
-                    // log error but avoid exiting loop as then we stop handling
-                    // incoming packets. need better error handling here maybe?
-                    error!("{}", e);
                 }
             }
         }
@@ -522,20 +470,6 @@ impl Coordinator {
         }
 
         Ok(())
-    }
-
-    fn packet_to_messages(packet: Packet) -> Result<Vec<mqtt::Message>> {
-        match packet {
-            Packet::Heartbeat(_) => Ok(Vec::new()), // always no message
-            Packet::TranslatedData(td) => match td.device_function {
-                DeviceFunction::ReadHold => mqtt::Message::for_hold(td),
-                DeviceFunction::ReadInput => mqtt::Message::for_input(td),
-                DeviceFunction::WriteSingle => mqtt::Message::for_hold(td),
-                DeviceFunction::WriteMulti => Ok(Vec::new()), // TODO, for_hold might just work
-            },
-            Packet::ReadParam(rp) => mqtt::Message::for_param(rp),
-            Packet::WriteParam(_) => Ok(Vec::new()), // ignoring for now
-        }
     }
 
     fn cache_register(&self, register: register_cache::Register, value: u16) -> Result<()> {
