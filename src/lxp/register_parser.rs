@@ -4,7 +4,7 @@ use crate::prelude::*;
 
 #[derive(Debug, Clone)]
 pub enum ParsedValue {
-    Integer(u32),
+    Integer(i64),
     Float(f64),
     String(&'static str),
 }
@@ -30,7 +30,11 @@ impl ParseInputs {
     }
 
     // given a set of raw input registers from td.pairs(), decode what we can
-    // and return a list of "JSON Key" -> ParsedValue
+    // and return a list of Key -> ParsedValue
+    //
+    // this will Err if you pass it a subset of registers it doesn't expect, for example
+    // if you pass in pairs that contain 0-7, then it will try to work out p_pv because it
+    // has seen 7. but p_pv requires 7 + 8 + 9, which aren't present.
     pub fn parse_inputs(&self) -> Result<Vec<(&'static str, ParsedValue)>> {
         let mut ret = vec![];
 
@@ -41,29 +45,35 @@ impl ParseInputs {
                 2 => vec![("v_pv_2", self.parse_f64_1(v, 10))],
                 3 => vec![("v_pv_3", self.parse_f64_1(v, 10))],
                 4 => vec![("v_bat", self.parse_f64_1(v, 10))],
-                5 => vec![("soc", self.parse_u32_l(v)), ("soh", self.parse_u32_h(v))],
+                5 => vec![("soc", self.parse_i64_l(v)), ("soh", self.parse_i64_h(v))],
                 6 => vec![], // reserved
-                7 => vec![("p_pv_1", self.parse_u32_1(v))],
-                8 => vec![("p_pv_2", self.parse_u32_1(v))],
-                9 => vec![("p_pv_3", self.parse_u32_1(v))],
-                10 => vec![("p_charge", self.parse_u32_1(v))],
-                11 => vec![("p_discharge", self.parse_u32_1(v))],
+                7 => vec![("p_pv_1", self.parse_i64_1(v)), ("p_pv", self.p_pv()?)],
+                8 => vec![("p_pv_2", self.parse_i64_1(v))],
+                9 => vec![("p_pv_3", self.parse_i64_1(v))],
+                10 => vec![
+                    ("p_charge", self.parse_i64_1(v)),
+                    ("p_battery", self.p_battery()?), // homebrew net power flow field
+                ],
+                11 => vec![("p_discharge", self.parse_i64_1(v))],
                 12 => vec![("v_ac_r", self.parse_f64_1(v, 10))],
                 13 => vec![("v_ac_s", self.parse_f64_1(v, 10))],
                 14 => vec![("v_ac_t", self.parse_f64_1(v, 10))],
                 15 => vec![("f_ac", self.parse_f64_1(v, 100))],
-                16 => vec![("p_inv", self.parse_u32_1(v))],
-                17 => vec![("p_rec", self.parse_u32_1(v))],
+                16 => vec![("p_inv", self.parse_i64_1(v))],
+                17 => vec![("p_rec", self.parse_i64_1(v))],
                 18 => vec![], // IinvRMS, 0.01A
                 19 => vec![("pf", self.parse_f64_1(v, 1000))],
                 20 => vec![("v_eps_r", self.parse_f64_1(v, 10))],
                 21 => vec![("v_eps_s", self.parse_f64_1(v, 10))],
                 22 => vec![("v_eps_t", self.parse_f64_1(v, 10))],
                 23 => vec![("f_eps", self.parse_f64_1(v, 100))],
-                24 => vec![("p_eps", self.parse_u32_1(v))],
-                25 => vec![("s_eps", self.parse_u32_1(v))],
-                26 => vec![("p_to_grid", self.parse_u32_1(v))],
-                27 => vec![("p_to_user", self.parse_u32_1(v))],
+                24 => vec![("p_eps", self.parse_i64_1(v))],
+                25 => vec![("s_eps", self.parse_i64_1(v))],
+                26 => vec![
+                    ("p_to_grid", self.parse_i64_1(v)),
+                    ("p_grid", self.p_grid()?),
+                ],
+                27 => vec![("p_to_user", self.parse_i64_1(v))],
                 28 => vec![("e_pv_day_1", self.parse_f64_1(v, 10))],
                 29 => vec![("e_pv_day_2", self.parse_f64_1(v, 10))],
                 30 => vec![("e_pv_day_3", self.parse_f64_1(v, 10))],
@@ -77,36 +87,42 @@ impl ParseInputs {
                 38 => vec![("v_bus_1", self.parse_f64_1(v, 10))],
                 39 => vec![("v_bus_2", self.parse_f64_1(v, 10))],
 
-                40 => vec![("e_pv_all_1", self.parse_f64_2(v, self.value_for(41), 10))],
+                40 => vec![("e_pv_all_1", self.parse_f64_2(v, self.value_for(41)?, 10))],
                 41 => vec![], // done in 40
-                42 => vec![("e_pv_all_2", self.parse_f64_2(v, self.value_for(43), 10))],
+                42 => vec![("e_pv_all_2", self.parse_f64_2(v, self.value_for(43)?, 10))],
                 43 => vec![], // done in 42
-                44 => vec![("e_pv_all_3", self.parse_f64_2(v, self.value_for(45), 10))],
+                44 => vec![("e_pv_all_3", self.parse_f64_2(v, self.value_for(45)?, 10))],
                 45 => vec![], // done in 44
-                46 => vec![("e_inv_all", self.parse_f64_2(v, self.value_for(47), 10))],
+                46 => vec![("e_inv_all", self.parse_f64_2(v, self.value_for(47)?, 10))],
                 47 => vec![], // done in 46
-                48 => vec![("e_rec_all", self.parse_f64_2(v, self.value_for(49), 10))],
+                48 => vec![("e_rec_all", self.parse_f64_2(v, self.value_for(49)?, 10))],
                 49 => vec![], // done in 48
-                50 => vec![("e_chg_all", self.parse_f64_2(v, self.value_for(51), 10))],
+                50 => vec![("e_chg_all", self.parse_f64_2(v, self.value_for(51)?, 10))],
                 51 => vec![], // done in 40
-                52 => vec![("e_dischg_all", self.parse_f64_2(v, self.value_for(53), 10))],
+                52 => vec![("e_dischg_all", self.parse_f64_2(v, self.value_for(53)?, 10))],
                 53 => vec![], // done in 52
-                54 => vec![("e_eps_all", self.parse_f64_2(v, self.value_for(55), 10))],
+                54 => vec![("e_eps_all", self.parse_f64_2(v, self.value_for(55)?, 10))],
                 55 => vec![], // done in 54
-                56 => vec![("e_to_grid_all", self.parse_f64_2(v, self.value_for(57), 10))],
+                56 => vec![(
+                    "e_to_grid_all",
+                    self.parse_f64_2(v, self.value_for(57)?, 10),
+                )],
                 57 => vec![], // done in 56
-                58 => vec![("e_to_user_all", self.parse_f64_2(v, self.value_for(59), 10))],
+                58 => vec![(
+                    "e_to_user_all",
+                    self.parse_f64_2(v, self.value_for(59)?, 10),
+                )],
                 59 => vec![], // done in 58
-                60 => vec![("fault_code", self.parse_fault(v, self.value_for(61)))],
+                60 => vec![("fault_code", self.parse_fault(v, self.value_for(61)?))],
                 61 => vec![], // done in 60
-                62 => vec![("warning_code", self.parse_warning(v, self.value_for(63)))],
+                62 => vec![("warning_code", self.parse_warning(v, self.value_for(63)?))],
                 63 => vec![], // done in 62
-                64 => vec![("t_inner", self.parse_u32_1(v))],
-                65 => vec![("t_rad_1", self.parse_u32_1(v))],
-                66 => vec![("t_rad_2", self.parse_u32_1(v))],
-                67 => vec![("t_bat", self.parse_u32_1(v))],
+                64 => vec![("t_inner", self.parse_i64_1(v))],
+                65 => vec![("t_rad_1", self.parse_i64_1(v))],
+                66 => vec![("t_rad_2", self.parse_i64_1(v))],
+                67 => vec![("t_bat", self.parse_i64_1(v))],
                 68 => vec![], // reserved
-                69 => vec![("runtime", self.parse_u32_2(v, self.value_for(70)))],
+                69 => vec![("runtime", self.parse_i64_2(v, self.value_for(70)?))],
                 70 => vec![],      // done in 69
                 71..=79 => vec![], // TODO, rest of ReadInput2
 
@@ -116,38 +132,44 @@ impl ParseInputs {
                 83 => vec![("charge_volt_ref", self.parse_f64_1(v, 10))],
                 84 => vec![("dischg_cut_volt", self.parse_f64_1(v, 10))],
                 85..=95 => vec![], // bat_status_*, not yet parsed
-                96 => vec![("bat_count", self.parse_u32_1(v))],
-                97 => vec![("bat_capacity", self.parse_u32_1(v))],
+                96 => vec![("bat_count", self.parse_i64_1(v))],
+                97 => vec![("bat_capacity", self.parse_i64_1(v))],
                 98 => vec![("bat_current", self.parse_f64_1(v, 100))],
-                99 => vec![], // bms_event_1
+                99 => vec![],  // bms_event_1
                 100 => vec![], // bms_event_2
                 101 => vec![("max_cell_voltage", self.parse_f64_1(v, 1000))],
                 102 => vec![("min_cell_voltage", self.parse_f64_1(v, 1000))],
                 103 => vec![("max_cell_temp", self.parse_f64_1(v, 10))],
                 104 => vec![("min_cell_temp", self.parse_f64_1(v, 10))],
                 105 => vec![], // bms_fw_update_state
-                106 => vec![("cycle_count", self.parse_u32_1(v))],
+                106 => vec![("cycle_count", self.parse_i64_1(v))],
                 107 => vec![("vbat_inv", self.parse_f64_1(v, 10))],
                 108..=119 => vec![], // TODO, rest of ReadInput3
 
                 120 => vec![], // half bus voltage?
                 121 => vec![("v_gen", self.parse_f64_1(v, 10))],
                 122 => vec![("f_gen", self.parse_f64_1(v, 100))],
-                123 => vec![("p_gen", self.parse_u32_1(v))],
+                123 => vec![("p_gen", self.parse_i64_1(v))],
                 124 => vec![("e_gen_day", self.parse_f64_1(v, 10))],
-                125 => vec![("e_gen_all", self.parse_f64_2(v, self.value_for(126), 10))],
+                125 => vec![("e_gen_all", self.parse_f64_2(v, self.value_for(126)?, 10))],
                 126 => vec![], // done in 125
                 127 => vec![("v_eps_l1", self.parse_f64_1(v, 10))],
                 128 => vec![("v_eps_l2", self.parse_f64_1(v, 10))],
-                129 => vec![("p_eps_l1", self.parse_u32_1(v))],
-                130 => vec![("p_eps_l2", self.parse_u32_1(v))],
-                131 => vec![("s_eps_l1", self.parse_u32_1(v))],
-                132 => vec![("s_eps_l2", self.parse_u32_1(v))],
+                129 => vec![("p_eps_l1", self.parse_i64_1(v))],
+                130 => vec![("p_eps_l2", self.parse_i64_1(v))],
+                131 => vec![("s_eps_l1", self.parse_i64_1(v))],
+                132 => vec![("s_eps_l2", self.parse_i64_1(v))],
                 133 => vec![("e_eps_l1_day", self.parse_f64_1(v, 10))],
                 134 => vec![("e_eps_l2_day", self.parse_f64_1(v, 10))],
-                135 => vec![("e_eps_l1_all", self.parse_f64_2(v, self.value_for(136), 10))],
+                135 => vec![(
+                    "e_eps_l1_all",
+                    self.parse_f64_2(v, self.value_for(136)?, 10),
+                )],
                 136 => vec![], // done in 135
-                137 => vec![("e_eps_l2_all", self.parse_f64_2(v, self.value_for(138), 10))],
+                137 => vec![(
+                    "e_eps_l2_all",
+                    self.parse_f64_2(v, self.value_for(138)?, 10),
+                )],
                 138 => vec![], // done in 137
 
                 139..=255 => vec![], // ignore everything else for now
@@ -163,64 +185,88 @@ impl ParseInputs {
         Ok(ret)
     }
 
+    fn p_pv(&self) -> Result<ParsedValue> {
+        let p_pv_1 = self.value_for(7)? as i64;
+        let p_pv_2 = self.value_for(8)? as i64;
+        let p_pv_3 = self.value_for(9)? as i64;
+
+        Ok(ParsedValue::Integer(p_pv_1 + p_pv_2 + p_pv_3))
+    }
+
+    fn p_battery(&self) -> Result<ParsedValue> {
+        // special case - use p_charge and p_discharge to return a signed net power flow
+        let p_charge = self.value_for(10)? as i64;
+        let p_discharge = self.value_for(11)? as i64;
+
+        Ok(ParsedValue::Integer(p_charge - p_discharge))
+    }
+
+    fn p_grid(&self) -> Result<ParsedValue> {
+        // special case - use p_charge and p_discharge to return a signed net power flow
+        let p_to_grid = self.value_for(26)? as i64;
+        let p_to_user = self.value_for(27)? as i64;
+
+        Ok(ParsedValue::Integer(p_to_user - p_to_grid))
+    }
+
     fn parse_status(&self, value: u16) -> ParsedValue {
         ParsedValue::String(StatusString::from_value(value))
     }
 
     fn parse_fault(&self, v1: u16, v2: u16) -> ParsedValue {
-        let value: u32 = (v1 as u32) | (v2 as u32) << 16;
+        let value: i64 = (v1 as i64) | (v2 as i64) << 16;
         ParsedValue::String(FaultCodeString::from_value(value))
     }
 
     fn parse_warning(&self, v1: u16, v2: u16) -> ParsedValue {
-        let value: u32 = (v1 as u32) | (v2 as u32) << 16;
+        let value: i64 = (v1 as i64) | (v2 as i64) << 16;
         ParsedValue::String(WarningCodeString::from_value(value))
     }
 
-    // one register input, using low half, u32 output
-    fn parse_u32_l(&self, v1: u16) -> ParsedValue {
-        let r: u32 = (v1 & 0xffff) as u32;
+    // one register input, using low half, i64 output
+    fn parse_i64_l(&self, v1: u16) -> ParsedValue {
+        let r: i64 = (v1 & 0xff) as i64;
         ParsedValue::Integer(r)
     }
 
-    // one register input, using high half, u32 output
-    fn parse_u32_h(&self, v1: u16) -> ParsedValue {
-        let r: u32 = (v1 >> 8) as u32;
+    // one register input, using high half, i64 output
+    fn parse_i64_h(&self, v1: u16) -> ParsedValue {
+        let r: i64 = (v1 >> 8) as i64;
         ParsedValue::Integer(r)
     }
 
-    // one register input, u32 output
-    fn parse_u32_1(&self, v1: u16) -> ParsedValue {
-        let r: u32 = v1 as u32;
+    // one register input, i64 output
+    fn parse_i64_1(&self, v1: u16) -> ParsedValue {
+        let r: i64 = v1 as i64;
         ParsedValue::Integer(r)
     }
 
-    // two register input, u32 output
-    fn parse_u32_2(&self, v1: u16, v2: u16) -> ParsedValue {
-        let r: u32 = (v1 as u32) | (v2 as u32) << 16;
+    // two register input, i64 output
+    fn parse_i64_2(&self, v1: u16, v2: u16) -> ParsedValue {
+        let r: i64 = (v1 as i64) | (v2 as i64) << 16;
         ParsedValue::Integer(r)
     }
 
     // one register input, f64 output
-    fn parse_f64_1(&self, v1: u16, divider: u32) -> ParsedValue {
-        let r: u32 = v1 as u32;
+    fn parse_f64_1(&self, v1: u16, divider: i64) -> ParsedValue {
+        let r: i64 = v1 as i64;
         ParsedValue::Float(r as f64 / divider as f64)
     }
 
     // two register input, f64 output
-    fn parse_f64_2(&self, v1: u16, v2: u16, divider: u32) -> ParsedValue {
-        let r: u32 = (v1 as u32) | (v2 as u32) << 16;
+    fn parse_f64_2(&self, v1: u16, v2: u16, divider: i64) -> ParsedValue {
+        let r: i64 = (v1 as i64) | (v2 as i64) << 16;
         ParsedValue::Float(r as f64 / divider as f64)
     }
 
-    fn value_for(&self, register: u16) -> u16 {
+    fn value_for(&self, register: u16) -> Result<u16> {
         for (r, v) in &self.pairs {
             if *r == register {
-                return v.clone();
+                return Ok(*v);
             };
         }
 
-        0
+        Err(anyhow!("no value found for register {}", register))
     }
 }
 
@@ -251,7 +297,7 @@ impl StatusString {
 
 struct WarningCodeString;
 impl WarningCodeString {
-    pub fn from_value(value: u32) -> &'static str {
+    pub fn from_value(value: i64) -> &'static str {
         if value == 0 {
             return "OK";
         }
@@ -304,7 +350,7 @@ impl WarningCodeString {
 
 struct FaultCodeString;
 impl FaultCodeString {
-    pub fn from_value(value: u32) -> &'static str {
+    pub fn from_value(value: i64) -> &'static str {
         if value == 0 {
             return "OK";
         }
