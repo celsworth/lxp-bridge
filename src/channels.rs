@@ -8,8 +8,7 @@ pub struct Channels {
     pub to_mqtt: broadcast::Sender<mqtt::ChannelData>,
     pub to_influx: broadcast::Sender<influx::ChannelData>,
     pub to_database: broadcast::Sender<database::ChannelData>,
-    pub read_register_cache: broadcast::Sender<register_cache::ChannelData>,
-    pub to_register_cache: broadcast::Sender<register_cache::ChannelData>,
+    pub register_cache: broadcast::Sender<register_cache::ChannelData>,
 }
 
 impl Default for Channels {
@@ -27,8 +26,7 @@ impl Channels {
             to_mqtt: Self::channel(),
             to_influx: Self::channel(),
             to_database: Self::channel(),
-            read_register_cache: Self::channel(),
-            to_register_cache: Self::channel(),
+            register_cache: Self::channel(),
         }
     }
 
