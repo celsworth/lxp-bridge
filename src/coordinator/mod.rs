@@ -376,7 +376,7 @@ impl Coordinator {
                         let parser = lxp::register_parser::ParseInputs::new(td.pairs());
                         for (key, parsed_value) in parser.parse_inputs()? {
                             let m = mqtt::Message {
-                                topic: format!("{}/input/{}", td.datalog, key),
+                                topic: format!("{}/input/{}/parsed", td.datalog, key),
                                 retain: false,
                                 payload: parsed_value.to_string(),
                             };
