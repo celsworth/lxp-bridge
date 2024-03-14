@@ -115,27 +115,17 @@ impl ParseInputs {
                 82 => vec![("max_dischg_curr", self.parse_f64_1(v, 100))],
                 83 => vec![("charge_volt_ref", self.parse_f64_1(v, 10))],
                 84 => vec![("dischg_cut_volt", self.parse_f64_1(v, 10))],
-                85 => vec![("bat_status_0", self.parse_u32_1(v))],
-                86 => vec![("bat_status_1", self.parse_u32_1(v))],
-                87 => vec![("bat_status_2", self.parse_u32_1(v))],
-                88 => vec![("bat_status_3", self.parse_u32_1(v))],
-                89 => vec![("bat_status_4", self.parse_u32_1(v))],
-                90 => vec![("bat_status_5", self.parse_u32_1(v))],
-                91 => vec![("bat_status_6", self.parse_u32_1(v))],
-                92 => vec![("bat_status_7", self.parse_u32_1(v))],
-                93 => vec![("bat_status_8", self.parse_u32_1(v))],
-                94 => vec![("bat_status_9", self.parse_u32_1(v))],
-                95 => vec![("bat_status_inv", self.parse_u32_1(v))],
+                85..=95 => vec![], // bat_status_*, not yet parsed
                 96 => vec![("bat_count", self.parse_u32_1(v))],
                 97 => vec![("bat_capacity", self.parse_u32_1(v))],
                 98 => vec![("bat_current", self.parse_f64_1(v, 100))],
-                99 => vec![("bms_event_1", self.parse_u32_1(v))],
-                100 => vec![("bms_event_2", self.parse_u32_1(v))],
+                99 => vec![], // bms_event_1
+                100 => vec![], // bms_event_2
                 101 => vec![("max_cell_voltage", self.parse_f64_1(v, 1000))],
                 102 => vec![("min_cell_voltage", self.parse_f64_1(v, 1000))],
                 103 => vec![("max_cell_temp", self.parse_f64_1(v, 10))],
                 104 => vec![("min_cell_temp", self.parse_f64_1(v, 10))],
-                105 => vec![("bms_fw_update_state", self.parse_u32_1(v))],
+                105 => vec![], // bms_fw_update_state
                 106 => vec![("cycle_count", self.parse_u32_1(v))],
                 107 => vec![("vbat_inv", self.parse_f64_1(v, 10))],
                 108..=119 => vec![], // TODO, rest of ReadInput3
