@@ -23,6 +23,11 @@ impl ParsedValue {
     }
 }
 
+#[derive(Debug, Serialize)]
+struct StartEndTimePayload {
+    start: String,
+    end: String,
+}
 #[derive(Debug, Clone)]
 pub struct Parser {
     pairs: Vec<(u16, u16)>,
@@ -225,8 +230,25 @@ impl Parser {
 
         for (r, v) in self.pairs.clone() {
             let e = match r {
-                21 => vec![("21/bits", self.parse_21_bits(v)?)],
-                110 => vec![("110/bits", self.parse_110_bits(v)?)],
+                // these should have hold/ prefixed if appropriate!
+                21 => vec![("hold/21/bits", self.parse_21_bits(v)?)],
+                110 => vec![("hold/110/bits", self.parse_110_bits(v)?)],
+
+                68 => vec![("ac_charge/1", self.start_end(v, self.v_for(r + 1)?)?)],
+                70 => vec![("ac_charge/2", self.start_end(v, self.v_for(r + 1)?)?)],
+                72 => vec![("ac_charge/3", self.start_end(v, self.v_for(r + 1)?)?)],
+
+                76 => vec![("charge_priority/1", self.start_end(v, self.v_for(r + 1)?)?)],
+                78 => vec![("charge_priority/2", self.start_end(v, self.v_for(r + 1)?)?)],
+                80 => vec![("charge_priority/3", self.start_end(v, self.v_for(r + 1)?)?)],
+
+                84 => vec![("forced_discharge/1", self.start_end(v, self.v_for(r + 1)?)?)],
+                86 => vec![("forced_discharge/2", self.start_end(v, self.v_for(r + 1)?)?)],
+                88 => vec![("forced_discharge/3", self.start_end(v, self.v_for(r + 1)?)?)],
+
+                152 => vec![("ac_first/1", self.start_end(v, self.v_for(r + 1)?)?)],
+                154 => vec![("ac_first/2", self.start_end(v, self.v_for(r + 1)?)?)],
+                156 => vec![("ac_first/3", self.start_end(v, self.v_for(r + 1)?)?)],
 
                 // ignore any unknown registers, do not return Err
                 _ => vec![],
@@ -237,6 +259,19 @@ impl Parser {
         // debug!("{:?}", ret);
 
         Ok(ret)
+    }
+
+    fn start_end(&self, v1: u16, v2: u16) -> Result<ParsedValue> {
+        let start = v1.to_le_bytes();
+        let end = v2.to_le_bytes();
+
+        let payload = StartEndTimePayload {
+            start: format!("{:02}:{:02}", start[0], start[1]),
+            end: format!("{:02}:{:02}", end[0], end[1]),
+        };
+        debug!("{:?}", payload);
+
+        Ok(ParsedValue::StringOwned(serde_json::to_string(&payload)?))
     }
 
     fn parse_21_bits(&self, value: u16) -> Result<ParsedValue> {
