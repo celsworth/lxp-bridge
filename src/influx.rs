@@ -5,9 +5,9 @@ use rinfluxdb::line_protocol::{r#async::Client, LineBuilder};
 
 static INPUTS_MEASUREMENT: &str = "inputs";
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ChannelData {
-    InputData(serde_json::Value),
+    InputData(lxp::register_parser::ParsedData),
     Shutdown,
 }
 
@@ -57,36 +57,25 @@ impl Influx {
         let mut receiver = self.channels.to_influx.subscribe();
 
         loop {
+            use lxp::register_parser::ParsedValue;
+
             let mut line = LineBuilder::new(INPUTS_MEASUREMENT);
 
             match receiver.recv().await? {
                 Shutdown => break,
                 InputData(data) => {
-                    for (key, value) in data.as_object().unwrap() {
-                        let key = key.to_string();
-
-                        line = if key == "time" {
-                            let value = value.as_i64().unwrap_or_else(|| {
-                                panic!("cannot represent {value} as i64 for {key}")
-                            });
-                            line.set_timestamp(chrono::Utc.timestamp_opt(value, 0).unwrap())
-                        } else if key == "datalog" {
-                            let value = value.as_str().unwrap_or_else(|| {
-                                panic!("cannot represent {value} as str for {key}")
-                            });
-                            line.insert_tag(key, value)
-                        } else if value.is_f64() {
-                            let value = value.as_f64().unwrap_or_else(|| {
-                                panic!("cannot represent {value} as f64 for {key}")
-                            });
-                            line.insert_field(key, value)
-                        } else {
-                            // can't be anything other than int
-                            let value = value.as_i64().unwrap_or_else(|| {
-                                panic!("cannot represent {value} as i64 for {key}")
-                            });
-                            line.insert_field(key, value)
-                        }
+                    for (key, value) in data {
+                        line = match (key, value) {
+                            ("time", _) => {
+                                line
+                                //line.set_timestamp(chrono::Utc.timestamp_opt(value, 0).unwrap())
+                            }
+                            ("datalog", ParsedValue::String(v)) => line.insert_tag(key, v),
+                            (_, ParsedValue::String(v)) => line.insert_field(key, v),
+                            (_, ParsedValue::StringOwned(v)) => line.insert_field(key, v),
+                            (_, ParsedValue::Integer(v)) => line.insert_field(key, v),
+                            (_, ParsedValue::Float(v)) => line.insert_field(key, v),
+                        };
                     }
 
                     let lines = vec![line.build()];

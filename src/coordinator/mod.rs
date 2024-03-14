@@ -360,15 +360,11 @@ impl Coordinator {
 
                         // inputs/1/2/3/4
                         if let Some(topic_fragment) = parser.guess_legacy_inputs_topic() {
-                            let m = mqtt::Message {
-                                topic: format!("{}/inputs/{}", td.datalog, topic_fragment),
-                                retain: false,
-                                payload: serde_json::to_string(&parsed_inputs)?,
-                            };
-                            let channel_data = mqtt::ChannelData::Message(m);
-                            if self.channels.to_mqtt.send(channel_data).is_err() {
-                                bail!("send(to_mqtt) failed - channel closed?");
-                            }
+                            self.publish_combined_parsed_input_message(
+                                &td,
+                                &parsed_inputs,
+                                topic_fragment,
+                            )?;
                         };
                     }
 
@@ -376,25 +372,51 @@ impl Coordinator {
                         self.cache_register(register_cache::Register::Input(register), value)?;
                     }
 
-                    // add new config option to say when to broadcast "all".
-                    //   defaults to 80 (so 1/2/3 -> all) suggest 120 for 4
-                    //
-                    // if parser.contains_register(option) then feed contents of cache_register
-                    // into parser; which should get us "all". feed that to mqtt+influx
-                    //   and then clear cache to start over
-                    // let parser = lxp::register_parser::ParseInputs::from_hashmap(register_cache);
+                    // if we've seen the triggering register in config.publish_inputs_all_after
+                    // then feed contents of cache_register into a new parser;
+                    // which should get us "all". feed that to mqtt+influx
+                    if parser.contains_register(self.config.publish_inputs_all_after()) {
+                        let cache = register_cache::RegisterCache::dump(
+                            &self.channels,
+                            register_cache::AllRegisters::Input,
+                        )
+                        .await;
+                        let all_parser = lxp::register_parser::Parser::from_cache(cache);
+                        let all_parsed_inputs = all_parser.parse_inputs()?;
+                        if all_parser.guess_legacy_inputs_topic() == Some("all") {
+                            if self.config.mqtt().enabled() {
+                                // inputs/all
+                                self.publish_combined_parsed_input_message(
+                                    &td,
+                                    &all_parsed_inputs,
+                                    "all",
+                                )?;
+                            }
+                            if self.config.influx().enabled() {
+                                let channel_data =
+                                    influx::ChannelData::InputData(all_parsed_inputs.clone());
+                                if self.channels.to_influx.send(channel_data).is_err() {
+                                    bail!("send(to_influx) failed - channel closed?");
+                                }
+                            }
+                        };
+
+                        // clear the cache so we start over next time
+                        register_cache::RegisterCache::clear(&self.channels).await;
+                    }
                 }
                 DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
                     let parser = lxp::register_parser::Parser::from_pairs(td.pairs());
                     let parsed_holds = parser.parse_holds()?;
 
-                    // TODO: broadcast parsed
                     self.publish_raw_hold_messages(&td)?;
                     self.publish_parsed_hold_messages(&td, &parsed_holds)?;
 
+                    /* not used yet
                     for (register, value) in td.pairs() {
-                        self.cache_register(register_cache::Register::Hold(register), value)?;
+                      self.cache_register(register_cache::Register::Hold(register), value)?;
                     }
+                    */
                 }
             }
         }
@@ -493,6 +515,25 @@ impl Coordinator {
         Ok(())
     }
 
+    fn publish_combined_parsed_input_message(
+        &self,
+        td: &lxp::packet::TranslatedData,
+        parsed_inputs: &lxp::register_parser::ParsedData,
+        topic_fragment: &str,
+    ) -> Result<()> {
+        let m = mqtt::Message {
+            topic: format!("{}/inputs/{}", td.datalog, topic_fragment),
+            retain: false,
+            payload: serde_json::to_string(&parsed_inputs)?,
+        };
+        let channel_data = mqtt::ChannelData::Message(m);
+        if self.channels.to_mqtt.send(channel_data).is_err() {
+            bail!("send(to_mqtt) failed - channel closed?");
+        }
+
+        Ok(())
+    }
+
     fn publish_parsed_input_messages(
         &self,
         td: &lxp::packet::TranslatedData,
@@ -523,6 +564,7 @@ impl Coordinator {
         Ok(())
     }
 
+    /*
     async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
         if self.config.influx().enabled() {
             let channel_data = influx::ChannelData::InputData(serde_json::to_value(&input)?);
@@ -540,6 +582,7 @@ impl Coordinator {
 
         Ok(())
     }
+    */
 
     fn cache_register(&self, register: register_cache::Register, value: u16) -> Result<()> {
         let channel_data = register_cache::ChannelData::RegisterData(register, value);

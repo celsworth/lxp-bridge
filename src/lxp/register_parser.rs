@@ -3,7 +3,7 @@ use serde::Serialize;
 
 pub type ParsedData = HashMap<&'static str, ParsedValue>;
 
-#[derive(Serialize, Debug, Clone)]
+#[derive(PartialEq, Serialize, Debug, Clone)]
 #[serde(untagged)]
 pub enum ParsedValue {
     Integer(i64),
@@ -30,6 +30,15 @@ pub struct Parser {
 
 impl Parser {
     pub fn from_pairs(pairs: Vec<(u16, u16)>) -> Self {
+        Self { pairs }
+    }
+    pub fn from_cache(cache: register_cache::Cache) -> Self {
+        let mut pairs = Vec::new();
+        // convert to pairs
+        for (r, v) in cache {
+            pairs.push((r, v));
+        }
+
         Self { pairs }
     }
 

@@ -21,7 +21,7 @@ pub enum AllRegisters {
     Input,
 }
 
-type Cache = HashMap<u16, u16>;
+pub type Cache = HashMap<u16, u16>;
 
 pub struct RegisterCache {
     channels: Channels,
@@ -48,9 +48,7 @@ impl RegisterCache {
     }
 
     // external helper method to simplify access to the cache, use like so:
-    //
     //   RegisterCache::get(&self.channels, 1);
-    //
     pub async fn get(channels: &Channels, register: Register) -> u16 {
         let (tx, rx) = oneshot::channel();
 
@@ -58,6 +56,23 @@ impl RegisterCache {
         let _ = channels.register_cache.send(channel_data);
         rx.await
             .expect("unexpected error reading from register cache")
+    }
+
+    //   RegisterCache::dump(&self.channels, register_cache::AllRegisters::Input)
+    pub async fn dump(channels: &Channels, register_type: AllRegisters) -> Cache {
+        let (tx, rx) = oneshot::channel();
+
+        let channel_data = ChannelData::ReadAllRegisters(register_type, Rc::new(RefCell::new(tx)));
+        let _ = channels.register_cache.send(channel_data);
+        rx.await
+            .expect("unexpected error reading from register cache")
+    }
+
+    //   RegisterCache::dump(&self.channels, register_cache::AllRegisters::Input)
+    pub async fn clear(channels: &Channels) {
+        let _ = channels
+            .register_cache
+            .send(ChannelData::ClearInputRegisters);
     }
 
     async fn runner(&self) -> Result<()> {
