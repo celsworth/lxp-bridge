@@ -1,11 +1,4 @@
-# 0.99.0 (road-to-1-0 branch)
-
-* Cache Hold/Input registers internally as they're seen for later use (#248)
-* Remove publish_individual_input configuration option (now they always are) (#250)
-* BREAKING CHANGE (temporary, maybe): inputs/1 /2 /3 /all messages removed (#252)
-
-
-# Unreleased (rolled into 0.99.0)
+# Unreleased
 
 * Reconnect to inverter after 15 minutes of not receiving any data (#223)
 * Fix max/min cell temperature/voltage decoding as reported from BMS (#227)
@@ -13,6 +6,10 @@
 * Add ReadInput4 with EG4 18k generator data (#239, @pmccut)
 * Add ReadInput4 keys to HA discovery (#240, @jgulick48)
 * Fix min_chg_curr/max_chg_curr decoding in ReadInputAll packet (#242, @presto8)
+* Cache Hold/Input registers internally as they're seen for later use (#248)
+* Remove publish_individual_input configuration option (now they always are) (#250)
+* Convert HA to use individual inputs messages (#253)
+* New configuration open publish_inputs_all_trigger (#256)
 
 
 # 0.13.0 - 27th October 2023
