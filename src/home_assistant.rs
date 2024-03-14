@@ -1,37 +1,7 @@
 use crate::prelude::*;
 use lxp::packet::Register;
 
-use serde::{Serialize, Serializer};
-
-// ValueTemplate {{{
-#[derive(Clone, Debug, PartialEq)]
-pub enum ValueTemplate {
-    None,
-    Default, // "{{ value_json.$key }}"
-    String(String),
-}
-impl ValueTemplate {
-    pub fn from_default(key: &str) -> Self {
-        Self::String(format!("{{{{ value_json.{} }}}}", key))
-    }
-    pub fn is_none(&self) -> bool {
-        *self == Self::None
-    }
-    pub fn is_default(&self) -> bool {
-        *self == Self::Default
-    }
-}
-impl Serialize for ValueTemplate {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match self {
-            ValueTemplate::String(str) => serializer.serialize_str(str),
-            _ => unreachable!(),
-        }
-    }
-} // }}}
+use serde::Serialize;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Availability {
@@ -74,8 +44,6 @@ pub struct Entity<'a> {
     state_class: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     device_class: Option<&'a str>,
-    #[serde(skip_serializing_if = "ValueTemplate::is_none")]
-    value_template: ValueTemplate,
     #[serde(skip_serializing_if = "Option::is_none")]
     unit_of_measurement: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -145,7 +113,6 @@ impl Config {
             state_class: None,
             unit_of_measurement: None,
             icon: None,
-            value_template: ValueTemplate::Default, // "{{ value_json.$key }}"
             state_topic: &String::default(),
             device: self.device(),
             availability: self.availability(),
@@ -200,7 +167,6 @@ impl Config {
             Entity {
                 key: "status",
                 name: "Status",
-                value_template: ValueTemplate::None,
                 ..base.clone()
             },
             Entity {
@@ -215,7 +181,6 @@ impl Config {
                 key: "fault_code",
                 name: "Fault Code",
                 entity_category: Some("diagnostic"),
-                value_template: ValueTemplate::None,
                 icon: Some("mdi:alert"),
                 ..base.clone()
             },
@@ -223,7 +188,6 @@ impl Config {
                 key: "warning_code",
                 name: "Warning Code",
                 entity_category: Some("diagnostic"),
-                value_template: ValueTemplate::None,
                 icon: Some("mdi:alert-outline"),
                 ..base.clone()
             },
@@ -591,8 +555,8 @@ impl Config {
 
         sensors
             .map(|sensor| {
-                // fill in unique_id and value_template (if default) which are derived from key
-                let mut sensor = Entity {
+                // fill in unique_id / state_topic which are derived from key
+                let sensor = Entity {
                     unique_id: &self.unique_id(sensor.key),
                     state_topic: &format!(
                         "{}/{}/input/{}/parsed",
@@ -603,9 +567,6 @@ impl Config {
 
                     ..sensor
                 };
-                if sensor.value_template.is_default() {
-                    sensor.value_template = ValueTemplate::from_default(sensor.key);
-                }
 
                 mqtt::Message {
                     topic: self.ha_discovery_topic("sensor", sensor.key),
