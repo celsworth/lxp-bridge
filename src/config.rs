@@ -19,8 +19,8 @@ pub struct Config {
     #[serde(default = "Config::default_loglevel")]
     pub loglevel: String,
 
-    #[serde(default = "Config::default_publish_inputs_all_after")]
-    pub publish_inputs_all_after: u16,
+    #[serde(default = "Config::default_publish_inputs_all_trigger")]
+    pub publish_inputs_all_trigger: u16,
 }
 
 // Inverter {{{
@@ -326,8 +326,8 @@ impl ConfigWrapper {
     pub fn loglevel(&self) -> String {
         self.config.borrow().loglevel.to_owned()
     }
-    pub fn publish_inputs_all_after(&self) -> u16 {
-        self.config.borrow().publish_inputs_all_after
+    pub fn publish_inputs_all_trigger(&self) -> u16 {
+        self.config.borrow().publish_inputs_all_trigger
     }
 }
 
@@ -365,7 +365,7 @@ impl Config {
         "debug".to_string()
     }
 
-    pub fn default_publish_inputs_all_after() -> u16 {
+    pub fn default_publish_inputs_all_trigger() -> u16 {
         80
     }
 }

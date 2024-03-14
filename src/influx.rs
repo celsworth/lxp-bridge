@@ -7,7 +7,7 @@ static INPUTS_MEASUREMENT: &str = "inputs";
 
 #[derive(PartialEq, Clone, Debug)]
 pub enum ChannelData {
-    InputData(lxp::register_parser::ParsedData),
+    InputData(Serial, lxp::register_parser::ParsedData),
     Shutdown,
 }
 
@@ -63,22 +63,22 @@ impl Influx {
 
             match receiver.recv().await? {
                 Shutdown => break,
-                InputData(data) => {
+                InputData(datalog, data) => {
                     for (key, value) in data {
                         line = match (key, value) {
-                            ("time", _) => {
-                                line
-                                //line.set_timestamp(chrono::Utc.timestamp_opt(value, 0).unwrap())
-                            }
-                            ("datalog", ParsedValue::String(v)) => line.insert_tag(key, v),
+                            // relying on InfluxDB using current time for now, its close enough..
+                            // ("time", _) => { line.set_timestamp(chrono::Utc.timestamp_opt(value, 0).unwrap()) }
                             (_, ParsedValue::String(v)) => line.insert_field(key, v),
                             (_, ParsedValue::StringOwned(v)) => line.insert_field(key, v),
                             (_, ParsedValue::Integer(v)) => line.insert_field(key, v),
                             (_, ParsedValue::Float(v)) => line.insert_field(key, v),
                         };
                     }
+                    line = line.insert_tag("datalog", datalog.to_string());
 
                     let lines = vec![line.build()];
+
+                    debug!("{:?}", lines);
 
                     while let Err(err) = client.send(&self.database(), &lines).await {
                         error!("push failed: {:?} - retrying in 10s", err);

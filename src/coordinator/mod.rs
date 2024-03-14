@@ -355,13 +355,13 @@ impl Coordinator {
 
                     if self.config.mqtt().enabled() {
                         // individual message publishing, raw and parsed
-                        self.publish_raw_input_messages(&td)?;
-                        self.publish_parsed_input_messages(&td, &parsed_inputs)?;
+                        self.publish_raw_input_messages(td)?;
+                        self.publish_parsed_input_messages(td, &parsed_inputs)?;
 
                         // inputs/1/2/3/4
                         if let Some(topic_fragment) = parser.guess_legacy_inputs_topic() {
                             self.publish_combined_parsed_input_message(
-                                &td,
+                                td,
                                 &parsed_inputs,
                                 topic_fragment,
                             )?;
@@ -372,29 +372,31 @@ impl Coordinator {
                         self.cache_register(register_cache::Register::Input(register), value)?;
                     }
 
-                    // if we've seen the triggering register in config.publish_inputs_all_after
+                    // if we've seen the triggering register in config.publish_inputs_all_trigger
                     // then feed contents of cache_register into a new parser;
                     // which should get us "all". feed that to mqtt+influx
-                    if parser.contains_register(self.config.publish_inputs_all_after()) {
+                    if parser.contains_register(self.config.publish_inputs_all_trigger()) {
                         let cache = register_cache::RegisterCache::dump(
                             &self.channels,
                             register_cache::AllRegisters::Input,
                         )
                         .await;
                         let all_parser = lxp::register_parser::Parser::from_cache(cache);
-                        let all_parsed_inputs = all_parser.parse_inputs()?;
                         if all_parser.guess_legacy_inputs_topic() == Some("all") {
+                            let all_parsed_inputs = all_parser.parse_inputs()?;
                             if self.config.mqtt().enabled() {
                                 // inputs/all
                                 self.publish_combined_parsed_input_message(
-                                    &td,
+                                    td,
                                     &all_parsed_inputs,
                                     "all",
                                 )?;
                             }
                             if self.config.influx().enabled() {
-                                let channel_data =
-                                    influx::ChannelData::InputData(all_parsed_inputs.clone());
+                                let channel_data = influx::ChannelData::InputData(
+                                    td.datalog(),
+                                    all_parsed_inputs.clone(),
+                                );
                                 if self.channels.to_influx.send(channel_data).is_err() {
                                     bail!("send(to_influx) failed - channel closed?");
                                 }
@@ -409,8 +411,8 @@ impl Coordinator {
                     let parser = lxp::register_parser::Parser::from_pairs(td.pairs());
                     let parsed_holds = parser.parse_holds()?;
 
-                    self.publish_raw_hold_messages(&td)?;
-                    self.publish_parsed_hold_messages(&td, &parsed_holds)?;
+                    self.publish_raw_hold_messages(td)?;
+                    self.publish_parsed_hold_messages(td, &parsed_holds)?;
 
                     /* not used yet
                     for (register, value) in td.pairs() {
