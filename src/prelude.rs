@@ -1,5 +1,6 @@
 pub use std::{
     cell::{Ref, RefCell, RefMut},
+    collections::HashMap,
     convert::{TryFrom, TryInto},
     io::Write,
     rc::Rc,

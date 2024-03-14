@@ -9,8 +9,6 @@ pub enum ChannelData {
     Shutdown,
 }
 
-pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
-
 pub struct Coordinator {
     config: ConfigWrapper,
     channels: Channels,
@@ -351,43 +349,49 @@ impl Coordinator {
             match td.device_function {
                 DeviceFunction::WriteMulti => {}
                 DeviceFunction::ReadInput => {
+                    let parser = lxp::register_parser::Parser::from_pairs(td.pairs());
+                    let parsed_inputs = parser.parse_inputs()?;
+                    //debug!("{}", serde_json::to_string(&parsed_inputs)?);
+
+                    if self.config.mqtt().enabled() {
+                        // individual message publishing, raw and parsed
+                        self.publish_raw_input_messages(&td)?;
+                        self.publish_parsed_input_messages(&td, &parsed_inputs)?;
+
+                        // inputs/1/2/3/4
+                        if let Some(topic_fragment) = parser.guess_legacy_inputs_topic() {
+                            let m = mqtt::Message {
+                                topic: format!("{}/inputs/{}", td.datalog, topic_fragment),
+                                retain: false,
+                                payload: serde_json::to_string(&parsed_inputs)?,
+                            };
+                            let channel_data = mqtt::ChannelData::Message(m);
+                            if self.channels.to_mqtt.send(channel_data).is_err() {
+                                bail!("send(to_mqtt) failed - channel closed?");
+                            }
+                        };
+                    }
+
                     for (register, value) in td.pairs() {
                         self.cache_register(register_cache::Register::Input(register), value)?;
                     }
 
-                    // temp bodge to get parsed messages on MQTT
-                    if self.config.mqtt().enabled() {
-                        // publish raw messages
-                        for (register, value) in td.pairs() {
-                            let m = mqtt::Message {
-                                topic: format!("{}/input/{}", td.datalog, register),
-                                retain: false,
-                                payload: serde_json::to_string(&value)?,
-                            };
-                            let channel_data = mqtt::ChannelData::Message(m);
-                            if self.channels.to_mqtt.send(channel_data).is_err() {
-                                bail!("send(to_mqtt) failed - channel closed?");
-                            }
-                        }
-
-                        // TODO: inputs/1/2/3/all
-
-                        // publish parsed messages
-                        let parser = lxp::register_parser::ParseInputs::new(td.pairs());
-                        for (key, parsed_value) in parser.parse_inputs()? {
-                            let m = mqtt::Message {
-                                topic: format!("{}/input/{}/parsed", td.datalog, key),
-                                retain: false,
-                                payload: parsed_value.to_string(),
-                            };
-                            let channel_data = mqtt::ChannelData::Message(m);
-                            if self.channels.to_mqtt.send(channel_data).is_err() {
-                                bail!("send(to_mqtt) failed - channel closed?");
-                            }
-                        }
-                    }
+                    // add new config option to say when to broadcast "all".
+                    //   defaults to 80 (so 1/2/3 -> all) suggest 120 for 4
+                    //
+                    // if parser.contains_register(option) then feed contents of cache_register
+                    // into parser; which should get us "all". feed that to mqtt+influx
+                    //   and then clear cache to start over
+                    // let parser = lxp::register_parser::ParseInputs::from_hashmap(register_cache);
                 }
                 DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
+                    let parser = lxp::register_parser::Parser::from_pairs(td.pairs());
+                    let parsed_holds = parser.parse_holds()?;
+
+                    // TODO: broadcast parsed
+                    self.publish_raw_hold_messages(&td)?;
+                    self.publish_parsed_hold_messages(&td, &parsed_holds)?;
+
                     for (register, value) in td.pairs() {
                         self.cache_register(register_cache::Register::Hold(register), value)?;
                     }
@@ -454,6 +458,71 @@ impl Coordinator {
         Ok(())
     }
 
+    fn publish_message(&self, topic: String, payload: String) -> Result<()> {
+        let m = mqtt::Message {
+            topic,
+            payload,
+            retain: false,
+        };
+        let channel_data = mqtt::ChannelData::Message(m);
+        if self.channels.to_mqtt.send(channel_data).is_err() {
+            bail!("send(to_mqtt) failed - channel closed?");
+        }
+        Ok(())
+    }
+
+    fn publish_raw_hold_messages(&self, td: &lxp::packet::TranslatedData) -> Result<()> {
+        for (register, value) in td.pairs() {
+            self.publish_message(
+                format!("{}/hold/{}", td.datalog, register),
+                serde_json::to_string(&value)?,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn publish_raw_input_messages(&self, td: &lxp::packet::TranslatedData) -> Result<()> {
+        for (register, value) in td.pairs() {
+            self.publish_message(
+                format!("{}/input/{}", td.datalog, register),
+                serde_json::to_string(&value)?,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn publish_parsed_input_messages(
+        &self,
+        td: &lxp::packet::TranslatedData,
+        parsed_inputs: &lxp::register_parser::ParsedData,
+    ) -> Result<()> {
+        for (key, parsed_value) in parsed_inputs.clone() {
+            self.publish_message(
+                format!("{}/input/{}/parsed", td.datalog, key),
+                parsed_value.to_string(),
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn publish_parsed_hold_messages(
+        &self,
+        td: &lxp::packet::TranslatedData,
+        parsed_inputs: &lxp::register_parser::ParsedData,
+    ) -> Result<()> {
+        for (key, parsed_value) in parsed_inputs.clone() {
+            self.publish_message(
+                format!("{}/hold/{}", td.datalog, key),
+                parsed_value.to_string(),
+            )?;
+        }
+
+        Ok(())
+    }
+
     async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
         if self.config.influx().enabled() {
             let channel_data = influx::ChannelData::InputData(serde_json::to_value(&input)?);
@@ -475,7 +544,7 @@ impl Coordinator {
     fn cache_register(&self, register: register_cache::Register, value: u16) -> Result<()> {
         let channel_data = register_cache::ChannelData::RegisterData(register, value);
 
-        if self.channels.to_register_cache.send(channel_data).is_err() {
+        if self.channels.register_cache.send(channel_data).is_err() {
             bail!("send(to_register_cache) failed - channel closed?");
         }
 
