@@ -568,13 +568,6 @@ impl Coordinator {
 
     /*
     async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
-        if self.config.influx().enabled() {
-            let channel_data = influx::ChannelData::InputData(serde_json::to_value(&input)?);
-            if self.channels.to_influx.send(channel_data).is_err() {
-                bail!("send(to_influx) failed - channel closed?");
-            }
-        }
-
         if self.config.have_enabled_database() {
             let channel_data = database::ChannelData::ReadInputAll(input);
             if self.channels.to_database.send(channel_data).is_err() {
