@@ -33,11 +33,11 @@ struct StartEndTimePayload {
 }
 #[derive(Debug, Clone)]
 pub struct Parser {
-    registers: HashMap<u16, u16>,
+    registers: RegisterMap
 }
 
 impl Parser {
-    pub fn new(registers: HashMap<u16, u16>) -> Self {
+    pub fn new(registers: RegisterMap) -> Self {
         Self { registers }
     }
 

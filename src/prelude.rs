@@ -7,6 +7,8 @@ pub use std::{
     str::FromStr,
 };
 
+pub type RegisterMap = HashMap<u16, u16>;
+
 pub use {
     anyhow::{anyhow, bail, Error, Result},
     log::{debug, error, info, trace, warn},

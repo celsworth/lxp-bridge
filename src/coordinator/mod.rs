@@ -351,8 +351,8 @@ impl Coordinator {
 
             match td.device_function {
                 DeviceFunction::ReadInput => {
-                    let pairs = td.pairs();
-                    let parser = lxp::register_parser::Parser::new(pairs.clone());
+                    let register_map = td.register_map();
+                    let parser = lxp::register_parser::Parser::new(register_map.clone());
                     let parsed_inputs = parser.parse_inputs()?;
                     //debug!("{}", serde_json::to_string(&parsed_inputs)?);
 
@@ -371,7 +371,7 @@ impl Coordinator {
                         };
                     }
 
-                    for (register, value) in pairs {
+                    for (register, value) in register_map {
                         self.cache_register(register_cache::Register::Input(register), value)?;
                     }
 
@@ -411,9 +411,9 @@ impl Coordinator {
                     }
                 }
                 DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
-                    let pairs = td.pairs();
+                    let register_map = td.register_map();
 
-                    let parser = lxp::register_parser::Parser::new(pairs.clone());
+                    let parser = lxp::register_parser::Parser::new(register_map.clone());
                     let parsed_holds = parser.parse_holds()?;
 
                     self.publish_raw_hold_messages(td)?;
@@ -421,15 +421,15 @@ impl Coordinator {
 
                     if td.device_function == DeviceFunction::WriteSingle {
                         let inverter = self.inverter_config_for_datalog(td.datalog)?;
-                        // if pairs contains an interesting register that's
+                        // if register_map contains an interesting register that's
                         // part of a multi-register setup (like AC Charge times) then
                         // issue a ReadHold request to get the other parts so register_parser
                         // can construct an MQTT message to send out with current data
-                        self.maybe_send_read_holds(pairs, inverter).await?;
+                        self.maybe_send_read_holds(register_map, inverter).await?;
                     }
 
                     /* not used yet
-                    for (register, value) in pairs {
+                    for (register, value) in register_map {
                       self.cache_register(register_cache::Register::Hold(register), value)?;
                     }
                     */
@@ -443,10 +443,10 @@ impl Coordinator {
 
     async fn maybe_send_read_holds(
         &self,
-        pairs: HashMap<u16, u16>,
+        register_map: RegisterMap,
         inverter: config::Inverter,
     ) -> Result<()> {
-        if pairs.contains_key(&70) || pairs.contains_key(&71) {
+        if register_map.contains_key(&70) || register_map.contains_key(&71) {
             // request 70 and 71 for ac_charge/1
             self.read_hold(inverter.clone(), 70_u16, 2).await?;
         }
@@ -529,7 +529,7 @@ impl Coordinator {
     }
 
     fn publish_raw_hold_messages(&self, td: &lxp::packet::TranslatedData) -> Result<()> {
-        for (register, value) in td.pairs() {
+        for (register, value) in td.register_map() {
             self.publish_message(
                 format!("{}/hold/{}", td.datalog, register),
                 serde_json::to_string(&value)?,
@@ -541,7 +541,7 @@ impl Coordinator {
     }
 
     fn publish_raw_input_messages(&self, td: &lxp::packet::TranslatedData) -> Result<()> {
-        for (register, value) in td.pairs() {
+        for (register, value) in td.register_map() {
             self.publish_message(
                 format!("{}/input/{}", td.datalog, register),
                 serde_json::to_string(&value)?,
