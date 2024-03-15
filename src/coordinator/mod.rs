@@ -350,9 +350,9 @@ impl Coordinator {
             }
 
             match td.device_function {
-                DeviceFunction::WriteMulti => {}
                 DeviceFunction::ReadInput => {
-                    let parser = lxp::register_parser::Parser::from_pairs(td.pairs());
+                    let pairs = td.pairs();
+                    let parser = lxp::register_parser::Parser::from_pairs(pairs.clone());
                     let parsed_inputs = parser.parse_inputs()?;
                     //debug!("{}", serde_json::to_string(&parsed_inputs)?);
 
@@ -371,7 +371,7 @@ impl Coordinator {
                         };
                     }
 
-                    for (register, value) in td.pairs() {
+                    for (register, value) in pairs {
                         self.cache_register(register_cache::Register::Input(register), value)?;
                     }
 
@@ -411,22 +411,55 @@ impl Coordinator {
                     }
                 }
                 DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
-                    let parser = lxp::register_parser::Parser::from_pairs(td.pairs());
+                    let pairs = td.pairs();
+
+                    let parser = lxp::register_parser::Parser::from_pairs(pairs.clone());
                     let parsed_holds = parser.parse_holds()?;
 
                     self.publish_raw_hold_messages(td)?;
                     self.publish_parsed_hold_messages(td, &parsed_holds)?;
 
+                    if td.device_function == DeviceFunction::WriteSingle {
+                        let inverter = self.inverter_config_for_datalog(td.datalog)?;
+                        // if pairs contains an interesting register that's
+                        // part of a multi-register setup (like AC Charge times) then
+                        // issue a ReadHold request to get the other parts so register_parser
+                        // can construct an MQTT message to send out with current data
+                        self.maybe_send_read_holds(pairs, inverter).await?;
+                    }
+
                     /* not used yet
-                    for (register, value) in td.pairs() {
+                    for (register, value) in pairs {
                       self.cache_register(register_cache::Register::Hold(register), value)?;
                     }
                     */
                 }
+                DeviceFunction::WriteMulti => {}
             }
         }
 
         Ok(())
+    }
+
+    async fn maybe_send_read_holds(
+        &self,
+        pairs: Vec<(u16, u16)>,
+        inverter: config::Inverter,
+    ) -> Result<()> {
+        if pairs.iter().any(|(r, _)| (*r == 70) || (*r == 71)) {
+            // request 70 and 71 for ac_charge/1
+            self.read_hold(inverter.clone(), 70_u16, 2).await?;
+        }
+
+        // ... etc
+
+        Ok(())
+    }
+
+    fn inverter_config_for_datalog(&self, datalog: Serial) -> Result<config::Inverter> {
+        self.config
+            .enabled_inverter_with_datalog(datalog)
+            .ok_or(anyhow!("Unknown inverter connected: {}", datalog))
     }
 
     // Unlike input registers, holding registers are not broadcast by inverters,
@@ -434,10 +467,7 @@ impl Coordinator {
     // when we connect to an inverter makes it easy for configuration data to be
     // tracked, which is particularly useful in conjunction with HomeAssistant.
     async fn inverter_connected(&self, datalog: Serial) -> Result<()> {
-        let inverter = match self.config.enabled_inverter_with_datalog(datalog) {
-            Some(inverter) => inverter,
-            None => bail!("Unknown inverter connected: {}", datalog),
-        };
+        let inverter = self.inverter_config_for_datalog(datalog)?;
 
         if !inverter.publish_holdings_on_connect() {
             return Ok(());

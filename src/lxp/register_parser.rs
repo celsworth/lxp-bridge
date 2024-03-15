@@ -85,6 +85,10 @@ impl Parser {
     // this will Err if you pass it a subset of registers it doesn't expect, for example
     // if you pass in pairs that contain 0-7, then it will try to work out p_pv because it
     // has seen 7. but p_pv requires 7 + 8 + 9, which aren't present.
+    //
+    // I think this is fine because generally we get these registers in lumps of 40, ie 0-39
+    // etc. It would be unusual to get a single input register.
+    //
     pub fn parse_inputs(&self) -> Result<ParsedData> {
         let mut ret = HashMap::new();
 
@@ -226,8 +230,9 @@ impl Parser {
     // and return a list of Key -> Value
     //
     // unlike parse_inputs, this one does not Err if passed unknown registers. We just silently
-    // return an empty array. This is because most hold registers aren't parsed and we don't care
-    // if we're passed some that aren't implemented.
+    // return an empty array. This is because Hold registers are far more likely to be sent
+    // to us individually, ie a single ReadHold command. Also most hold registers aren't parsed
+    // and we don't care if we're passed some that aren't implemented.
     pub fn parse_holds(&self) -> Result<ParsedData> {
         let mut ret = HashMap::new();
 
@@ -235,7 +240,7 @@ impl Parser {
             let e = match r {
                 // only place single-register matches in here. If any are missing (which
                 // is much more likely in ReadHold messages), multi-register operations
-                // will break
+                // will break!
                 //
                 // these should have hold/ prefixed if appropriate!
                 //
