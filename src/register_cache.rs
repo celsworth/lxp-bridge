@@ -3,7 +3,7 @@ use crate::prelude::*;
 #[derive(Clone, Debug)]
 pub enum ChannelData {
     ReadRegister(Register, Rc<RefCell<oneshot::Sender<u16>>>),
-    ReadAllRegisters(AllRegisters, Rc<RefCell<oneshot::Sender<Cache>>>),
+    ReadAllRegisters(AllRegisters, Rc<RefCell<oneshot::Sender<RegisterMap>>>),
     RegisterData(Register, u16),
     ClearInputRegisters,
     Shutdown,
@@ -21,18 +21,16 @@ pub enum AllRegisters {
     Input,
 }
 
-pub type Cache = HashMap<u16, u16>;
-
 pub struct RegisterCache {
     channels: Channels,
-    hold_register_data: Rc<RefCell<Cache>>,
-    input_register_data: Rc<RefCell<Cache>>,
+    hold_register_data: Rc<RefCell<RegisterMap>>,
+    input_register_data: Rc<RefCell<RegisterMap>>,
 }
 
 impl RegisterCache {
     pub fn new(channels: Channels) -> Self {
-        let hold_register_data = Rc::new(RefCell::new(Cache::with_capacity(256)));
-        let input_register_data = Rc::new(RefCell::new(Cache::with_capacity(256)));
+        let hold_register_data = Rc::new(RefCell::new(RegisterMap::with_capacity(256)));
+        let input_register_data = Rc::new(RefCell::new(RegisterMap::with_capacity(256)));
 
         Self {
             channels,
@@ -59,7 +57,7 @@ impl RegisterCache {
     }
 
     //   RegisterCache::dump(&self.channels, register_cache::AllRegisters::Input)
-    pub async fn dump(channels: &Channels, register_type: AllRegisters) -> Cache {
+    pub async fn dump(channels: &Channels, register_type: AllRegisters) -> RegisterMap {
         let (tx, rx) = oneshot::channel();
 
         let channel_data = ChannelData::ReadAllRegisters(register_type, Rc::new(RefCell::new(tx)));

@@ -263,7 +263,7 @@ pub struct TranslatedData {
     pub values: Vec<u8>,                 // undecoded, since can be u16 or u32s?
 }
 impl TranslatedData {
-    pub fn pairs(&self) -> Vec<(u16, u16)> {
+    pub fn register_map(&self) -> RegisterMap {
         self.values
             .chunks(2)
             .enumerate()
@@ -384,7 +384,7 @@ impl PacketCommon for TranslatedData {
         data[14..16].copy_from_slice(&self.register.to_le_bytes());
 
         if self.device_function == DeviceFunction::WriteMulti {
-            let register_count = self.pairs().len() as u16;
+            let register_count = self.register_map().len() as u16;
             data.extend_from_slice(&register_count.to_le_bytes());
         }
 
@@ -432,7 +432,7 @@ pub struct ReadParam {
     pub values: Vec<u8>, // undecoded, since can be u16 or i32s?
 }
 impl ReadParam {
-    pub fn pairs(&self) -> Vec<(u16, u16)> {
+    pub fn register_map(&self) -> RegisterMap {
         self.values
             .chunks(2)
             .enumerate()
@@ -528,7 +528,7 @@ pub struct WriteParam {
     pub values: Vec<u8>, // undecoded, since can be u16 or i32s?
 }
 impl WriteParam {
-    pub fn pairs(&self) -> Vec<(u16, u16)> {
+    pub fn register_map(&self) -> RegisterMap {
         self.values
             .chunks(2)
             .enumerate()

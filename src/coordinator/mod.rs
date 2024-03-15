@@ -350,9 +350,9 @@ impl Coordinator {
             }
 
             match td.device_function {
-                DeviceFunction::WriteMulti => {}
                 DeviceFunction::ReadInput => {
-                    let parser = lxp::register_parser::Parser::from_pairs(td.pairs());
+                    let register_map = td.register_map();
+                    let parser = lxp::register_parser::Parser::new(register_map.clone());
                     let parsed_inputs = parser.parse_inputs()?;
                     //debug!("{}", serde_json::to_string(&parsed_inputs)?);
 
@@ -371,7 +371,7 @@ impl Coordinator {
                         };
                     }
 
-                    for (register, value) in td.pairs() {
+                    for (register, value) in register_map {
                         self.cache_register(register_cache::Register::Input(register), value)?;
                     }
 
@@ -384,7 +384,7 @@ impl Coordinator {
                             register_cache::AllRegisters::Input,
                         )
                         .await;
-                        let all_parser = lxp::register_parser::Parser::from_cache(cache);
+                        let all_parser = lxp::register_parser::Parser::new(cache);
                         if all_parser.guess_legacy_inputs_topic() == Some("all") {
                             let all_parsed_inputs = all_parser.parse_inputs()?;
                             if self.config.mqtt().enabled() {
@@ -411,22 +411,87 @@ impl Coordinator {
                     }
                 }
                 DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
-                    let parser = lxp::register_parser::Parser::from_pairs(td.pairs());
+                    let register_map = td.register_map();
+
+                    let parser = lxp::register_parser::Parser::new(register_map.clone());
                     let parsed_holds = parser.parse_holds()?;
 
                     self.publish_raw_hold_messages(td)?;
                     self.publish_parsed_hold_messages(td, &parsed_holds)?;
 
+                    if td.device_function == DeviceFunction::WriteSingle {
+                        let inverter = self.inverter_config_for_datalog(td.datalog)?;
+                        // if register_map contains an interesting register that's
+                        // part of a multi-register setup (like AC Charge times) then
+                        // issue a ReadHold request to get the other parts so register_parser
+                        // can construct an MQTT message to send out with current data
+                        self.maybe_send_read_holds(register_map, inverter).await?;
+                    }
+
                     /* not used yet
-                    for (register, value) in td.pairs() {
+                    for (register, value) in register_map {
                       self.cache_register(register_cache::Register::Hold(register), value)?;
                     }
                     */
                 }
+                DeviceFunction::WriteMulti => {}
             }
         }
 
         Ok(())
+    }
+
+    async fn maybe_send_read_holds(
+        &self,
+        register_map: RegisterMap,
+        inverter: config::Inverter,
+    ) -> Result<()> {
+        // ^ is true if one key is present, but false if none or both are
+
+        if register_map.contains_key(&70) ^ register_map.contains_key(&71) {
+            self.read_hold(inverter.clone(), 70_u16, 2).await?; // ac_charge/1
+        }
+        if register_map.contains_key(&72) ^ register_map.contains_key(&73) {
+            self.read_hold(inverter.clone(), 72_u16, 2).await?; // ac_charge/2
+        }
+        if register_map.contains_key(&74) ^ register_map.contains_key(&75) {
+            self.read_hold(inverter.clone(), 74_u16, 2).await?; // ac_charge/3
+        }
+        if register_map.contains_key(&76) ^ register_map.contains_key(&77) {
+            self.read_hold(inverter.clone(), 76_u16, 2).await?; // charge_priority/1
+        }
+        if register_map.contains_key(&78) ^ register_map.contains_key(&79) {
+            self.read_hold(inverter.clone(), 78_u16, 2).await?; // charge_priority/2
+        }
+        if register_map.contains_key(&80) ^ register_map.contains_key(&81) {
+            self.read_hold(inverter.clone(), 80_u16, 2).await?; // charge_priority/3
+        }
+        if register_map.contains_key(&84) ^ register_map.contains_key(&85) {
+            self.read_hold(inverter.clone(), 84_u16, 2).await?; // forced_discharge/1
+        }
+        if register_map.contains_key(&86) ^ register_map.contains_key(&87) {
+            self.read_hold(inverter.clone(), 86_u16, 2).await?; // forced_discharge/2
+        }
+        if register_map.contains_key(&88) ^ register_map.contains_key(&89) {
+            self.read_hold(inverter.clone(), 88_u16, 2).await?; // forced_discharge/3
+        }
+        if register_map.contains_key(&152) ^ register_map.contains_key(&153) {
+            self.read_hold(inverter.clone(), 152_u16, 2).await?; // ac_first/1
+        }
+        if register_map.contains_key(&154) ^ register_map.contains_key(&155) {
+            self.read_hold(inverter.clone(), 154_u16, 2).await?; // ac_first/2
+        }
+        if register_map.contains_key(&156) ^ register_map.contains_key(&157) {
+            self.read_hold(inverter.clone(), 156_u16, 2).await?; // ac_first/3
+        }
+
+        Ok(())
+    }
+
+    fn inverter_config_for_datalog(&self, datalog: Serial) -> Result<config::Inverter> {
+        self.config
+            .enabled_inverter_with_datalog(datalog)
+            .ok_or(anyhow!("Unknown inverter connected: {}", datalog))
     }
 
     // Unlike input registers, holding registers are not broadcast by inverters,
@@ -434,10 +499,7 @@ impl Coordinator {
     // when we connect to an inverter makes it easy for configuration data to be
     // tracked, which is particularly useful in conjunction with HomeAssistant.
     async fn inverter_connected(&self, datalog: Serial) -> Result<()> {
-        let inverter = match self.config.enabled_inverter_with_datalog(datalog) {
-            Some(inverter) => inverter,
-            None => bail!("Unknown inverter connected: {}", datalog),
-        };
+        let inverter = self.inverter_config_for_datalog(datalog)?;
 
         if !inverter.publish_holdings_on_connect() {
             return Ok(());
@@ -499,7 +561,7 @@ impl Coordinator {
     }
 
     fn publish_raw_hold_messages(&self, td: &lxp::packet::TranslatedData) -> Result<()> {
-        for (register, value) in td.pairs() {
+        for (register, value) in td.register_map() {
             self.publish_message(
                 format!("{}/hold/{}", td.datalog, register),
                 serde_json::to_string(&value)?,
@@ -511,7 +573,7 @@ impl Coordinator {
     }
 
     fn publish_raw_input_messages(&self, td: &lxp::packet::TranslatedData) -> Result<()> {
-        for (register, value) in td.pairs() {
+        for (register, value) in td.register_map() {
             self.publish_message(
                 format!("{}/input/{}", td.datalog, register),
                 serde_json::to_string(&value)?,
