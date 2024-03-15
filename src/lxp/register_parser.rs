@@ -137,29 +137,29 @@ impl Parser {
                 38 => vec![("v_bus_1", self.parse_f64_1(v, 10))],
                 39 => vec![("v_bus_2", self.parse_f64_1(v, 10))],
 
-                40 => vec![("e_pv_all_1", self.parse_f64_2(v, self.v_for(41)?, 10))],
+                40 => vec![("e_pv_all_1", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 41 => vec![], // done in 40
-                42 => vec![("e_pv_all_2", self.parse_f64_2(v, self.v_for(43)?, 10))],
+                42 => vec![("e_pv_all_2", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 43 => vec![], // done in 42
-                44 => vec![("e_pv_all_3", self.parse_f64_2(v, self.v_for(45)?, 10))],
+                44 => vec![("e_pv_all_3", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 45 => vec![], // done in 44
-                46 => vec![("e_inv_all", self.parse_f64_2(v, self.v_for(47)?, 10))],
+                46 => vec![("e_inv_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 47 => vec![], // done in 46
-                48 => vec![("e_rec_all", self.parse_f64_2(v, self.v_for(49)?, 10))],
+                48 => vec![("e_rec_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 49 => vec![], // done in 48
-                50 => vec![("e_chg_all", self.parse_f64_2(v, self.v_for(51)?, 10))],
+                50 => vec![("e_chg_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 51 => vec![], // done in 40
-                52 => vec![("e_dischg_all", self.parse_f64_2(v, self.v_for(53)?, 10))],
+                52 => vec![("e_dischg_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 53 => vec![], // done in 52
-                54 => vec![("e_eps_all", self.parse_f64_2(v, self.v_for(55)?, 10))],
+                54 => vec![("e_eps_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 55 => vec![], // done in 54
-                56 => vec![("e_to_grid_all", self.parse_f64_2(v, self.v_for(57)?, 10))],
+                56 => vec![("e_to_grid_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 57 => vec![], // done in 56
-                58 => vec![("e_to_user_all", self.parse_f64_2(v, self.v_for(59)?, 10))],
+                58 => vec![("e_to_user_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 59 => vec![], // done in 58
-                60 => vec![("fault_code", self.parse_fault(v, self.v_for(61)?))],
+                60 => vec![("fault_code", self.parse_fault(v, self.v_for(r + 1)?))],
                 61 => vec![], // done in 60
-                62 => vec![("warning_code", self.parse_warning(v, self.v_for(63)?))],
+                62 => vec![("warning_code", self.parse_warning(v, self.v_for(r + 1)?))],
                 63 => vec![], // done in 62
                 64 => vec![("t_inner", self.parse_i64_1(v))],
                 65 => vec![("t_rad_1", self.parse_i64_1(v))],
@@ -195,7 +195,7 @@ impl Parser {
                 122 => vec![("f_gen", self.parse_f64_1(v, 100))],
                 123 => vec![("p_gen", self.parse_i64_1(v))],
                 124 => vec![("e_gen_day", self.parse_f64_1(v, 10))],
-                125 => vec![("e_gen_all", self.parse_f64_2(v, self.v_for(126)?, 10))],
+                125 => vec![("e_gen_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 126 => vec![], // done in 125
                 127 => vec![("v_eps_l1", self.parse_f64_1(v, 10))],
                 128 => vec![("v_eps_l2", self.parse_f64_1(v, 10))],
@@ -205,9 +205,9 @@ impl Parser {
                 132 => vec![("s_eps_l2", self.parse_i64_1(v))],
                 133 => vec![("e_eps_l1_day", self.parse_f64_1(v, 10))],
                 134 => vec![("e_eps_l2_day", self.parse_f64_1(v, 10))],
-                135 => vec![("e_eps_l1_all", self.parse_f64_2(v, self.v_for(136)?, 10))],
+                135 => vec![("e_eps_l1_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 136 => vec![], // done in 135
-                137 => vec![("e_eps_l2_all", self.parse_f64_2(v, self.v_for(138)?, 10))],
+                137 => vec![("e_eps_l2_all", self.parse_f64_2(v, self.v_for(r + 1)?, 10))],
                 138 => vec![], // done in 137
 
                 ..=255 => vec![], // ignore everything else for now
@@ -233,25 +233,14 @@ impl Parser {
 
         for (r, v) in self.pairs.clone() {
             let e = match r {
+                // only place single-register matches in here. If any are missing (which
+                // is much more likely in ReadHold messages), multi-register operations
+                // will break
+                //
                 // these should have hold/ prefixed if appropriate!
+                //
                 21 => vec![("hold/21/bits", self.parse_21_bits(v)?)],
                 110 => vec![("hold/110/bits", self.parse_110_bits(v)?)],
-
-                68 => vec![("ac_charge/1", self.start_end(v, self.v_for(r + 1)?)?)],
-                70 => vec![("ac_charge/2", self.start_end(v, self.v_for(r + 1)?)?)],
-                72 => vec![("ac_charge/3", self.start_end(v, self.v_for(r + 1)?)?)],
-
-                76 => vec![("charge_priority/1", self.start_end(v, self.v_for(r + 1)?)?)],
-                78 => vec![("charge_priority/2", self.start_end(v, self.v_for(r + 1)?)?)],
-                80 => vec![("charge_priority/3", self.start_end(v, self.v_for(r + 1)?)?)],
-
-                84 => vec![("forced_discharge/1", self.start_end(v, self.v_for(r + 1)?)?)],
-                86 => vec![("forced_discharge/2", self.start_end(v, self.v_for(r + 1)?)?)],
-                88 => vec![("forced_discharge/3", self.start_end(v, self.v_for(r + 1)?)?)],
-
-                152 => vec![("ac_first/1", self.start_end(v, self.v_for(r + 1)?)?)],
-                154 => vec![("ac_first/2", self.start_end(v, self.v_for(r + 1)?)?)],
-                156 => vec![("ac_first/3", self.start_end(v, self.v_for(r + 1)?)?)],
 
                 // ignore any unknown registers, do not return Err
                 _ => vec![],
@@ -259,14 +248,46 @@ impl Parser {
             ret.extend(e);
         }
 
+        /* self.start_end_tuple hides away a lot of logic to check if the registers
+         * we pass in are present, and if so, return a Vec suitable for putting into our
+         * returned HashMap. If any are missing, it does nothing (no error)
+         * */
+        ret.extend(self.start_end_tuple("ac_charge/1", [70, 71]));
+        ret.extend(self.start_end_tuple("ac_charge/2", [72, 73]));
+        ret.extend(self.start_end_tuple("ac_charge/3", [74, 75]));
+
+        ret.extend(self.start_end_tuple("charge_priority/1", [76, 77]));
+        ret.extend(self.start_end_tuple("charge_priority/2", [78, 79]));
+        ret.extend(self.start_end_tuple("charge_priority/3", [80, 81]));
+
+        ret.extend(self.start_end_tuple("forced_discharge/1", [84, 85]));
+        ret.extend(self.start_end_tuple("forced_discharge/2", [86, 87]));
+        ret.extend(self.start_end_tuple("forced_discharge/3", [88, 89]));
+
+        ret.extend(self.start_end_tuple("ac_first/1", [152, 153]));
+        ret.extend(self.start_end_tuple("ac_first/2", [154, 155]));
+        ret.extend(self.start_end_tuple("ac_first/3", [156, 157]));
+
         // debug!("{:?}", ret);
 
         Ok(ret)
     }
 
-    fn start_end(&self, v1: u16, v2: u16) -> Result<Value> {
-        let start = v1.to_le_bytes();
-        let end = v2.to_le_bytes();
+    fn start_end_tuple(
+        &self,
+        key: &'static str,
+        registers: [u16; 2],
+    ) -> Vec<(&'static str, Value)> {
+        if self.all_registers_present(&registers) {
+            vec![(key, self.start_end(registers[0], registers[1]).unwrap())]
+        } else {
+            vec![]
+        }
+    }
+
+    fn start_end(&self, r1: u16, r2: u16) -> Result<Value> {
+        let start = self.v_for(r1)?.to_le_bytes();
+        let end = self.v_for(r2)?.to_le_bytes();
 
         let payload = StartEndTimePayload {
             start: format!("{:02}:{:02}", start[0], start[1]),
@@ -380,6 +401,13 @@ impl Parser {
         }
 
         Err(anyhow!("no value found for register {}", register))
+    }
+
+    // return true if we have a value for ALL the registers requested
+    fn all_registers_present(&self, registers: &[u16]) -> bool {
+        registers
+            .into_iter()
+            .all(|register| self.pairs.iter().any(|(r, _)| r == register))
     }
 }
 
