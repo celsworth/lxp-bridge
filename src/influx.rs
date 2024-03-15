@@ -66,8 +66,7 @@ impl Influx {
                 InputData(datalog, data) => {
                     for (key, value) in data {
                         line = match (key, value) {
-                            // relying on InfluxDB using current time for now, its close enough..
-                            // ("time", _) => { line.set_timestamp(chrono::Utc.timestamp_opt(value, 0).unwrap()) }
+                            ("time", _) => line.set_timestamp(Utils::utc()),
                             (_, ParsedValue::String(v)) => line.insert_field(key, v),
                             (_, ParsedValue::StringOwned(v)) => line.insert_field(key, v),
                             (_, ParsedValue::Integer(v)) => line.insert_field(key, v),
