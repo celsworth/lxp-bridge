@@ -66,14 +66,16 @@ impl Influx {
                 InputData(datalog, data) => {
                     for (key, value) in data {
                         line = match (key, value) {
-                            ("time", _) => line.set_timestamp(Utils::utc()),
+                            //("time", _) => line.set_timestamp(..),
                             (_, ParsedValue::String(v)) => line.insert_field(key, v),
                             (_, ParsedValue::StringOwned(v)) => line.insert_field(key, v),
                             (_, ParsedValue::Integer(v)) => line.insert_field(key, v),
                             (_, ParsedValue::Float(v)) => line.insert_field(key, v),
                         };
                     }
-                    line = line.insert_tag("datalog", datalog.to_string());
+                    line = line
+                        .set_timestamp(Utils::utc())
+                        .insert_tag("datalog", datalog.to_string());
 
                     let lines = vec![line.build()];
 
