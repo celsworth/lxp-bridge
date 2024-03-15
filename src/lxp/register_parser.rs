@@ -33,7 +33,7 @@ struct StartEndTimePayload {
 }
 #[derive(Debug, Clone)]
 pub struct Parser {
-    registers: RegisterMap
+    registers: RegisterMap,
 }
 
 impl Parser {
