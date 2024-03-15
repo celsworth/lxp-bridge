@@ -448,14 +448,14 @@ impl Coordinator {
     ) -> Result<()> {
         // ^ is true if one key is present, but false if none or both are
 
+        if register_map.contains_key(&68) ^ register_map.contains_key(&69) {
+            self.read_hold(inverter.clone(), 84_u16, 2).await?; // ac_charge/1
+        }
         if register_map.contains_key(&70) ^ register_map.contains_key(&71) {
-            self.read_hold(inverter.clone(), 70_u16, 2).await?; // ac_charge/1
+            self.read_hold(inverter.clone(), 70_u16, 2).await?; // ac_charge/2
         }
         if register_map.contains_key(&72) ^ register_map.contains_key(&73) {
-            self.read_hold(inverter.clone(), 72_u16, 2).await?; // ac_charge/2
-        }
-        if register_map.contains_key(&74) ^ register_map.contains_key(&75) {
-            self.read_hold(inverter.clone(), 74_u16, 2).await?; // ac_charge/3
+            self.read_hold(inverter.clone(), 72_u16, 2).await?; // ac_charge/3
         }
         if register_map.contains_key(&76) ^ register_map.contains_key(&77) {
             self.read_hold(inverter.clone(), 76_u16, 2).await?; // charge_priority/1

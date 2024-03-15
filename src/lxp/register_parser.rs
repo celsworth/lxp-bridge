@@ -1,6 +1,8 @@
 use crate::prelude::*;
 use serde::Serialize;
 
+use serde_json::json;
+
 pub type ParsedData = HashMap<&'static str, Value>;
 
 #[derive(PartialEq, Serialize, Debug, Clone)]
@@ -26,11 +28,6 @@ impl Value {
     }
 }
 
-#[derive(Debug, Serialize)]
-struct StartEndTimePayload {
-    start: String,
-    end: String,
-}
 #[derive(Debug, Clone)]
 pub struct Parser {
     registers: RegisterMap,
@@ -248,9 +245,9 @@ impl Parser {
          * we pass in are present, and if so, return a Vec suitable for putting into our
          * returned HashMap. If any are missing, it does nothing (no error)
          * */
-        ret.extend(self.start_end_tuple("ac_charge/1", [70, 71]));
-        ret.extend(self.start_end_tuple("ac_charge/2", [72, 73]));
-        ret.extend(self.start_end_tuple("ac_charge/3", [74, 75]));
+        ret.extend(self.start_end_tuple("ac_charge/1", [68, 69]));
+        ret.extend(self.start_end_tuple("ac_charge/2", [70, 71]));
+        ret.extend(self.start_end_tuple("ac_charge/3", [72, 73]));
 
         ret.extend(self.start_end_tuple("charge_priority/1", [76, 77]));
         ret.extend(self.start_end_tuple("charge_priority/2", [78, 79]));
@@ -285,10 +282,10 @@ impl Parser {
         let start = self.v_for(r1)?.to_le_bytes();
         let end = self.v_for(r2)?.to_le_bytes();
 
-        let payload = StartEndTimePayload {
-            start: format!("{:02}:{:02}", start[0], start[1]),
-            end: format!("{:02}:{:02}", end[0], end[1]),
-        };
+        let payload = json!({
+            "start": format!("{:02}:{:02}", start[0], start[1]),
+            "end": format!("{:02}:{:02}", end[0], end[1]),
+        });
 
         Ok(Value::StringOwned(
             0, // raw value unused, holds are not inserted to Influx anyway
