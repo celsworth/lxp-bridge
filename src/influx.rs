@@ -1,6 +1,5 @@
 use crate::prelude::*;
 
-use chrono::TimeZone;
 use rinfluxdb::line_protocol::{r#async::Client, LineBuilder};
 
 static INPUTS_MEASUREMENT: &str = "inputs";
@@ -52,13 +51,12 @@ impl Influx {
     }
 
     async fn sender(&self, client: Client) -> Result<()> {
+        use lxp::register_parser::Value;
         use ChannelData::*;
 
         let mut receiver = self.channels.to_influx.subscribe();
 
         loop {
-            use lxp::register_parser::ParsedValue;
-
             let mut line = LineBuilder::new(INPUTS_MEASUREMENT);
 
             match receiver.recv().await? {
@@ -66,17 +64,19 @@ impl Influx {
                 InputData(datalog, data) => {
                     for (key, value) in data {
                         line = match (key, value) {
+                            // not required, Influx will just use current time which is good enough
                             //("time", _) => line.set_timestamp(..),
-                            // BODGE
-                            ("status", _) => line.insert_field(key, 0 as i64),
-                            ("fault_code", _) => line.insert_field(key, 0 as i64),
-                            ("warning_code", _) => line.insert_field(key, 0 as i64),
-                            (_, ParsedValue::String(v)) => line.insert_field(key, v),
-                            (_, ParsedValue::StringOwned(v)) => line.insert_field(key, v),
-                            (_, ParsedValue::Integer(v)) => line.insert_field(key, v),
-                            (_, ParsedValue::Float(v)) => line.insert_field(key, v),
+
+                            // strings make no sense in InfluxDb so use "raw" i64 value
+                            // this is for status/fault_code/warning_code
+                            (_, Value::String(raw, _)) => line.insert_field(key, raw),
+                            (_, Value::StringOwned(raw, _)) => line.insert_field(key, raw),
+
+                            (_, Value::Integer(v)) => line.insert_field(key, v),
+                            (_, Value::Float(v)) => line.insert_field(key, v),
                         };
                     }
+
                     line = line.insert_tag("datalog", datalog.to_string());
 
                     let lines = vec![line.build()];

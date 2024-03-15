@@ -1,24 +1,27 @@
 use crate::prelude::*;
 use serde::Serialize;
 
-pub type ParsedData = HashMap<&'static str, ParsedValue>;
+pub type ParsedData = HashMap<&'static str, Value>;
 
 #[derive(PartialEq, Serialize, Debug, Clone)]
 #[serde(untagged)]
-pub enum ParsedValue {
+pub enum Value {
     Integer(i64),
     Float(f64),
-    String(&'static str),
-    StringOwned(String),
+    // for strings (status, fault_code, warning_code),
+    // we also return the raw i64 value for inserting into InfluxDB.
+    // time registers are strings too but we don't need it there so just use 0 for now
+    String(i64, &'static str),
+    StringOwned(i64, String),
 }
 
-impl ParsedValue {
+impl Value {
     pub fn to_string(&self) -> String {
         match self {
             Self::Integer(i) => i.to_string(),
             Self::Float(f) => f.to_string(),
-            Self::String(s) => s.to_string(),
-            Self::StringOwned(s) => s.to_string(),
+            Self::String(_, s) => s.to_string(),
+            Self::StringOwned(_, s) => s.to_string(),
         }
     }
 }
@@ -77,7 +80,7 @@ impl Parser {
     }
 
     // given a set of raw input registers from td.pairs(), decode what we can
-    // and return a list of Key -> ParsedValue
+    // and return a list of Key -> Value
     //
     // this will Err if you pass it a subset of registers it doesn't expect, for example
     // if you pass in pairs that contain 0-7, then it will try to work out p_pv because it
@@ -220,7 +223,7 @@ impl Parser {
         Ok(ret)
     }
     // given a set of raw hold registers from td.pairs(), decode what we can
-    // and return a list of Key -> ParsedValue
+    // and return a list of Key -> Value
     //
     // unlike parse_inputs, this one does not Err if passed unknown registers. We just silently
     // return an empty array. This is because most hold registers aren't parsed and we don't care
@@ -261,7 +264,7 @@ impl Parser {
         Ok(ret)
     }
 
-    fn start_end(&self, v1: u16, v2: u16) -> Result<ParsedValue> {
+    fn start_end(&self, v1: u16, v2: u16) -> Result<Value> {
         let start = v1.to_le_bytes();
         let end = v2.to_le_bytes();
 
@@ -270,93 +273,102 @@ impl Parser {
             end: format!("{:02}:{:02}", end[0], end[1]),
         };
 
-        Ok(ParsedValue::StringOwned(serde_json::to_string(&payload)?))
+        Ok(Value::StringOwned(
+            0, // raw value unused, holds are not inserted to Influx anyway
+            serde_json::to_string(&payload)?,
+        ))
     }
 
-    fn parse_21_bits(&self, value: u16) -> Result<ParsedValue> {
+    fn parse_21_bits(&self, value: u16) -> Result<Value> {
         let bits = lxp::packet::Register21Bits::new(value);
 
-        Ok(ParsedValue::StringOwned(serde_json::to_string(&bits)?))
+        Ok(Value::StringOwned(
+            value as i64,
+            serde_json::to_string(&bits)?,
+        ))
     }
 
-    fn parse_110_bits(&self, value: u16) -> Result<ParsedValue> {
+    fn parse_110_bits(&self, value: u16) -> Result<Value> {
         let bits = lxp::packet::Register110Bits::new(value);
 
-        Ok(ParsedValue::StringOwned(serde_json::to_string(&bits)?))
+        Ok(Value::StringOwned(
+            value as i64,
+            serde_json::to_string(&bits)?,
+        ))
     }
 
-    fn p_pv(&self) -> Result<ParsedValue> {
+    fn p_pv(&self) -> Result<Value> {
         let p_pv_1 = self.v_for(7)? as i64;
         let p_pv_2 = self.v_for(8)? as i64;
         let p_pv_3 = self.v_for(9)? as i64;
 
-        Ok(ParsedValue::Integer(p_pv_1 + p_pv_2 + p_pv_3))
+        Ok(Value::Integer(p_pv_1 + p_pv_2 + p_pv_3))
     }
 
-    fn p_battery(&self) -> Result<ParsedValue> {
+    fn p_battery(&self) -> Result<Value> {
         // special case - use p_charge and p_discharge to return a signed net power flow
         let p_charge = self.v_for(10)? as i64;
         let p_discharge = self.v_for(11)? as i64;
 
-        Ok(ParsedValue::Integer(p_charge - p_discharge))
+        Ok(Value::Integer(p_charge - p_discharge))
     }
 
-    fn p_grid(&self) -> Result<ParsedValue> {
+    fn p_grid(&self) -> Result<Value> {
         // special case - use p_charge and p_discharge to return a signed net power flow
         let p_to_grid = self.v_for(26)? as i64;
         let p_to_user = self.v_for(27)? as i64;
 
-        Ok(ParsedValue::Integer(p_to_user - p_to_grid))
+        Ok(Value::Integer(p_to_user - p_to_grid))
     }
 
-    fn parse_status(&self, value: u16) -> ParsedValue {
-        ParsedValue::String(StatusString::from_value(value))
+    fn parse_status(&self, value: u16) -> Value {
+        Value::String(value as i64, StatusString::from_value(value))
     }
 
-    fn parse_fault(&self, v1: u16, v2: u16) -> ParsedValue {
+    fn parse_fault(&self, v1: u16, v2: u16) -> Value {
         let value: i64 = (v1 as i64) | (v2 as i64) << 16;
-        ParsedValue::String(FaultCodeString::from_value(value))
+        Value::String(value, FaultCodeString::from_value(value))
     }
 
-    fn parse_warning(&self, v1: u16, v2: u16) -> ParsedValue {
+    fn parse_warning(&self, v1: u16, v2: u16) -> Value {
         let value: i64 = (v1 as i64) | (v2 as i64) << 16;
-        ParsedValue::String(WarningCodeString::from_value(value))
+        Value::String(value, WarningCodeString::from_value(value))
     }
 
     // one register input, using low half, i64 output
-    fn parse_i64_l(&self, v1: u16) -> ParsedValue {
+    fn parse_i64_l(&self, v1: u16) -> Value {
         let r: i64 = (v1 & 0xff) as i64;
-        ParsedValue::Integer(r)
+        Value::Integer(r)
     }
 
     // one register input, using high half, i64 output
-    fn parse_i64_h(&self, v1: u16) -> ParsedValue {
+    fn parse_i64_h(&self, v1: u16) -> Value {
         let r: i64 = (v1 >> 8) as i64;
-        ParsedValue::Integer(r)
+        Value::Integer(r)
     }
 
     // one register input, i64 output
-    fn parse_i64_1(&self, v1: u16) -> ParsedValue {
+    fn parse_i64_1(&self, v1: u16) -> Value {
         let r: i64 = v1 as i64;
-        ParsedValue::Integer(r)
+        Value::Integer(r)
     }
 
     // two register input, i64 output
-    fn parse_i64_2(&self, v1: u16, v2: u16) -> ParsedValue {
+    fn parse_i64_2(&self, v1: u16, v2: u16) -> Value {
         let r: i64 = (v1 as i64) | (v2 as i64) << 16;
-        ParsedValue::Integer(r)
+        Value::Integer(r)
     }
 
     // one register input, f64 output
-    fn parse_f64_1(&self, v1: u16, divider: i64) -> ParsedValue {
+    fn parse_f64_1(&self, v1: u16, divider: i64) -> Value {
         let r: i64 = v1 as i64;
-        ParsedValue::Float(r as f64 / divider as f64)
+        Value::Float(r as f64 / divider as f64)
     }
 
     // two register input, f64 output
-    fn parse_f64_2(&self, v1: u16, v2: u16, divider: i64) -> ParsedValue {
+    fn parse_f64_2(&self, v1: u16, v2: u16, divider: i64) -> Value {
         let r: i64 = (v1 as i64) | (v2 as i64) << 16;
-        ParsedValue::Float(r as f64 / divider as f64)
+        Value::Float(r as f64 / divider as f64)
     }
 
     // get the value for a given register, or Err
