@@ -446,9 +446,43 @@ impl Coordinator {
         register_map: RegisterMap,
         inverter: config::Inverter,
     ) -> Result<()> {
-        if register_map.contains_key(&70) || register_map.contains_key(&71) {
-            // request 70 and 71 for ac_charge/1
-            self.read_hold(inverter.clone(), 70_u16, 2).await?;
+        // ^ is true if one key is present, but false if none or both are
+
+        if register_map.contains_key(&70) ^ register_map.contains_key(&71) {
+            self.read_hold(inverter.clone(), 70_u16, 2).await?; // ac_charge/1
+        }
+        if register_map.contains_key(&72) ^ register_map.contains_key(&73) {
+            self.read_hold(inverter.clone(), 72_u16, 2).await?; // ac_charge/2
+        }
+        if register_map.contains_key(&74) ^ register_map.contains_key(&75) {
+            self.read_hold(inverter.clone(), 74_u16, 2).await?; // ac_charge/3
+        }
+        if register_map.contains_key(&76) ^ register_map.contains_key(&77) {
+            self.read_hold(inverter.clone(), 76_u16, 2).await?; // charge_priority/1
+        }
+        if register_map.contains_key(&78) ^ register_map.contains_key(&79) {
+            self.read_hold(inverter.clone(), 78_u16, 2).await?; // charge_priority/2
+        }
+        if register_map.contains_key(&80) ^ register_map.contains_key(&81) {
+            self.read_hold(inverter.clone(), 80_u16, 2).await?; // charge_priority/3
+        }
+        if register_map.contains_key(&84) ^ register_map.contains_key(&85) {
+            self.read_hold(inverter.clone(), 84_u16, 2).await?; // forced_discharge/1
+        }
+        if register_map.contains_key(&86) ^ register_map.contains_key(&87) {
+            self.read_hold(inverter.clone(), 86_u16, 2).await?; // forced_discharge/2
+        }
+        if register_map.contains_key(&88) ^ register_map.contains_key(&89) {
+            self.read_hold(inverter.clone(), 88_u16, 2).await?; // forced_discharge/3
+        }
+        if register_map.contains_key(&152) ^ register_map.contains_key(&153) {
+            self.read_hold(inverter.clone(), 152_u16, 2).await?; // ac_first/1
+        }
+        if register_map.contains_key(&154) ^ register_map.contains_key(&155) {
+            self.read_hold(inverter.clone(), 154_u16, 2).await?; // ac_first/2
+        }
+        if register_map.contains_key(&156) ^ register_map.contains_key(&157) {
+            self.read_hold(inverter.clone(), 156_u16, 2).await?; // ac_first/3
         }
 
         // ... etc
