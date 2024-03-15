@@ -69,6 +69,8 @@ impl Influx {
                             //("time", _) => line.set_timestamp(..),
                             // BODGE
                             ("status", _) => line.insert_field(key, 0 as i64),
+                            ("fault_code", _) => line.insert_field(key, 0 as i64),
+                            ("warning_code", _) => line.insert_field(key, 0 as i64),
                             (_, ParsedValue::String(v)) => line.insert_field(key, v),
                             (_, ParsedValue::StringOwned(v)) => line.insert_field(key, v),
                             (_, ParsedValue::Integer(v)) => line.insert_field(key, v),
