@@ -352,7 +352,7 @@ impl Coordinator {
             match td.device_function {
                 DeviceFunction::ReadInput => {
                     let pairs = td.pairs();
-                    let parser = lxp::register_parser::Parser::from_pairs(pairs.clone());
+                    let parser = lxp::register_parser::Parser::new(pairs.clone());
                     let parsed_inputs = parser.parse_inputs()?;
                     //debug!("{}", serde_json::to_string(&parsed_inputs)?);
 
@@ -384,7 +384,7 @@ impl Coordinator {
                             register_cache::AllRegisters::Input,
                         )
                         .await;
-                        let all_parser = lxp::register_parser::Parser::from_cache(cache);
+                        let all_parser = lxp::register_parser::Parser::new(cache);
                         if all_parser.guess_legacy_inputs_topic() == Some("all") {
                             let all_parsed_inputs = all_parser.parse_inputs()?;
                             if self.config.mqtt().enabled() {
@@ -413,7 +413,7 @@ impl Coordinator {
                 DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
                     let pairs = td.pairs();
 
-                    let parser = lxp::register_parser::Parser::from_pairs(pairs.clone());
+                    let parser = lxp::register_parser::Parser::new(pairs.clone());
                     let parsed_holds = parser.parse_holds()?;
 
                     self.publish_raw_hold_messages(td)?;
@@ -443,10 +443,10 @@ impl Coordinator {
 
     async fn maybe_send_read_holds(
         &self,
-        pairs: Vec<(u16, u16)>,
+        pairs: HashMap<u16, u16>,
         inverter: config::Inverter,
     ) -> Result<()> {
-        if pairs.iter().any(|(r, _)| (*r == 70) || (*r == 71)) {
+        if pairs.contains_key(&70) || pairs.contains_key(&71) {
             // request 70 and 71 for ac_charge/1
             self.read_hold(inverter.clone(), 70_u16, 2).await?;
         }

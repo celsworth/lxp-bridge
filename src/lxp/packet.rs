@@ -263,7 +263,7 @@ pub struct TranslatedData {
     pub values: Vec<u8>,                 // undecoded, since can be u16 or u32s?
 }
 impl TranslatedData {
-    pub fn pairs(&self) -> Vec<(u16, u16)> {
+    pub fn pairs(&self) -> HashMap<u16, u16> {
         self.values
             .chunks(2)
             .enumerate()
@@ -432,7 +432,7 @@ pub struct ReadParam {
     pub values: Vec<u8>, // undecoded, since can be u16 or i32s?
 }
 impl ReadParam {
-    pub fn pairs(&self) -> Vec<(u16, u16)> {
+    pub fn pairs(&self) -> HashMap<u16, u16> {
         self.values
             .chunks(2)
             .enumerate()
@@ -528,7 +528,7 @@ pub struct WriteParam {
     pub values: Vec<u8>, // undecoded, since can be u16 or i32s?
 }
 impl WriteParam {
-    pub fn pairs(&self) -> Vec<(u16, u16)> {
+    pub fn pairs(&self) -> HashMap<u16, u16> {
         self.values
             .chunks(2)
             .enumerate()

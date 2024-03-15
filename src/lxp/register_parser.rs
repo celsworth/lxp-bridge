@@ -33,21 +33,12 @@ struct StartEndTimePayload {
 }
 #[derive(Debug, Clone)]
 pub struct Parser {
-    pairs: Vec<(u16, u16)>,
+    registers: HashMap<u16, u16>,
 }
 
 impl Parser {
-    pub fn from_pairs(pairs: Vec<(u16, u16)>) -> Self {
-        Self { pairs }
-    }
-    pub fn from_cache(cache: register_cache::Cache) -> Self {
-        let mut pairs = Vec::new();
-        // convert to pairs
-        for (r, v) in cache {
-            pairs.push((r, v));
-        }
-
-        Self { pairs }
+    pub fn new(registers: HashMap<u16, u16>) -> Self {
+        Self { registers }
     }
 
     // this bodge is to support sending inputs/1 inputs/2 etc with the correct keys in.
@@ -79,11 +70,11 @@ impl Parser {
         self.v_for(register).is_ok()
     }
 
-    // given a set of raw input registers from td.pairs(), decode what we can
+    // given a set of raw input registers from td.registers(), decode what we can
     // and return a list of Key -> Value
     //
     // this will Err if you pass it a subset of registers it doesn't expect, for example
-    // if you pass in pairs that contain 0-7, then it will try to work out p_pv because it
+    // if you pass in registers that contain 0-7, then it will try to work out p_pv because it
     // has seen 7. but p_pv requires 7 + 8 + 9, which aren't present.
     //
     // I think this is fine because generally we get these registers in lumps of 40, ie 0-39
@@ -92,7 +83,7 @@ impl Parser {
     pub fn parse_inputs(&self) -> Result<ParsedData> {
         let mut ret = HashMap::new();
 
-        for (r, v) in self.pairs.clone() {
+        for (r, v) in self.registers.clone() {
             let e = match r {
                 0 => vec![("status", self.parse_status(v))],
                 1 => vec![("v_pv_1", self.parse_f64_1(v, 10))],
@@ -226,7 +217,7 @@ impl Parser {
 
         Ok(ret)
     }
-    // given a set of raw hold registers from td.pairs(), decode what we can
+    // given a set of raw hold registers from td.registers(), decode what we can
     // and return a list of Key -> Value
     //
     // unlike parse_inputs, this one does not Err if passed unknown registers. We just silently
@@ -236,7 +227,7 @@ impl Parser {
     pub fn parse_holds(&self) -> Result<ParsedData> {
         let mut ret = HashMap::new();
 
-        for (r, v) in self.pairs.clone() {
+        for (r, v) in self.registers.clone() {
             let e = match r {
                 // only place single-register matches in here. If any are missing (which
                 // is much more likely in ReadHold messages), multi-register operations
@@ -399,20 +390,17 @@ impl Parser {
 
     // get the value for a given register, or Err
     fn v_for(&self, register: u16) -> Result<u16> {
-        for (r, v) in &self.pairs {
-            if *r == register {
-                return Ok(*v);
-            };
-        }
-
-        Err(anyhow!("no value found for register {}", register))
+        self.registers
+            .get(&register)
+            .ok_or(anyhow!("no value found for register {}", register))
+            .cloned()
     }
 
     // return true if we have a value for ALL the registers requested
     fn all_registers_present(&self, registers: &[u16]) -> bool {
         registers
             .into_iter()
-            .all(|register| self.pairs.iter().any(|(r, _)| r == register))
+            .all(|register| self.registers.contains_key(register))
     }
 }
 
