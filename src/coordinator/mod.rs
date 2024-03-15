@@ -485,8 +485,6 @@ impl Coordinator {
             self.read_hold(inverter.clone(), 156_u16, 2).await?; // ac_first/3
         }
 
-        // ... etc
-
         Ok(())
     }
 
