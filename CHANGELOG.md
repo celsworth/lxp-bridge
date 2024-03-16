@@ -1,5 +1,8 @@
 # Unreleased
 
+This release deprecates the MQTT topics `lxp/*/inputs/1` (and 2, 3, 4, all). Instead, new applications should switch to using `lxp/*/input/v_bat/parsed` (where `v_bat` is the JSON Key from the old messages). This solves the problem of which messages to publish, and when (inputs/all is particularly problematic!). For more, see https://github.com/celsworth/lxp-bridge/discussions/262
+
+
 * Reconnect to inverter after 15 minutes of not receiving any data (#223)
 * Fix max/min cell temperature/voltage decoding as reported from BMS (#227)
 * Add more HA entities: max/min cell temp/voltage, more charge powers (#228)
