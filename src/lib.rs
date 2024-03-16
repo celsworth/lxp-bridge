@@ -2,7 +2,6 @@ pub mod channels;
 pub mod command;
 pub mod config;
 pub mod coordinator;
-pub mod database;
 pub mod home_assistant;
 pub mod influx;
 pub mod lxp;
@@ -57,14 +56,16 @@ pub async fn app() -> Result<()> {
         .map(|inverter| Inverter::new(config.clone(), &inverter, channels.clone()))
         .collect();
 
-    let databases = config
-        .enabled_databases()
-        .into_iter()
-        .map(|database| Database::new(database, channels.clone()))
-        .collect();
+    /*
+        let databases = config
+            .enabled_databases()
+            .into_iter()
+            .map(|database| Database::new(database, channels.clone()))
+            .collect();
+    */
 
     futures::try_join!(
-        start_databases(databases),
+        //start_databases(databases),
         start_inverters(inverters),
         scheduler.start(),
         mqtt.start(),
@@ -76,6 +77,7 @@ pub async fn app() -> Result<()> {
     Ok(())
 }
 
+/*
 async fn start_databases(databases: Vec<Database>) -> Result<()> {
     let futures = databases.iter().map(|d| d.start());
 
@@ -83,6 +85,7 @@ async fn start_databases(databases: Vec<Database>) -> Result<()> {
 
     Ok(())
 }
+*/
 
 async fn start_inverters(inverters: Vec<Inverter>) -> Result<()> {
     let futures = inverters.iter().map(|i| i.start());

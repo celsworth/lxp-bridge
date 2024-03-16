@@ -18,6 +18,9 @@ pub struct Config {
 
     #[serde(default = "Config::default_loglevel")]
     pub loglevel: String,
+
+    #[serde(default = "Config::default_publish_inputs_all_trigger")]
+    pub publish_inputs_all_trigger: u16,
 }
 
 // Inverter {{{
@@ -109,8 +112,6 @@ pub struct Mqtt {
 
     #[serde(default = "Config::default_mqtt_homeassistant")]
     pub homeassistant: HomeAssistant,
-
-    pub publish_individual_input: Option<bool>,
 }
 impl Mqtt {
     pub fn enabled(&self) -> bool {
@@ -139,10 +140,6 @@ impl Mqtt {
 
     pub fn homeassistant(&self) -> &HomeAssistant {
         &self.homeassistant
-    }
-
-    pub fn publish_individual_input(&self) -> bool {
-        self.publish_individual_input == Some(true)
     }
 } // }}}
 
@@ -329,6 +326,9 @@ impl ConfigWrapper {
     pub fn loglevel(&self) -> String {
         self.config.borrow().loglevel.to_owned()
     }
+    pub fn publish_inputs_all_trigger(&self) -> u16 {
+        self.config.borrow().publish_inputs_all_trigger
+    }
 }
 
 impl Config {
@@ -363,6 +363,10 @@ impl Config {
 
     fn default_loglevel() -> String {
         "debug".to_string()
+    }
+
+    pub fn default_publish_inputs_all_trigger() -> u16 {
+        80
     }
 }
 

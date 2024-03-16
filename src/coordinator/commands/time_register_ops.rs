@@ -5,20 +5,7 @@ use lxp::{
     packet::{DeviceFunction, TranslatedData},
 };
 
-use serde::Serialize;
-
-pub struct ReadTimeRegister {
-    channels: Channels,
-    inverter: config::Inverter,
-    action: Action,
-}
-
-#[derive(Debug, Serialize)]
-struct MqttReplyPayload {
-    start: String,
-    end: String,
-}
-
+#[derive(Clone)]
 pub enum Action {
     AcCharge(u16),
     AcFirst(u16),
@@ -42,20 +29,15 @@ impl Action {
             ForcedDischarge(1) => Ok(84),
             ForcedDischarge(2) => Ok(86),
             ForcedDischarge(3) => Ok(88),
-            _ => bail!("unsupported command"),
+            _ => Err(anyhow!("unsupported command")),
         }
     }
+}
 
-    fn mqtt_reply_topic(&self, datalog: Serial) -> String {
-        use Action::*;
-        // no need to be defensive about n here, we checked it already in register()
-        match self {
-            AcCharge(n) => format!("{}/ac_charge/{}", datalog, n),
-            AcFirst(n) => format!("{}/ac_first/{}", datalog, n),
-            ChargePriority(n) => format!("{}/charge_priority/{}", datalog, n),
-            ForcedDischarge(n) => format!("{}/forced_discharge/{}", datalog, n),
-        }
-    }
+pub struct ReadTimeRegister {
+    channels: Channels,
+    inverter: config::Inverter,
+    action: Action,
 }
 
 impl ReadTimeRegister {
@@ -76,8 +58,6 @@ impl ReadTimeRegister {
             values: vec![2, 0],
         });
 
-        let mut receiver = self.channels.from_inverter.subscribe();
-
         if self
             .channels
             .to_inverter
@@ -87,28 +67,7 @@ impl ReadTimeRegister {
             bail!("send(to_inverter) failed - channel closed?");
         }
 
-        let reply = receiver.wait_for_reply(&packet).await?;
-
-        if let Packet::TranslatedData(td) = reply {
-            let payload = MqttReplyPayload {
-                start: format!("{:02}:{:02}", td.values[0], td.values[1]),
-                end: format!("{:02}:{:02}", td.values[2], td.values[3]),
-            };
-            let message = mqtt::Message {
-                topic: self.action.mqtt_reply_topic(td.datalog),
-                retain: true,
-                payload: serde_json::to_string(&payload)?,
-            };
-            let channel_data = mqtt::ChannelData::Message(message);
-
-            if self.channels.to_mqtt.send(channel_data).is_err() {
-                bail!("send(to_mqtt) failed - channel closed?");
-            }
-
-            Ok(())
-        } else {
-            bail!("didn't get expected reply from inverter");
-        }
+        Ok(())
     }
 }
 
@@ -139,23 +98,6 @@ impl SetTimeRegister {
             .await?;
         self.set_register(self.action.register()? + 1, &self.values[2..4])
             .await?;
-
-        // FIXME: If we only update one of the two registers, we should probably
-        // still output the change we did manage to make here.
-        let payload = MqttReplyPayload {
-            start: format!("{:02}:{:02}", self.values[0], self.values[1]),
-            end: format!("{:02}:{:02}", self.values[2], self.values[3]),
-        };
-        let message = mqtt::Message {
-            topic: self.action.mqtt_reply_topic(self.inverter.datalog),
-            retain: true,
-            payload: serde_json::to_string(&payload)?,
-        };
-        let channel_data = mqtt::ChannelData::Message(message);
-
-        if self.channels.to_mqtt.send(channel_data).is_err() {
-            bail!("send(to_mqtt) failed - channel closed?");
-        }
 
         Ok(())
     }

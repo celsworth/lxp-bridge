@@ -1,10 +1,13 @@
 pub use std::{
     cell::{Ref, RefCell, RefMut},
+    collections::HashMap,
     convert::{TryFrom, TryInto},
     io::Write,
     rc::Rc,
     str::FromStr,
 };
+
+pub type RegisterMap = HashMap<u16, u16>;
 
 pub use {
     anyhow::{anyhow, bail, Error, Result},
@@ -17,7 +20,7 @@ pub use crate::{
     command::Command,
     config::{self, Config, ConfigWrapper},
     coordinator::{self, Coordinator},
-    database::{self, Database},
+    //database::{self, Database},
     home_assistant,
     influx::{self, Influx},
     lxp::{

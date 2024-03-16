@@ -1,4 +1,5 @@
 loglevel: info
+publish_inputs_all_trigger: 80
 
 inverters:
 - enabled: true
