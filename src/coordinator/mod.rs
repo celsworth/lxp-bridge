@@ -634,9 +634,9 @@ impl Coordinator {
     }
 
     /*
-    async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
+    async fn save_input_all(&self, input: &lxp::register_parser::ParsedData) -> Result<()> {
         if self.config.have_enabled_database() {
-            let channel_data = database::ChannelData::ReadInputAll(input);
+            let channel_data = database::ChannelData::InputData(input);
             if self.channels.to_database.send(channel_data).is_err() {
                 bail!("send(to_database) failed - channel closed?");
             }

@@ -18,12 +18,27 @@ pub enum Value {
 }
 
 impl Value {
+    // must be a neater way to do this
     pub fn to_string(&self) -> String {
         match self {
             Self::Integer(i) => i.to_string(),
             Self::Float(f) => f.to_string(),
             Self::String(_, s) => s.to_string(),
             Self::StringOwned(_, s) => s.to_string(),
+        }
+    }
+
+    pub fn unwrap_i64(&self) -> i64 {
+        match self {
+            Self::Integer(i) => *i,
+            _ => panic!("not an Integer"),
+        }
+    }
+
+    pub fn unwrap_f64(&self) -> f64 {
+        match self {
+            Self::Float(f) => *f,
+            _ => panic!("not a Float"),
         }
     }
 }
