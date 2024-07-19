@@ -1,3 +1,5 @@
+> lxp-bridge is no longer being maintained - please feel free to fork and take over development - open a Discussion item to let us know!
+
 # lxp-bridge
 
 lxp-bridge is a tool to communicate with a LuxPower inverter (commonly used with home-battery and solar setups), written in Rust.
