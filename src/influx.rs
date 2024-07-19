@@ -1,13 +1,12 @@
 use crate::prelude::*;
 
-use chrono::TimeZone;
 use rinfluxdb::line_protocol::{r#async::Client, LineBuilder};
 
 static INPUTS_MEASUREMENT: &str = "inputs";
 
-#[derive(Eq, PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone, Debug)]
 pub enum ChannelData {
-    InputData(serde_json::Value),
+    InputData(Serial, lxp::register_parser::ParsedData),
     Shutdown,
 }
 
@@ -52,6 +51,7 @@ impl Influx {
     }
 
     async fn sender(&self, client: Client) -> Result<()> {
+        use lxp::register_parser::Value;
         use ChannelData::*;
 
         let mut receiver = self.channels.to_influx.subscribe();
@@ -61,35 +61,27 @@ impl Influx {
 
             match receiver.recv().await? {
                 Shutdown => break,
-                InputData(data) => {
-                    for (key, value) in data.as_object().unwrap() {
-                        let key = key.to_string();
+                InputData(datalog, data) => {
+                    for (key, value) in data {
+                        line = match (key, value) {
+                            // not required, Influx will just use current time which is good enough
+                            //("time", _) => line.set_timestamp(..),
 
-                        line = if key == "time" {
-                            let value = value.as_i64().unwrap_or_else(|| {
-                                panic!("cannot represent {value} as i64 for {key}")
-                            });
-                            line.set_timestamp(chrono::Utc.timestamp_opt(value, 0).unwrap())
-                        } else if key == "datalog" {
-                            let value = value.as_str().unwrap_or_else(|| {
-                                panic!("cannot represent {value} as str for {key}")
-                            });
-                            line.insert_tag(key, value)
-                        } else if value.is_f64() {
-                            let value = value.as_f64().unwrap_or_else(|| {
-                                panic!("cannot represent {value} as f64 for {key}")
-                            });
-                            line.insert_field(key, value)
-                        } else {
-                            // can't be anything other than int
-                            let value = value.as_i64().unwrap_or_else(|| {
-                                panic!("cannot represent {value} as i64 for {key}")
-                            });
-                            line.insert_field(key, value)
-                        }
+                            // strings make no sense in InfluxDb so use "raw" i64 value
+                            // this is for status/fault_code/warning_code
+                            (_, Value::String(raw, _)) => line.insert_field(key, raw),
+                            (_, Value::StringOwned(raw, _)) => line.insert_field(key, raw),
+
+                            (_, Value::Integer(v)) => line.insert_field(key, v),
+                            (_, Value::Float(v)) => line.insert_field(key, v),
+                        };
                     }
 
+                    line = line.insert_tag("datalog", datalog.to_string());
+
                     let lines = vec![line.build()];
+
+                    debug!("{:?}", lines);
 
                     while let Err(err) = client.send(&self.database(), &lines).await {
                         error!("push failed: {:?} - retrying in 10s", err);

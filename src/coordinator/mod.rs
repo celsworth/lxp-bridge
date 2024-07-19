@@ -9,8 +9,6 @@ pub enum ChannelData {
     Shutdown,
 }
 
-pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
-
 pub struct Coordinator {
     config: ConfigWrapper,
     channels: Channels,
@@ -271,11 +269,14 @@ impl Coordinator {
         commands::time_register_ops::SetTimeRegister::new(
             self.channels.clone(),
             inverter.clone(),
-            action,
+            action.clone(),
             values,
         )
         .run()
-        .await
+        .await?;
+
+        // after setting, issue a ReadTimeRegister so we can send a new message out
+        self.read_time_register(inverter, action).await
     }
 
     async fn set_hold<U>(&self, inverter: config::Inverter, register: U, value: u16) -> Result<()>
@@ -317,13 +318,10 @@ impl Coordinator {
 
         let mut receiver = self.channels.from_inverter.subscribe();
 
-        let mut inputs_store = InputsStore::new();
-
         loop {
             match receiver.recv().await? {
                 Packet(packet) => {
-                    self.process_inverter_packet(packet, &mut inputs_store)
-                        .await?;
+                    self.process_inverter_packet(packet).await?;
                 }
                 Connected(serial) => {
                     if let Err(e) = self.inverter_connected(serial).await {
@@ -339,11 +337,7 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn process_inverter_packet(
-        &self,
-        packet: lxp::packet::Packet,
-        inputs_store: &mut InputsStore,
-    ) -> Result<()> {
+    async fn process_inverter_packet(&self, packet: lxp::packet::Packet) -> Result<()> {
         debug!("RX: {:?}", packet);
 
         if let Packet::TranslatedData(td) = &packet {
@@ -355,77 +349,149 @@ impl Coordinator {
                 warn!("got a Param packet! {:?}", td);
             }
 
-            // inputs_store handling. If we've received any ReadInput, update inputs_store
-            // with the contents. If we got the third (of three) packets, send out the combined
-            // MQTT message with all the data.
-            if td.device_function == DeviceFunction::ReadInput {
-                use lxp::packet::{ReadInput, ReadInputs};
+            match td.device_function {
+                DeviceFunction::ReadInput => {
+                    let register_map = td.register_map();
+                    let parser = lxp::register_parser::Parser::new(register_map.clone());
+                    let parsed_inputs = parser.parse_inputs()?;
+                    //debug!("{}", serde_json::to_string(&parsed_inputs)?);
 
-                let entry = inputs_store
-                    .entry(td.datalog)
-                    .or_insert_with(ReadInputs::default);
+                    if self.config.mqtt().enabled() {
+                        // individual message publishing, raw and parsed
+                        self.publish_raw_input_messages(td)?;
+                        self.publish_parsed_input_messages(td, &parsed_inputs)?;
 
-                match td.read_input() {
-                    Ok(ReadInput::ReadInputAll(r_all)) => {
-                        // no need for MQTT here, done below
-                        self.save_input_all(r_all).await?
+                        // inputs/1/2/3/4
+                        if let Some(topic_fragment) = parser.guess_legacy_inputs_topic() {
+                            self.publish_combined_parsed_input_message(
+                                td,
+                                &parsed_inputs,
+                                topic_fragment,
+                            )?;
+                        };
                     }
 
-                    Ok(ReadInput::ReadInput1(r1)) => entry.set_read_input_1(r1),
-                    Ok(ReadInput::ReadInput2(r2)) => entry.set_read_input_2(r2),
-                    Ok(ReadInput::ReadInput3(r3)) => entry.set_read_input_3(r3),
-                    Ok(ReadInput::ReadInput4(r4)) => {
-                        let datalog = r4.datalog;
+                    for (register, value) in register_map {
+                        self.cache_register(register_cache::Register::Input(register), value)?;
+                    }
 
-                        entry.set_read_input_4(r4);
-
-                        if let Some(input) = entry.to_input_all() {
+                    // if we've seen the triggering register in config.publish_inputs_all_trigger
+                    // then feed contents of cache_register into a new parser;
+                    // which should get us "all". feed that to mqtt+influx
+                    if parser.contains_register(self.config.publish_inputs_all_trigger()) {
+                        let cache = register_cache::RegisterCache::dump(
+                            &self.channels,
+                            register_cache::AllRegisters::Input,
+                        )
+                        .await;
+                        let all_parser = lxp::register_parser::Parser::new(cache);
+                        if all_parser.guess_legacy_inputs_topic() == Some("all") {
+                            let all_parsed_inputs = all_parser.parse_inputs()?;
                             if self.config.mqtt().enabled() {
-                                let message = mqtt::Message::for_input_all(&input, datalog)?;
-                                let channel_data = mqtt::ChannelData::Message(message);
-                                if self.channels.to_mqtt.send(channel_data).is_err() {
-                                    bail!("send(to_mqtt) failed - channel closed?");
+                                // inputs/all
+                                self.publish_combined_parsed_input_message(
+                                    td,
+                                    &all_parsed_inputs,
+                                    "all",
+                                )?;
+                            }
+                            if self.config.influx().enabled() {
+                                let channel_data = influx::ChannelData::InputData(
+                                    td.datalog(),
+                                    all_parsed_inputs.clone(),
+                                );
+                                if self.channels.to_influx.send(channel_data).is_err() {
+                                    bail!("send(to_influx) failed - channel closed?");
                                 }
                             }
+                        };
 
-                            self.save_input_all(Box::new(input)).await?;
-                        }
-                    }
-                    Err(x) => warn!("ignoring {:?}", x),
-                }
-            } else if td.device_function == DeviceFunction::ReadHold
-                || td.device_function == DeviceFunction::WriteSingle
-            {
-                let channel_data =
-                    register_cache::ChannelData::RegisterData(td.register, td.value());
-                if self.channels.to_register_cache.send(channel_data).is_err() {
-                    bail!("send(to_register_cache) failed - channel closed?");
-                }
-            }
-        }
-
-        if self.config.mqtt().enabled() {
-            // returns a Vec of messages to send. could be none;
-            // not every packet produces an MQ message (eg, heartbeats),
-            // and some produce >1 (multi-register ReadHold)
-            match Self::packet_to_messages(packet, self.config.mqtt().publish_individual_input()) {
-                Ok(messages) => {
-                    for message in messages {
-                        let message = mqtt::ChannelData::Message(message);
-                        if self.channels.to_mqtt.send(message).is_err() {
-                            bail!("send(to_mqtt) failed - channel closed?");
-                        }
+                        // clear the cache so we start over next time
+                        register_cache::RegisterCache::clear(&self.channels).await;
                     }
                 }
-                Err(e) => {
-                    // log error but avoid exiting loop as then we stop handling
-                    // incoming packets. need better error handling here maybe?
-                    error!("{}", e);
+                DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
+                    let register_map = td.register_map();
+
+                    let parser = lxp::register_parser::Parser::new(register_map.clone());
+                    let parsed_holds = parser.parse_holds()?;
+
+                    self.publish_raw_hold_messages(td)?;
+                    self.publish_parsed_hold_messages(td, &parsed_holds)?;
+
+                    if td.device_function == DeviceFunction::WriteSingle {
+                        let inverter = self.inverter_config_for_datalog(td.datalog)?;
+                        // if register_map contains an interesting register that's
+                        // part of a multi-register setup (like AC Charge times) then
+                        // issue a ReadHold request to get the other parts so register_parser
+                        // can construct an MQTT message to send out with current data
+                        self.maybe_send_read_holds(register_map, inverter).await?;
+                    }
+
+                    /* not used yet
+                    for (register, value) in register_map {
+                      self.cache_register(register_cache::Register::Hold(register), value)?;
+                    }
+                    */
                 }
+                DeviceFunction::WriteMulti => {}
             }
         }
 
         Ok(())
+    }
+
+    async fn maybe_send_read_holds(
+        &self,
+        register_map: RegisterMap,
+        inverter: config::Inverter,
+    ) -> Result<()> {
+        // ^ is true if one key is present, but false if none or both are
+
+        if register_map.contains_key(&68) ^ register_map.contains_key(&69) {
+            self.read_hold(inverter.clone(), 84_u16, 2).await?; // ac_charge/1
+        }
+        if register_map.contains_key(&70) ^ register_map.contains_key(&71) {
+            self.read_hold(inverter.clone(), 70_u16, 2).await?; // ac_charge/2
+        }
+        if register_map.contains_key(&72) ^ register_map.contains_key(&73) {
+            self.read_hold(inverter.clone(), 72_u16, 2).await?; // ac_charge/3
+        }
+        if register_map.contains_key(&76) ^ register_map.contains_key(&77) {
+            self.read_hold(inverter.clone(), 76_u16, 2).await?; // charge_priority/1
+        }
+        if register_map.contains_key(&78) ^ register_map.contains_key(&79) {
+            self.read_hold(inverter.clone(), 78_u16, 2).await?; // charge_priority/2
+        }
+        if register_map.contains_key(&80) ^ register_map.contains_key(&81) {
+            self.read_hold(inverter.clone(), 80_u16, 2).await?; // charge_priority/3
+        }
+        if register_map.contains_key(&84) ^ register_map.contains_key(&85) {
+            self.read_hold(inverter.clone(), 84_u16, 2).await?; // forced_discharge/1
+        }
+        if register_map.contains_key(&86) ^ register_map.contains_key(&87) {
+            self.read_hold(inverter.clone(), 86_u16, 2).await?; // forced_discharge/2
+        }
+        if register_map.contains_key(&88) ^ register_map.contains_key(&89) {
+            self.read_hold(inverter.clone(), 88_u16, 2).await?; // forced_discharge/3
+        }
+        if register_map.contains_key(&152) ^ register_map.contains_key(&153) {
+            self.read_hold(inverter.clone(), 152_u16, 2).await?; // ac_first/1
+        }
+        if register_map.contains_key(&154) ^ register_map.contains_key(&155) {
+            self.read_hold(inverter.clone(), 154_u16, 2).await?; // ac_first/2
+        }
+        if register_map.contains_key(&156) ^ register_map.contains_key(&157) {
+            self.read_hold(inverter.clone(), 156_u16, 2).await?; // ac_first/3
+        }
+
+        Ok(())
+    }
+
+    fn inverter_config_for_datalog(&self, datalog: Serial) -> Result<config::Inverter> {
+        self.config
+            .enabled_inverter_with_datalog(datalog)
+            .ok_or(anyhow!("Unknown inverter connected: {}", datalog))
     }
 
     // Unlike input registers, holding registers are not broadcast by inverters,
@@ -433,10 +499,7 @@ impl Coordinator {
     // when we connect to an inverter makes it easy for configuration data to be
     // tracked, which is particularly useful in conjunction with HomeAssistant.
     async fn inverter_connected(&self, datalog: Serial) -> Result<()> {
-        let inverter = match self.config.enabled_inverter_with_datalog(datalog) {
-            Some(inverter) => inverter,
-            None => bail!("Unknown inverter connected: {}", datalog),
-        };
+        let inverter = self.inverter_config_for_datalog(datalog)?;
 
         if !inverter.publish_holdings_on_connect() {
             return Ok(());
@@ -484,14 +547,94 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
-        if self.config.influx().enabled() {
-            let channel_data = influx::ChannelData::InputData(serde_json::to_value(&input)?);
-            if self.channels.to_influx.send(channel_data).is_err() {
-                bail!("send(to_influx) failed - channel closed?");
-            }
+    fn publish_message(&self, topic: String, payload: String, retain: bool) -> Result<()> {
+        let m = mqtt::Message {
+            topic,
+            payload,
+            retain,
+        };
+        let channel_data = mqtt::ChannelData::Message(m);
+        if self.channels.to_mqtt.send(channel_data).is_err() {
+            bail!("send(to_mqtt) failed - channel closed?");
+        }
+        Ok(())
+    }
+
+    fn publish_raw_hold_messages(&self, td: &lxp::packet::TranslatedData) -> Result<()> {
+        for (register, value) in td.register_map() {
+            self.publish_message(
+                format!("{}/hold/{}", td.datalog, register),
+                serde_json::to_string(&value)?,
+                true,
+            )?;
         }
 
+        Ok(())
+    }
+
+    fn publish_raw_input_messages(&self, td: &lxp::packet::TranslatedData) -> Result<()> {
+        for (register, value) in td.register_map() {
+            self.publish_message(
+                format!("{}/input/{}", td.datalog, register),
+                serde_json::to_string(&value)?,
+                false,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn publish_combined_parsed_input_message(
+        &self,
+        td: &lxp::packet::TranslatedData,
+        parsed_inputs: &lxp::register_parser::ParsedData,
+        topic_fragment: &str,
+    ) -> Result<()> {
+        self.publish_message(
+            format!("{}/inputs/{}", td.datalog, topic_fragment),
+            serde_json::to_string(&parsed_inputs)?,
+            false,
+        )?;
+
+        Ok(())
+    }
+
+    fn publish_parsed_input_messages(
+        &self,
+        td: &lxp::packet::TranslatedData,
+        parsed_inputs: &lxp::register_parser::ParsedData,
+    ) -> Result<()> {
+        for (key, parsed_value) in parsed_inputs.clone() {
+            self.publish_message(
+                format!("{}/input/{}/parsed", td.datalog, key),
+                parsed_value.to_string(),
+                false,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    fn publish_parsed_hold_messages(
+        &self,
+        td: &lxp::packet::TranslatedData,
+        parsed_inputs: &lxp::register_parser::ParsedData,
+    ) -> Result<()> {
+        for (key, parsed_value) in parsed_inputs.clone() {
+            self.publish_message(
+                // no "hold" here, it's done in parse_holds if required!
+                // (some don't, like ac_charge/1)
+                format!("{}/{}", td.datalog, key),
+                parsed_value.to_string(),
+                true,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    /*
+    async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
         if self.config.have_enabled_database() {
             let channel_data = database::ChannelData::ReadInputAll(input);
             if self.channels.to_database.send(channel_data).is_err() {
@@ -501,21 +644,15 @@ impl Coordinator {
 
         Ok(())
     }
+    */
 
-    fn packet_to_messages(
-        packet: Packet,
-        publish_individual_input: bool,
-    ) -> Result<Vec<mqtt::Message>> {
-        match packet {
-            Packet::Heartbeat(_) => Ok(Vec::new()), // always no message
-            Packet::TranslatedData(td) => match td.device_function {
-                DeviceFunction::ReadHold => mqtt::Message::for_hold(td),
-                DeviceFunction::ReadInput => mqtt::Message::for_input(td, publish_individual_input),
-                DeviceFunction::WriteSingle => mqtt::Message::for_hold(td),
-                DeviceFunction::WriteMulti => Ok(Vec::new()), // TODO, for_hold might just work
-            },
-            Packet::ReadParam(rp) => mqtt::Message::for_param(rp),
-            Packet::WriteParam(_) => Ok(Vec::new()), // ignoring for now
+    fn cache_register(&self, register: register_cache::Register, value: u16) -> Result<()> {
+        let channel_data = register_cache::ChannelData::RegisterData(register, value);
+
+        if self.channels.register_cache.send(channel_data).is_err() {
+            bail!("send(to_register_cache) failed - channel closed?");
         }
+
+        Ok(())
     }
 }

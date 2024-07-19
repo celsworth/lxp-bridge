@@ -1,87 +1,138 @@
 use crate::prelude::*;
 
-// this just needs to be bigger than the max register we'll see
-const REGISTER_COUNT: usize = 256;
-
 #[derive(Clone, Debug)]
 pub enum ChannelData {
-    ReadRegister(u16, Rc<RefCell<oneshot::Sender<u16>>>),
-    RegisterData(u16, u16),
+    ReadRegister(Register, Rc<RefCell<oneshot::Sender<u16>>>),
+    ReadAllRegisters(AllRegisters, Rc<RefCell<oneshot::Sender<RegisterMap>>>),
+    RegisterData(Register, u16),
+    ClearInputRegisters,
     Shutdown,
+}
+
+#[derive(Clone, Debug)]
+pub enum Register {
+    Hold(u16),
+    Input(u16),
+}
+
+#[derive(Clone, Debug)]
+pub enum AllRegisters {
+    Hold,
+    Input,
 }
 
 pub struct RegisterCache {
     channels: Channels,
-    register_data: Rc<RefCell<[u16; REGISTER_COUNT]>>,
+    hold_register_data: Rc<RefCell<RegisterMap>>,
+    input_register_data: Rc<RefCell<RegisterMap>>,
 }
 
 impl RegisterCache {
     pub fn new(channels: Channels) -> Self {
-        let register_data = Rc::new(RefCell::new([0; REGISTER_COUNT]));
+        let hold_register_data = Rc::new(RefCell::new(RegisterMap::with_capacity(256)));
+        let input_register_data = Rc::new(RefCell::new(RegisterMap::with_capacity(256)));
 
         Self {
             channels,
-            register_data,
+            hold_register_data,
+            input_register_data,
         }
     }
 
     pub async fn start(&self) -> Result<()> {
-        futures::try_join!(self.cache_getter(), self.cache_setter())?;
+        futures::try_join!(self.runner())?;
 
         Ok(())
     }
 
     // external helper method to simplify access to the cache, use like so:
-    //
     //   RegisterCache::get(&self.channels, 1);
-    //
-    pub async fn get(channels: &Channels, register: u16) -> u16 {
+    pub async fn get(channels: &Channels, register: Register) -> u16 {
         let (tx, rx) = oneshot::channel();
+
         let channel_data = ChannelData::ReadRegister(register, Rc::new(RefCell::new(tx)));
-        let _ = channels.read_register_cache.send(channel_data);
+        let _ = channels.register_cache.send(channel_data);
         rx.await
             .expect("unexpected error reading from register cache")
     }
 
-    async fn cache_getter(&self) -> Result<()> {
-        let mut receiver = self.channels.read_register_cache.subscribe();
+    //   RegisterCache::dump(&self.channels, register_cache::AllRegisters::Input)
+    pub async fn dump(channels: &Channels, register_type: AllRegisters) -> RegisterMap {
+        let (tx, rx) = oneshot::channel();
 
-        info!("register_cache getter starting");
-
-        while let ChannelData::ReadRegister(register, reply_tx) = receiver.recv().await? {
-            if register < REGISTER_COUNT as u16 {
-                let register_data = self.register_data.borrow();
-                let value = register_data[register as usize];
-
-                let reply_tx = Rc::try_unwrap(reply_tx).unwrap();
-                let _ = reply_tx.into_inner().send(value);
-            } else {
-                warn!(
-                    "cannot cache register {}, increase REGISTER_COUNT!",
-                    register
-                );
-            }
-        }
-
-        info!("register_cache getter exiting");
-
-        Ok(())
+        let channel_data = ChannelData::ReadAllRegisters(register_type, Rc::new(RefCell::new(tx)));
+        let _ = channels.register_cache.send(channel_data);
+        rx.await
+            .expect("unexpected error reading from register cache")
     }
 
-    async fn cache_setter(&self) -> Result<()> {
-        let mut receiver = self.channels.to_register_cache.subscribe();
+    //   RegisterCache::dump(&self.channels, register_cache::AllRegisters::Input)
+    pub async fn clear(channels: &Channels) {
+        let _ = channels
+            .register_cache
+            .send(ChannelData::ClearInputRegisters);
+    }
 
-        info!("register_cache setter starting");
+    async fn runner(&self) -> Result<()> {
+        let mut receiver = self.channels.register_cache.subscribe();
 
-        while let ChannelData::RegisterData(register, value) = receiver.recv().await? {
-            if register < REGISTER_COUNT as u16 {
-                let mut register_data = self.register_data.borrow_mut();
-                register_data[register as usize] = value;
-            } else {
-                warn!(
-                    "cannot cache register {}, increase REGISTER_COUNT!",
-                    register
-                );
+        info!("register_cache runner starting");
+
+        loop {
+            match receiver.recv().await? {
+                ChannelData::RegisterData(register, value) => {
+                    // debug!("register_cache setting {:?}={}", register, value);
+                    match register {
+                        Register::Hold(r) => {
+                            let mut register_data = self.hold_register_data.borrow_mut();
+                            register_data.insert(r, value);
+                        }
+                        Register::Input(r) => {
+                            let mut register_data = self.input_register_data.borrow_mut();
+                            register_data.insert(r, value);
+                        }
+                    };
+                }
+
+                ChannelData::ClearInputRegisters => {
+                    // not used yet
+                    let mut register_data = self.input_register_data.borrow_mut();
+                    register_data.clear();
+                }
+
+                ChannelData::ReadAllRegisters(register_type, reply_tx) => match register_type {
+                    AllRegisters::Hold => {
+                        let register_data = self.hold_register_data.borrow().clone();
+                        let reply_tx = Rc::try_unwrap(reply_tx).unwrap();
+                        let _ = reply_tx.into_inner().send(register_data);
+                    }
+                    AllRegisters::Input => {
+                        let register_data = self.input_register_data.borrow().clone();
+                        let reply_tx = Rc::try_unwrap(reply_tx).unwrap();
+                        let _ = reply_tx.into_inner().send(register_data);
+                    }
+                },
+
+                ChannelData::ReadRegister(register, reply_tx) => {
+                    match register {
+                        Register::Hold(r) => {
+                            let register_data = self.hold_register_data.borrow();
+                            let value = register_data.get(&r).cloned().unwrap_or(0);
+
+                            let reply_tx = Rc::try_unwrap(reply_tx).unwrap();
+                            let _ = reply_tx.into_inner().send(value);
+                        }
+                        Register::Input(r) => {
+                            let register_data = self.input_register_data.borrow();
+                            let value = register_data.get(&r).cloned().unwrap_or(0);
+
+                            let reply_tx = Rc::try_unwrap(reply_tx).unwrap();
+                            let _ = reply_tx.into_inner().send(value);
+                        }
+                    };
+                }
+
+                ChannelData::Shutdown => break,
             }
         }
 
