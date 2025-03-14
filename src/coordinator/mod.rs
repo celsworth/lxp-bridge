@@ -2,7 +2,9 @@ use crate::prelude::*;
 
 pub mod commands;
 
-use lxp::packet::{DeviceFunction, TcpFunction};
+use std::sync::{Arc, Mutex};
+use lxp::packet::{DeviceFunction, ReadInput, TcpFunction};
+use serde_json::json;
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ChannelData {
@@ -11,29 +13,76 @@ pub enum ChannelData {
 
 pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
 
+#[derive(Default)]
+pub struct PacketStats {
+    packets_received: u64,
+    packets_sent: u64,
+    mqtt_messages_sent: u64,
+    mqtt_errors: u64,
+    influx_writes: u64,
+    influx_errors: u64,
+    database_writes: u64,
+    database_errors: u64,
+    register_cache_writes: u64,
+    register_cache_errors: u64,
+}
+
+impl PacketStats {
+    pub fn print_summary(&self) {
+        info!("Packet Statistics:");
+        info!("  Total packets received: {}", self.packets_received);
+        info!("  Total packets sent: {}", self.packets_sent);
+        info!("  MQTT:");
+        info!("    Messages sent: {}", self.mqtt_messages_sent);
+        info!("    Errors: {}", self.mqtt_errors);
+        info!("  InfluxDB:");
+        info!("    Writes: {}", self.influx_writes);
+        info!("    Errors: {}", self.influx_errors);
+        info!("  Database:");
+        info!("    Writes: {}", self.database_writes);
+        info!("    Errors: {}", self.database_errors);
+        info!("  Register Cache:");
+        info!("    Writes: {}", self.register_cache_writes);
+        info!("    Errors: {}", self.register_cache_errors);
+    }
+}
+
+#[derive(Clone)]
 pub struct Coordinator {
     config: ConfigWrapper,
     channels: Channels,
+    pub stats: Arc<Mutex<PacketStats>>,
 }
 
 impl Coordinator {
     pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
-        Self { config, channels }
+        Self { 
+            config, 
+            channels,
+            stats: Arc::new(Mutex::new(PacketStats::default())),
+        }
     }
 
     pub async fn start(&self) -> Result<()> {
-        futures::try_join!(self.inverter_receiver(), self.mqtt_receiver())?;
+        if self.config.mqtt().enabled() {
+            futures::try_join!(self.inverter_receiver(), self.mqtt_receiver())?;
+        } else {
+            self.inverter_receiver().await?;
+        }
 
         Ok(())
     }
 
     pub fn stop(&self) {
+        // Send shutdown signals to channels
         let _ = self
             .channels
             .from_inverter
             .send(lxp::inverter::ChannelData::Shutdown);
 
-        let _ = self.channels.from_mqtt.send(mqtt::ChannelData::Shutdown);
+        if self.config.mqtt().enabled() {
+            let _ = self.channels.from_mqtt.send(mqtt::ChannelData::Shutdown);
+        }
     }
 
     async fn mqtt_receiver(&self) -> Result<()> {
@@ -50,18 +99,20 @@ impl Coordinator {
         for inverter in self.config.inverters_for_message(&message)? {
             match message.to_command(inverter) {
                 Ok(command) => {
-                    debug!("parsed command {:?}", command);
+                    info!("parsed command {:?}", command);
 
                     let topic_reply = command.to_result_topic();
                     let result = self.process_command(command).await;
 
-                    let reply = mqtt::ChannelData::Message(mqtt::Message {
-                        topic: topic_reply,
-                        retain: false,
-                        payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
-                    });
-                    if self.channels.to_mqtt.send(reply).is_err() {
-                        bail!("send(to_mqtt) failed - channel closed?");
+                    if self.config.mqtt().enabled() {
+                        let reply = mqtt::ChannelData::Message(mqtt::Message {
+                            topic: topic_reply,
+                            retain: false,
+                            payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
+                        });
+                        if self.channels.to_mqtt.send(reply).is_err() {
+                            bail!("send(to_mqtt) failed - channel closed?");
+                        }
                     }
                 }
                 Err(err) => {
@@ -73,10 +124,18 @@ impl Coordinator {
         Ok(())
     }
 
+    fn increment_packets_sent(&self) {
+        if let Ok(mut stats) = self.stats.lock() {
+            stats.packets_sent += 1;
+        }
+    }
+
     async fn process_command(&self, command: Command) -> Result<()> {
         use commands::time_register_ops::Action;
         use lxp::packet::{Register, RegisterBit};
         use Command::*;
+
+        self.increment_packets_sent();
 
         match command {
             ReadInputs(inverter, 1) => self.read_inputs(inverter, 0_u16, 40).await,
@@ -330,9 +389,20 @@ impl Coordinator {
                         error!("{}", e);
                     }
                 }
-                // this loop holds no state so doesn't care about inverter disconnects
-                Disconnect(_) => {}
-                Shutdown => break,
+                // Print statistics when an inverter disconnects
+                Disconnect(serial) => {
+                    info!("Inverter {} disconnected, printing statistics:", serial);
+                    if let Ok(stats) = self.stats.lock() {
+                        stats.print_summary();
+                    }
+                }
+                Shutdown => {
+                    info!("Received shutdown signal, printing final statistics:");
+                    if let Ok(stats) = self.stats.lock() {
+                        stats.print_summary();
+                    }
+                    break;
+                }
             }
         }
 
@@ -346,7 +416,28 @@ impl Coordinator {
     ) -> Result<()> {
         debug!("RX: {:?}", packet);
 
+        // Update packet stats first
+        if let Ok(mut stats) = self.stats.lock() {
+            stats.packets_received += 1;
+        }
+
         if let Packet::TranslatedData(td) = &packet {
+            // Check if the inverter serial from packet matches any configured inverter
+            let packet_serial = td.inverter;
+            let packet_datalog = td.datalog;
+            
+            // Log if we see a mismatch between configured and actual serial
+            if let Some(inverter) = self.config.enabled_inverter_with_datalog(packet_datalog) {
+                if inverter.serial() != packet_serial {
+                    warn!(
+                        "Inverter serial mismatch - Config: {}, Actual: {} for datalog: {}",
+                        inverter.serial(),
+                        packet_serial,
+                        packet_datalog
+                    );
+                }
+            }
+
             // temporary special greppable logging for Param packets as I try to
             // work out what they do :)
             if td.tcp_function() == TcpFunction::ReadParam
@@ -354,148 +445,225 @@ impl Coordinator {
             {
                 warn!("got a Param packet! {:?}", td);
             }
+        }
 
-            // inputs_store handling. If we've received any ReadInput, update inputs_store
-            // with the contents. If we got the third (of three) packets, send out the combined
-            // MQTT message with all the data.
-            if td.device_function == DeviceFunction::ReadInput {
-                use lxp::packet::{ReadInput, ReadInputs};
-
+        // inputs_store handling. If we've received any ReadInput, update inputs_store
+        // with the contents. If we got the third (of three) packets, send out the combined
+        // MQTT message with all the data.
+        match packet {
+            Packet::Heartbeat(_) => Ok(()), // nothing to do
+            Packet::TranslatedData(td) => {
                 let entry = inputs_store
                     .entry(td.datalog)
-                    .or_insert_with(ReadInputs::default);
+                    .or_insert_with(lxp::packet::ReadInputs::default);
 
-                match td.read_input() {
-                    Ok(ReadInput::ReadInputAll(r_all)) => {
-                        // no need for MQTT here, done below
-                        self.save_input_all(r_all).await?
-                    }
+                match td.device_function {
+                    DeviceFunction::ReadInput => match td.read_input() {
+                        Ok(ReadInput::ReadInputAll(r_all)) => {
+                            debug!("Received ReadInputAll, saving to InfluxDB");
+                            self.save_input_all(r_all).await?;
+                        }
+                        Ok(ReadInput::ReadInput1(r1)) => {
+                            debug!("Received ReadInput1");
+                            entry.set_read_input_1(r1)
+                        }
+                        Ok(ReadInput::ReadInput2(r2)) => {
+                            debug!("Received ReadInput2");
+                            entry.set_read_input_2(r2)
+                        }
+                        Ok(ReadInput::ReadInput3(r3)) => {
+                            debug!("Received ReadInput3");
+                            entry.set_read_input_3(r3)
+                        }
+                        Ok(ReadInput::ReadInput4(r4)) => {
+                            debug!("Received ReadInput4");
+                            let datalog = r4.datalog;
+                            entry.set_read_input_4(r4);
 
-                    Ok(ReadInput::ReadInput1(r1)) => entry.set_read_input_1(r1),
-                    Ok(ReadInput::ReadInput2(r2)) => entry.set_read_input_2(r2),
-                    Ok(ReadInput::ReadInput3(r3)) => entry.set_read_input_3(r3),
-                    Ok(ReadInput::ReadInput4(r4)) => {
-                        let datalog = r4.datalog;
+                            if let Some(input) = entry.to_input_all() {
+                                info!("Assembled complete input set, saving to InfluxDB");
+                                if self.config.mqtt().enabled() {
+                                    match mqtt::Message::for_input_all(&input, datalog) {
+                                        Ok(message) => {
+                                            let channel_data = mqtt::ChannelData::Message(message);
+                                            match self.channels.to_mqtt.send(channel_data) {
+                                                Ok(_) => {
+                                                    if let Ok(mut stats) = self.stats.lock() {
+                                                        stats.mqtt_messages_sent += 1;
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    error!("Failed to send MQTT message: {}", e);
+                                                    if let Ok(mut stats) = self.stats.lock() {
+                                                        stats.mqtt_errors += 1;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            error!("Failed to create MQTT message: {}", e);
+                                            if let Ok(mut stats) = self.stats.lock() {
+                                                stats.mqtt_errors += 1;
+                                            }
+                                        }
+                                    }
+                                }
 
-                        entry.set_read_input_4(r4);
-
-                        if let Some(input) = entry.to_input_all() {
-                            if self.config.mqtt().enabled() {
-                                let message = mqtt::Message::for_input_all(&input, datalog)?;
-                                let channel_data = mqtt::ChannelData::Message(message);
-                                if self.channels.to_mqtt.send(channel_data).is_err() {
-                                    bail!("send(to_mqtt) failed - channel closed?");
+                                self.save_input_all(Box::new(input)).await?;
+                            } else {
+                                debug!("Incomplete input set, waiting for more data");
+                            }
+                        }
+                        Err(x) => warn!("ignoring {:?}", x),
+                    },
+                    DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
+                        let channel_data = register_cache::ChannelData::RegisterData(td.register, td.value());
+                        match self.channels.to_register_cache.send(channel_data) {
+                            Ok(_) => {
+                                if let Ok(mut stats) = self.stats.lock() {
+                                    stats.register_cache_writes += 1;
                                 }
                             }
+                            Err(e) => {
+                                error!("Failed to send to register cache: {}", e);
+                                if let Ok(mut stats) = self.stats.lock() {
+                                    stats.register_cache_errors += 1;
+                                }
+                            }
+                        }
 
-                            self.save_input_all(Box::new(input)).await?;
+                        // Send to InfluxDB if enabled
+                        if self.config.influx().enabled() {
+                            debug!("InfluxDB is enabled, sending ReadHold data");
+                            let mut json_data = serde_json::Map::new();
+                            json_data.insert("time".to_string(), json!(chrono::Utc::now().timestamp()));
+                            json_data.insert("datalog".to_string(), json!(td.datalog.to_string()));
+                            json_data.insert(format!("hold_{}", td.register), json!(td.value()));
+                            
+                            let json = serde_json::Value::Object(json_data);
+                            match self.channels.to_influx.send(influx::ChannelData::InputData(json)) {
+                                Ok(_) => {
+                                    debug!("Successfully sent ReadHold data to InfluxDB");
+                                    if let Ok(mut stats) = self.stats.lock() {
+                                        stats.influx_writes += 1;
+                                    }
+                                }
+                                Err(e) => {
+                                    error!("Failed to send ReadHold data to InfluxDB: {}", e);
+                                    if let Ok(mut stats) = self.stats.lock() {
+                                        stats.influx_errors += 1;
+                                    }
+                                }
+                            }
                         }
                     }
-                    Err(x) => warn!("ignoring {:?}", x),
+                    _ => {}
                 }
-            } else if td.device_function == DeviceFunction::ReadHold
-                || td.device_function == DeviceFunction::WriteSingle
-            {
-                let channel_data =
-                    register_cache::ChannelData::RegisterData(td.register, td.value());
-                if self.channels.to_register_cache.send(channel_data).is_err() {
-                    bail!("send(to_register_cache) failed - channel closed?");
-                }
-            }
-        }
 
-        if self.config.mqtt().enabled() {
-            // returns a Vec of messages to send. could be none;
-            // not every packet produces an MQ message (eg, heartbeats),
-            // and some produce >1 (multi-register ReadHold)
-            match Self::packet_to_messages(packet, self.config.mqtt().publish_individual_input()) {
-                Ok(messages) => {
-                    for message in messages {
-                        let message = mqtt::ChannelData::Message(message);
-                        if self.channels.to_mqtt.send(message).is_err() {
-                            bail!("send(to_mqtt) failed - channel closed?");
+                if self.config.mqtt().enabled() {
+                    match Self::packet_to_messages(Packet::TranslatedData(td), self.config.mqtt().publish_individual_input()) {
+                        Ok(messages) => {
+                            for message in messages {
+                                let channel_data = mqtt::ChannelData::Message(message);
+                                match self.channels.to_mqtt.send(channel_data) {
+                                    Ok(_) => {
+                                        if let Ok(mut stats) = self.stats.lock() {
+                                            stats.mqtt_messages_sent += 1;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to send MQTT message: {}", e);
+                                        if let Ok(mut stats) = self.stats.lock() {
+                                            stats.mqtt_errors += 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("Failed to create MQTT messages: {}", e);
+                            if let Ok(mut stats) = self.stats.lock() {
+                                stats.mqtt_errors += 1;
+                            }
                         }
                     }
                 }
-                Err(e) => {
-                    // log error but avoid exiting loop as then we stop handling
-                    // incoming packets. need better error handling here maybe?
-                    error!("{}", e);
-                }
+
+                Ok(())
             }
+            Packet::ReadParam(rp) => {
+                if self.config.mqtt().enabled() {
+                    match mqtt::Message::for_param(rp) {
+                        Ok(messages) => {
+                            for message in messages {
+                                let channel_data = mqtt::ChannelData::Message(message);
+                                match self.channels.to_mqtt.send(channel_data) {
+                                    Ok(_) => {
+                                        if let Ok(mut stats) = self.stats.lock() {
+                                            stats.mqtt_messages_sent += 1;
+                                        }
+                                    }
+                                    Err(e) => {
+                                        error!("Failed to send MQTT message: {}", e);
+                                        if let Ok(mut stats) = self.stats.lock() {
+                                            stats.mqtt_errors += 1;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Err(e) => {
+                            error!("Failed to create MQTT messages: {}", e);
+                            if let Ok(mut stats) = self.stats.lock() {
+                                stats.mqtt_errors += 1;
+                            }
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+            Packet::WriteParam(_) => Ok(()), // nothing to do
         }
-
-        Ok(())
-    }
-
-    // Unlike input registers, holding registers are not broadcast by inverters,
-    // but they are interesting nevertheless. Publishing the holding registers
-    // when we connect to an inverter makes it easy for configuration data to be
-    // tracked, which is particularly useful in conjunction with HomeAssistant.
-    async fn inverter_connected(&self, datalog: Serial) -> Result<()> {
-        let inverter = match self.config.enabled_inverter_with_datalog(datalog) {
-            Some(inverter) => inverter,
-            None => bail!("Unknown inverter connected: {}", datalog),
-        };
-
-        if !inverter.publish_holdings_on_connect() {
-            return Ok(());
-        }
-
-        info!("Reading holding registers for inverter {}", datalog);
-
-        // We can only read holding registers in blocks of 40. Provisionally,
-        // there are 6 pages of 40 values.
-        self.read_hold(inverter.clone(), 0_u16, 40).await?;
-        self.read_hold(inverter.clone(), 40_u16, 40).await?;
-        self.read_hold(inverter.clone(), 80_u16, 40).await?;
-        self.read_hold(inverter.clone(), 120_u16, 40).await?;
-        self.read_hold(inverter.clone(), 160_u16, 40).await?;
-        self.read_hold(inverter.clone(), 200_u16, 40).await?;
-
-        // Also send any special interpretive topics which are derived from
-        // the holding registers.
-        //
-        // FIXME: this is a further 12 round-trips to the inverter to read values
-        // we have already taken, just above. We should be able to do better!
-        for num in &[1, 2, 3] {
-            self.read_time_register(
-                inverter.clone(),
-                commands::time_register_ops::Action::AcCharge(*num),
-            )
-            .await?;
-            self.read_time_register(
-                inverter.clone(),
-                commands::time_register_ops::Action::ChargePriority(*num),
-            )
-            .await?;
-            self.read_time_register(
-                inverter.clone(),
-                commands::time_register_ops::Action::ForcedDischarge(*num),
-            )
-            .await?;
-            self.read_time_register(
-                inverter.clone(),
-                commands::time_register_ops::Action::AcFirst(*num),
-            )
-            .await?;
-        }
-
-        Ok(())
     }
 
     async fn save_input_all(&self, input: Box<lxp::packet::ReadInputAll>) -> Result<()> {
         if self.config.influx().enabled() {
-            let channel_data = influx::ChannelData::InputData(serde_json::to_value(&input)?);
-            if self.channels.to_influx.send(channel_data).is_err() {
-                bail!("send(to_influx) failed - channel closed?");
+            debug!("InfluxDB is enabled, attempting to save data");
+            let json = serde_json::to_value(&input)?;
+            debug!("Serialized data for InfluxDB: {:?}", json);
+            match self.channels.to_influx.send(influx::ChannelData::InputData(json)) {
+                Ok(_) => {
+                    debug!("Successfully sent data to InfluxDB channel");
+                    if let Ok(mut stats) = self.stats.lock() {
+                        stats.influx_writes += 1;
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to send data to InfluxDB: {}", e);
+                    if let Ok(mut stats) = self.stats.lock() {
+                        stats.influx_errors += 1;
+                    }
+                }
             }
         }
 
         if self.config.have_enabled_database() {
             let channel_data = database::ChannelData::ReadInputAll(input);
-            if self.channels.to_database.send(channel_data).is_err() {
-                bail!("send(to_database) failed - channel closed?");
+            match self.channels.to_database.send(channel_data) {
+                Ok(_) => {
+                    if let Ok(mut stats) = self.stats.lock() {
+                        stats.database_writes += 1;
+                    }
+                }
+                Err(e) => {
+                    // log error but avoid exiting loop as then we stop handling
+                    // incoming packets. need better error handling here maybe?
+                    error!("Failed to send to database: {}", e);
+                    if let Ok(mut stats) = self.stats.lock() {
+                        stats.database_errors += 1;
+                    }
+                }
             }
         }
 
@@ -517,5 +685,83 @@ impl Coordinator {
             Packet::ReadParam(rp) => mqtt::Message::for_param(rp),
             Packet::WriteParam(_) => Ok(Vec::new()), // ignoring for now
         }
+    }
+
+    async fn inverter_connected(&self, datalog: Serial) -> Result<()> {
+        let inverter = match self.config.enabled_inverter_with_datalog(datalog) {
+            Some(inverter) => inverter,
+            None => {
+                warn!("Unknown inverter datalog connected: {}, will continue processing its data", datalog);
+                return Ok(());
+            }
+        };
+
+        if !inverter.publish_holdings_on_connect() {
+            return Ok(());
+        }
+
+        info!("Reading holding registers for inverter {}", datalog);
+
+        // Add delay between read_hold requests to prevent overwhelming the inverter
+        const DELAY_MS: u64 = 100; // 100ms delay between requests
+
+        // We can only read holding registers in blocks of 40. Provisionally,
+        // there are 6 pages of 40 values.
+        self.increment_packets_sent();
+        self.read_hold(inverter.clone(), 0_u16, 40).await?;
+        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+        
+        self.increment_packets_sent();
+        self.read_hold(inverter.clone(), 40_u16, 40).await?;
+        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+        
+        self.increment_packets_sent();
+        self.read_hold(inverter.clone(), 80_u16, 40).await?;
+        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+        
+        self.increment_packets_sent();
+        self.read_hold(inverter.clone(), 120_u16, 40).await?;
+        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+        
+        self.increment_packets_sent();
+        self.read_hold(inverter.clone(), 160_u16, 40).await?;
+        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+        
+        self.increment_packets_sent();
+        self.read_hold(inverter.clone(), 200_u16, 40).await?;
+
+        // Also send any special interpretive topics which are derived from
+        // the holding registers.
+        //
+        // FIXME: this is a further 12 round-trips to the inverter to read values
+        // we have already taken, just above. We should be able to do better!
+        for num in &[1, 2, 3] {
+            self.increment_packets_sent();
+            self.read_time_register(
+                inverter.clone(),
+                commands::time_register_ops::Action::AcCharge(*num),
+            )
+            .await?;
+            self.increment_packets_sent();
+            self.read_time_register(
+                inverter.clone(),
+                commands::time_register_ops::Action::ChargePriority(*num),
+            )
+            .await?;
+            self.increment_packets_sent();
+            self.read_time_register(
+                inverter.clone(),
+                commands::time_register_ops::Action::ForcedDischarge(*num),
+            )
+            .await?;
+            self.increment_packets_sent();
+            self.read_time_register(
+                inverter.clone(),
+                commands::time_register_ops::Action::AcFirst(*num),
+            )
+            .await?;
+        }
+
+        Ok(())
     }
 }

@@ -1,15 +1,14 @@
 use crate::prelude::*;
 
 use serde::Deserialize;
-use serde_with::serde_as; //, OneOrMany;
+use serde_with::serde_as;
+use serde_yaml;
 
 #[serde_as]
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     pub inverters: Vec<Inverter>,
-    //#[serde_as(deserialize_as = "OneOrMany<_>")]
     pub mqtt: Mqtt,
-    //#[serde_as(deserialize_as = "OneOrMany<_>")]
     pub influx: Influx,
     #[serde(default = "Vec::new")]
     pub databases: Vec<Database>,
@@ -336,7 +335,68 @@ impl Config {
         let content = std::fs::read_to_string(&file)
             .map_err(|err| anyhow!("error reading {}: {}", file, err))?;
 
-        Ok(serde_yaml::from_str(&content)?)
+        let config: Self = serde_yaml::from_str(&content)?;
+        config.validate()?;
+        Ok(config)
+    }
+
+    fn validate(&self) -> Result<()> {
+        // Validate MQTT configuration
+        if self.mqtt.enabled {
+            if self.mqtt.port == 0 {
+                bail!("mqtt.port must be between 1 and 65535");
+            }
+            if self.mqtt.host.is_empty() {
+                return Err(anyhow!("MQTT host cannot be empty"));
+            }
+        }
+
+        // Validate InfluxDB configuration
+        if self.influx.enabled {
+            if let Err(e) = url::Url::parse(&self.influx.url) {
+                return Err(anyhow!("Invalid InfluxDB URL: {}", e));
+            }
+            if self.influx.database.is_empty() {
+                return Err(anyhow!("InfluxDB database name cannot be empty"));
+            }
+        }
+
+        // Validate database URLs
+        for db in &self.databases {
+            if db.enabled {
+                if let Err(e) = url::Url::parse(db.url()) {
+                    return Err(anyhow!("Invalid database URL: {}", e));
+                }
+            }
+        }
+
+        // Validate inverter configurations
+        for (i, inv) in self.inverters.iter().enumerate() {
+            if inv.enabled {
+                if inv.port == 0 {
+                    bail!("inverter[{}].port must be between 1 and 65535", i);
+                }
+                if inv.host.is_empty() {
+                    return Err(anyhow!("Inverter host cannot be empty"));
+                }
+                if inv.read_timeout.unwrap_or(900) == 0 {
+                    return Err(anyhow!("Invalid read timeout: 0"));
+                }
+            }
+        }
+
+        // Validate scheduler configuration
+        if let Some(scheduler) = &self.scheduler {
+            if scheduler.enabled {
+                if let Some(cron) = &scheduler.timesync_cron {
+                    if cron.is_empty() {
+                        return Err(anyhow!("Scheduler cron expression cannot be empty"));
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn default_mqtt_port() -> u16 {

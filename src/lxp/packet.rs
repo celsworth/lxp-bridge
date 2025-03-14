@@ -4,7 +4,10 @@ use enum_dispatch::*;
 use nom_derive::{Nom, Parse};
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Serialize;
+use log::error;
+use std::convert::TryFrom;
 
+#[derive(Clone, Debug)]
 pub enum ReadInput {
     ReadInputAll(Box<ReadInputAll>),
     ReadInput1(ReadInput1),
@@ -18,14 +21,14 @@ pub enum ReadInput {
 #[nom(LittleEndian)]
 pub struct ReadInputAll {
     pub status: u16,
-    #[nom(Parse = "Utils::le_u16_div10")]
-    pub v_pv_1: f64,
-    #[nom(Parse = "Utils::le_u16_div10")]
-    pub v_pv_2: f64,
-    #[nom(Parse = "Utils::le_u16_div10")]
-    pub v_pv_3: f64,
-    #[nom(Parse = "Utils::le_u16_div10")]
-    pub v_bat: f64,
+    #[nom(Parse = "Utils::le_u16_checked_div10")]
+    pub v_pv_1: Option<f64>,
+    #[nom(Parse = "Utils::le_u16_checked_div10")]
+    pub v_pv_2: Option<f64>,
+    #[nom(Parse = "Utils::le_u16_checked_div10")]
+    pub v_pv_3: Option<f64>,
+    #[nom(Parse = "Utils::le_u16_checked_div10")]
+    pub v_bat: Option<f64>,
 
     pub soc: i8,
     pub soh: i8,
@@ -222,21 +225,76 @@ pub struct ReadInputAll {
     pub time: UnixTime,
     #[nom(Ignore)]
     pub datalog: Serial,
-} // }}}
+}
+
+impl ReadInputAll {
+    pub fn calculate_derived_values(&mut self) -> Result<()> {
+        debug!("Calculating derived values for ReadInputAll");
+        
+        // Safe conversion and addition of power values using u16
+        self.p_pv = self.p_pv_1
+            .checked_add(self.p_pv_2)
+            .and_then(|sum| sum.checked_add(self.p_pv_3))
+            .ok_or_else(|| anyhow!("Power value overflow in p_pv calculation"))?;
+
+        // Safe conversion and subtraction for battery power
+        self.p_battery = i32::from(self.p_charge)
+            .checked_sub(i32::from(self.p_discharge))
+            .ok_or_else(|| anyhow!("Power value overflow in p_battery calculation"))?;
+
+        // Safe conversion and subtraction for grid power
+        self.p_grid = i32::from(self.p_to_user)
+            .checked_sub(i32::from(self.p_to_grid))
+            .ok_or_else(|| anyhow!("Power value overflow in p_grid calculation"))?;
+
+        // Safe addition for total PV energy - using f64 arithmetic
+        self.e_pv_day = Utils::round(self.e_pv_day_1 + self.e_pv_day_2 + self.e_pv_day_3, 1);
+        self.e_pv_all = Utils::round(self.e_pv_all_1 + self.e_pv_all_2 + self.e_pv_all_3, 1);
+
+        debug!("Derived values calculated successfully");
+        Ok(())
+    }
+
+    pub fn validate(&self) -> Result<()> {
+        // Validate SOC and SOH
+        if self.soc < 0 || self.soc > 100 {
+            return Err(anyhow!("Invalid SOC value: {}", self.soc));
+        }
+        if self.soh < 0 || self.soh > 100 {
+            return Err(anyhow!("Invalid SOH value: {}", self.soh));
+        }
+
+        // Validate power values are within reasonable ranges
+        if self.p_pv_1 > 10000 || self.p_pv_2 > 10000 || self.p_pv_3 > 10000 {
+            return Err(anyhow!("Invalid PV power values"));
+        }
+
+        // Validate frequencies
+        if self.f_ac < 45.0 || self.f_ac > 65.0 {
+            return Err(anyhow!("Invalid AC frequency: {}", self.f_ac));
+        }
+        if self.f_eps < 45.0 || self.f_eps > 65.0 {
+            return Err(anyhow!("Invalid EPS frequency: {}", self.f_eps));
+        }
+
+        Ok(())
+    }
+}
+// }}}
 
 // {{{ ReadInput1
 #[derive(Clone, Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
 pub struct ReadInput1 {
     pub status: u16,
-    #[nom(Parse = "Utils::le_u16_div10")]
-    pub v_pv_1: f64,
-    #[nom(Parse = "Utils::le_u16_div10")]
-    pub v_pv_2: f64,
-    #[nom(Parse = "Utils::le_u16_div10")]
-    pub v_pv_3: f64,
-    #[nom(Parse = "Utils::le_u16_div10")]
-    pub v_bat: f64,
+    #[nom(Parse = "Utils::le_u16_checked_div10")]
+    pub v_pv_1: Option<f64>,
+    #[nom(Parse = "Utils::le_u16_checked_div10")]
+    pub v_pv_2: Option<f64>,
+    #[nom(Parse = "Utils::le_u16_checked_div10")]
+    pub v_pv_3: Option<f64>,
+    #[nom(Parse = "Utils::le_u16_checked_div10")]
+    pub v_bat: Option<f64>,
 
     pub soc: i8,
     pub soh: i8,
@@ -317,7 +375,33 @@ pub struct ReadInput1 {
     pub time: UnixTime,
     #[nom(Ignore)]
     pub datalog: Serial,
-} // }}}
+}
+
+impl ReadInput1 {
+    pub fn calculate_derived_values(&mut self) -> Result<()> {
+        // Safe conversion and addition of power values using u16
+        self.p_pv = self.p_pv_1
+            .checked_add(self.p_pv_2)
+            .and_then(|sum| sum.checked_add(self.p_pv_3))
+            .ok_or_else(|| anyhow!("Power value overflow in p_pv calculation"))?;
+
+        // Safe conversion and subtraction for battery power
+        self.p_battery = i32::from(self.p_charge)
+            .checked_sub(i32::from(self.p_discharge))
+            .ok_or_else(|| anyhow!("Power value overflow in p_battery calculation"))?;
+
+        // Safe conversion and subtraction for grid power
+        self.p_grid = i32::from(self.p_to_user)
+            .checked_sub(i32::from(self.p_to_grid))
+            .ok_or_else(|| anyhow!("Power value overflow in p_grid calculation"))?;
+
+        // Safe addition for total PV energy - using f64 arithmetic
+        self.e_pv_day = Utils::round(self.e_pv_day_1 + self.e_pv_day_2 + self.e_pv_day_3, 1);
+
+        Ok(())
+    }
+}
+// }}}
 
 // {{{ ReadInput2
 #[derive(Clone, Debug, Serialize, Nom)]
@@ -363,7 +447,16 @@ pub struct ReadInput2 {
     pub time: UnixTime,
     #[nom(Ignore)]
     pub datalog: Serial,
-} // }}}
+}
+
+impl ReadInput2 {
+    pub fn calculate_derived_values(&mut self) -> Result<()> {
+        // Safe addition for total PV energy - using f64 arithmetic
+        self.e_pv_all = Utils::round(self.e_pv_all_1 + self.e_pv_all_2 + self.e_pv_all_3, 1);
+        Ok(())
+    }
+}
+// }}}
 
 // {{{ ReadInput3
 #[derive(Clone, Debug, Serialize, Nom)]
@@ -422,7 +515,8 @@ pub struct ReadInput3 {
     pub time: UnixTime,
     #[nom(Ignore)]
     pub datalog: Serial,
-} // }}}
+}
+// }}}
 
 #[derive(Clone, Debug, Serialize, Nom)]
 #[nom(LittleEndian)]
@@ -489,118 +583,135 @@ impl ReadInputs {
             self.read_input_3.as_ref(),
             self.read_input_4.as_ref(),
         ) {
-            (Some(ri1), Some(ri2), Some(ri3), Some(ri4)) => Some(ReadInputAll {
-                status: ri1.status,
-                v_pv_1: ri1.v_pv_1,
-                v_pv_2: ri1.v_pv_2,
-                v_pv_3: ri1.v_pv_3,
-                v_bat: ri1.v_bat,
-                soc: ri1.soc,
-                soh: ri1.soh,
-                internal_fault: ri1.internal_fault,
-                p_pv: ri1.p_pv,
-                p_pv_1: ri1.p_pv_1,
-                p_pv_2: ri1.p_pv_2,
-                p_pv_3: ri1.p_pv_3,
-                p_battery: ri1.p_battery,
-                p_charge: ri1.p_charge,
-                p_discharge: ri1.p_discharge,
-                v_ac_r: ri1.v_ac_r,
-                v_ac_s: ri1.v_ac_s,
-                v_ac_t: ri1.v_ac_t,
-                f_ac: ri1.f_ac,
-                p_inv: ri1.p_inv,
-                p_rec: ri1.p_rec,
-                pf: ri1.pf,
-                v_eps_r: ri1.v_eps_r,
-                v_eps_s: ri1.v_eps_s,
-                v_eps_t: ri1.v_eps_t,
-                f_eps: ri1.f_eps,
-                p_eps: ri1.p_eps,
-                s_eps: ri1.s_eps,
-                p_grid: ri1.p_grid,
-                p_to_grid: ri1.p_to_grid,
-                p_to_user: ri1.p_to_user,
-                e_pv_day: ri1.e_pv_day,
-                e_pv_day_1: ri1.e_pv_day_1,
-                e_pv_day_2: ri1.e_pv_day_2,
-                e_pv_day_3: ri1.e_pv_day_3,
-                e_inv_day: ri1.e_inv_day,
-                e_rec_day: ri1.e_rec_day,
-                e_chg_day: ri1.e_chg_day,
-                e_dischg_day: ri1.e_dischg_day,
-                e_eps_day: ri1.e_eps_day,
-                e_to_grid_day: ri1.e_to_grid_day,
-                e_to_user_day: ri1.e_to_user_day,
-                v_bus_1: ri1.v_bus_1,
-                v_bus_2: ri1.v_bus_2,
-                e_pv_all: ri2.e_pv_all,
-                e_pv_all_1: ri2.e_pv_all_1,
-                e_pv_all_2: ri2.e_pv_all_2,
-                e_pv_all_3: ri2.e_pv_all_3,
-                e_inv_all: ri2.e_inv_all,
-                e_rec_all: ri2.e_rec_all,
-                e_chg_all: ri2.e_chg_all,
-                e_dischg_all: ri2.e_dischg_all,
-                e_eps_all: ri2.e_eps_all,
-                e_to_grid_all: ri2.e_to_grid_all,
-                e_to_user_all: ri2.e_to_user_all,
-                fault_code: ri2.fault_code,
-                warning_code: ri2.warning_code,
-                t_inner: ri2.t_inner,
-                t_rad_1: ri2.t_rad_1,
-                t_rad_2: ri2.t_rad_2,
-                t_bat: ri2.t_bat,
-                runtime: ri2.runtime,
-                max_chg_curr: ri3.max_chg_curr,
-                max_dischg_curr: ri3.max_dischg_curr,
-                charge_volt_ref: ri3.charge_volt_ref,
-                dischg_cut_volt: ri3.dischg_cut_volt,
-                bat_status_0: ri3.bat_status_0,
-                bat_status_1: ri3.bat_status_1,
-                bat_status_2: ri3.bat_status_2,
-                bat_status_3: ri3.bat_status_3,
-                bat_status_4: ri3.bat_status_4,
-                bat_status_5: ri3.bat_status_5,
-                bat_status_6: ri3.bat_status_6,
-                bat_status_7: ri3.bat_status_7,
-                bat_status_8: ri3.bat_status_8,
-                bat_status_9: ri3.bat_status_9,
-                bat_status_inv: ri3.bat_status_inv,
-                bat_count: ri3.bat_count,
-                bat_capacity: ri3.bat_capacity,
-                bat_current: ri3.bat_current,
-                bms_event_1: ri3.bms_event_1,
-                bms_event_2: ri3.bms_event_2,
-                max_cell_voltage: ri3.max_cell_voltage,
-                min_cell_voltage: ri3.min_cell_voltage,
-                max_cell_temp: ri3.max_cell_temp,
-                min_cell_temp: ri3.min_cell_temp,
-                bms_fw_update_state: ri3.bms_fw_update_state,
-                cycle_count: ri3.cycle_count,
-                vbat_inv: ri3.vbat_inv,
-                v_gen: ri4.v_gen,
-                f_gen: ri4.f_gen,
-                p_gen: ri4.p_gen,
-                e_gen_day: ri4.e_gen_day,
-                e_gen_all: ri4.e_gen_all,
-                v_eps_l1: ri4.v_eps_l1,
-                v_eps_l2: ri4.v_eps_l2,
-                p_eps_l1: ri4.p_eps_l1,
-                p_eps_l2: ri4.p_eps_l2,
-                s_eps_l1: ri4.s_eps_l1,
-                s_eps_l2: ri4.s_eps_l2,
-                e_eps_l1_day: ri4.e_eps_l1_day,
-                e_eps_l2_day: ri4.e_eps_l2_day,
-                e_eps_l1_all: ri4.e_eps_l1_all,
-                e_eps_l2_all: ri4.e_eps_l2_all,
-                datalog: ri1.datalog,
-                time: ri1.time.clone(),
-            }),
+            (Some(ri1), Some(ri2), Some(ri3), Some(ri4)) => {
+                let mut result = ReadInputAll {
+                    status: ri1.status,
+                    v_pv_1: ri1.v_pv_1,
+                    v_pv_2: ri1.v_pv_2,
+                    v_pv_3: ri1.v_pv_3,
+                    v_bat: ri1.v_bat,
+                    soc: ri1.soc,
+                    soh: ri1.soh,
+                    internal_fault: ri1.internal_fault,
+                    p_pv: ri1.p_pv,
+                    p_pv_1: ri1.p_pv_1,
+                    p_pv_2: ri1.p_pv_2,
+                    p_pv_3: ri1.p_pv_3,
+                    p_battery: ri1.p_battery,
+                    p_charge: ri1.p_charge,
+                    p_discharge: ri1.p_discharge,
+                    v_ac_r: ri1.v_ac_r,
+                    v_ac_s: ri1.v_ac_s,
+                    v_ac_t: ri1.v_ac_t,
+                    f_ac: ri1.f_ac,
+                    p_inv: ri1.p_inv,
+                    p_rec: ri1.p_rec,
+                    pf: ri1.pf,
+                    v_eps_r: ri1.v_eps_r,
+                    v_eps_s: ri1.v_eps_s,
+                    v_eps_t: ri1.v_eps_t,
+                    f_eps: ri1.f_eps,
+                    p_eps: ri1.p_eps,
+                    s_eps: ri1.s_eps,
+                    p_grid: ri1.p_grid,
+                    p_to_grid: ri1.p_to_grid,
+                    p_to_user: ri1.p_to_user,
+                    e_pv_day: ri1.e_pv_day,
+                    e_pv_day_1: ri1.e_pv_day_1,
+                    e_pv_day_2: ri1.e_pv_day_2,
+                    e_pv_day_3: ri1.e_pv_day_3,
+                    e_inv_day: ri1.e_inv_day,
+                    e_rec_day: ri1.e_rec_day,
+                    e_chg_day: ri1.e_chg_day,
+                    e_dischg_day: ri1.e_dischg_day,
+                    e_eps_day: ri1.e_eps_day,
+                    e_to_grid_day: ri1.e_to_grid_day,
+                    e_to_user_day: ri1.e_to_user_day,
+                    v_bus_1: ri1.v_bus_1,
+                    v_bus_2: ri1.v_bus_2,
+                    e_pv_all: ri2.e_pv_all,
+                    e_pv_all_1: ri2.e_pv_all_1,
+                    e_pv_all_2: ri2.e_pv_all_2,
+                    e_pv_all_3: ri2.e_pv_all_3,
+                    e_inv_all: ri2.e_inv_all,
+                    e_rec_all: ri2.e_rec_all,
+                    e_chg_all: ri2.e_chg_all,
+                    e_dischg_all: ri2.e_dischg_all,
+                    e_eps_all: ri2.e_eps_all,
+                    e_to_grid_all: ri2.e_to_grid_all,
+                    e_to_user_all: ri2.e_to_user_all,
+                    fault_code: ri2.fault_code,
+                    warning_code: ri2.warning_code,
+                    t_inner: ri2.t_inner,
+                    t_rad_1: ri2.t_rad_1,
+                    t_rad_2: ri2.t_rad_2,
+                    t_bat: ri2.t_bat,
+                    runtime: ri2.runtime,
+                    max_chg_curr: ri3.max_chg_curr,
+                    max_dischg_curr: ri3.max_dischg_curr,
+                    charge_volt_ref: ri3.charge_volt_ref,
+                    dischg_cut_volt: ri3.dischg_cut_volt,
+                    bat_status_0: ri3.bat_status_0,
+                    bat_status_1: ri3.bat_status_1,
+                    bat_status_2: ri3.bat_status_2,
+                    bat_status_3: ri3.bat_status_3,
+                    bat_status_4: ri3.bat_status_4,
+                    bat_status_5: ri3.bat_status_5,
+                    bat_status_6: ri3.bat_status_6,
+                    bat_status_7: ri3.bat_status_7,
+                    bat_status_8: ri3.bat_status_8,
+                    bat_status_9: ri3.bat_status_9,
+                    bat_status_inv: ri3.bat_status_inv,
+                    bat_count: ri3.bat_count,
+                    bat_capacity: ri3.bat_capacity,
+                    bat_current: ri3.bat_current,
+                    bms_event_1: ri3.bms_event_1,
+                    bms_event_2: ri3.bms_event_2,
+                    max_cell_voltage: ri3.max_cell_voltage,
+                    min_cell_voltage: ri3.min_cell_voltage,
+                    max_cell_temp: ri3.max_cell_temp,
+                    min_cell_temp: ri3.min_cell_temp,
+                    bms_fw_update_state: ri3.bms_fw_update_state,
+                    cycle_count: ri3.cycle_count,
+                    vbat_inv: ri3.vbat_inv,
+                    v_gen: ri4.v_gen,
+                    f_gen: ri4.f_gen,
+                    p_gen: ri4.p_gen,
+                    e_gen_day: ri4.e_gen_day,
+                    e_gen_all: ri4.e_gen_all,
+                    v_eps_l1: ri4.v_eps_l1,
+                    v_eps_l2: ri4.v_eps_l2,
+                    p_eps_l1: ri4.p_eps_l1,
+                    p_eps_l2: ri4.p_eps_l2,
+                    s_eps_l1: ri4.s_eps_l1,
+                    s_eps_l2: ri4.s_eps_l2,
+                    e_eps_l1_day: ri4.e_eps_l1_day,
+                    e_eps_l2_day: ri4.e_eps_l2_day,
+                    e_eps_l1_all: ri4.e_eps_l1_all,
+                    e_eps_l2_all: ri4.e_eps_l2_all,
+                    datalog: ri1.datalog,
+                    time: ri1.time.clone(),
+                };
+
+                // Calculate derived values
+                if let Err(e) = result.calculate_derived_values() {
+                    error!("Failed to calculate derived values: {}", e);
+                    return None;
+                }
+
+                // Validate the result
+                if let Err(e) = result.validate() {
+                    error!("Validation failed for ReadInputAll: {}", e);
+                    return None;
+                }
+
+                Some(result)
+            }
             _ => None,
         }
     }
-} // }}}
+}
+// }}}
 
 // {{{ TcpFunction
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -610,7 +721,8 @@ pub enum TcpFunction {
     TranslatedData = 194,
     ReadParam = 195,
     WriteParam = 196,
-} // }}}
+}
+// }}}
 
 // {{{ DeviceFunction
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
@@ -627,7 +739,8 @@ pub enum DeviceFunction {
     // ReadInputError = 132
     // WriteSingleError = 134
     // WriteMultiError = 144
-} // }}}
+}
+// }}}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 #[repr(u16)]
@@ -705,7 +818,8 @@ impl Register21Bits {
             feed_in_grid_en: Self::is_bit_set(data, 1 << 15),
         }
     }
-} // }}}
+}
+// }}}
 
 // Register110Bits {{{
 #[derive(Clone, Debug, Serialize)]
@@ -730,7 +844,8 @@ impl Register110Bits {
             ub_micro_grid_en: Self::is_bit_set(data, 1 << 2),
         }
     }
-} // }}}
+}
+// }}}
 
 #[enum_dispatch]
 pub trait PacketCommon {
@@ -885,9 +1000,16 @@ impl TranslatedData {
     fn read_input_all(&self) -> Result<ReadInputAll> {
         match ReadInputAll::parse(&self.values) {
             Ok((_, mut r)) => {
-                r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.p_grid = r.p_to_user as i32 - r.p_to_grid as i32;
-                r.p_battery = r.p_charge as i32 - r.p_discharge as i32;
+                r.p_pv = u16::from(r.p_pv_1)
+                    .checked_add(u16::from(r.p_pv_2))
+                    .and_then(|sum| sum.checked_add(r.p_pv_3))
+                    .ok_or_else(|| anyhow!("Power value overflow in p_pv calculation"))?;
+                r.p_grid = i32::from(r.p_to_user)
+                    .checked_sub(i32::from(r.p_to_grid))
+                    .ok_or_else(|| anyhow!("Power value overflow in p_grid calculation"))?;
+                r.p_battery = i32::from(r.p_charge)
+                    .checked_sub(i32::from(r.p_discharge))
+                    .ok_or_else(|| anyhow!("Power value overflow in p_battery calculation"))?;
                 r.e_pv_day = Utils::round(r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3, 1);
                 r.e_pv_all = Utils::round(r.e_pv_all_1 + r.e_pv_all_2 + r.e_pv_all_3, 1);
                 r.datalog = self.datalog;
@@ -900,9 +1022,16 @@ impl TranslatedData {
     fn read_input1(&self) -> Result<ReadInput1> {
         match ReadInput1::parse(&self.values) {
             Ok((_, mut r)) => {
-                r.p_pv = r.p_pv_1 + r.p_pv_2 + r.p_pv_3;
-                r.p_grid = r.p_to_user as i32 - r.p_to_grid as i32;
-                r.p_battery = r.p_charge as i32 - r.p_discharge as i32;
+                r.p_pv = u16::from(r.p_pv_1)
+                    .checked_add(u16::from(r.p_pv_2))
+                    .and_then(|sum| sum.checked_add(r.p_pv_3))
+                    .ok_or_else(|| anyhow!("Power value overflow in p_pv calculation"))?;
+                r.p_grid = i32::from(r.p_to_user)
+                    .checked_sub(i32::from(r.p_to_grid))
+                    .ok_or_else(|| anyhow!("Power value overflow in p_grid calculation"))?;
+                r.p_battery = i32::from(r.p_charge)
+                    .checked_sub(i32::from(r.p_discharge))
+                    .ok_or_else(|| anyhow!("Power value overflow in p_battery calculation"))?;
                 r.e_pv_day = Utils::round(r.e_pv_day_1 + r.e_pv_day_2 + r.e_pv_day_3, 1);
                 r.datalog = self.datalog;
                 Ok(r)

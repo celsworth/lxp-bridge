@@ -38,10 +38,11 @@ serde_json = "~1"
 serde_yaml = "~0.9"
 tokio = { version = "~1", features = ["net", "macros", "signal"] }
 tokio-util = { version = "~0.7", features = ["codec"] }
-chrono = "~0.4"
+chrono = { version = "~0.4", features = ["serde"] }
 cron-parser = "~0.7"
 enum_dispatch = "~0.3"
 async-trait = "~0.1"
 reqwest = "~0.11"
 rinfluxdb = { version = "~0.1", git = "https://gitlab.com/celsworth/rinfluxdb.git", rev = "f3f5b23e" }
 sqlx = { version = "~0.6", features = ["runtime-tokio-native-tls", "any", "postgres", "mysql", "sqlite", "chrono"] }
+url = "~2.4"

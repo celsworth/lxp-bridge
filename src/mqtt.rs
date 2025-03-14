@@ -301,6 +301,7 @@ pub enum ChannelData {
 
 pub type Sender = broadcast::Sender<ChannelData>;
 
+#[derive(Clone)]
 pub struct Mqtt {
     config: ConfigWrapper,
     shutdown: bool,

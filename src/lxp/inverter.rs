@@ -31,8 +31,13 @@ pub trait WaitForReply {
 impl WaitForReply for Receiver {
     async fn wait_for_reply(&mut self, packet: &Packet) -> Result<Packet> {
         let start = std::time::Instant::now();
+        let timeout_duration = std::time::Duration::from_secs(Self::TIMEOUT);
 
         loop {
+            if start.elapsed() >= timeout_duration {
+                bail!("Timeout waiting for reply to {:?} after {} seconds", packet, Self::TIMEOUT);
+            }
+
             match (packet, self.try_recv()) {
                 (
                     Packet::TranslatedData(td),
@@ -55,22 +60,20 @@ impl WaitForReply for Receiver {
                         return Ok(Packet::WriteParam(reply));
                     }
                 }
-                (_, Ok(ChannelData::Packet(_))) => {} // TODO ReadParam and WriteParam
-                (_, Ok(ChannelData::Connected(_))) => {} // Breaks on channel overflow, but we have a timeout
+                (_, Ok(ChannelData::Packet(_))) => {} // Mismatched packet, continue waiting
+                (_, Ok(ChannelData::Connected(_))) => {} // Connection status update, continue waiting
                 (_, Ok(ChannelData::Disconnect(inverter_datalog))) => {
                     if inverter_datalog == packet.datalog() {
-                        bail!("inverter disconnect?");
+                        bail!("Inverter {} disconnected while waiting for reply", inverter_datalog);
                     }
                 }
-                (_, Ok(ChannelData::Shutdown)) => bail!("shutting down"),
-                (_, Err(broadcast::error::TryRecvError::Empty)) => {} // ignore and loop
-                (_, Err(err)) => bail!("try_recv error: {:?}", err),
+                (_, Ok(ChannelData::Shutdown)) => bail!("Channel shutdown received while waiting for reply"),
+                (_, Err(broadcast::error::TryRecvError::Empty)) => {
+                    // Channel empty, sleep briefly before retrying
+                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                }
+                (_, Err(err)) => bail!("Channel error while waiting for reply: {:?}", err),
             }
-            if start.elapsed().as_secs() > Self::TIMEOUT {
-                bail!("wait_for_reply {:?} - timeout", packet);
-            }
-
-            tokio::time::sleep(std::time::Duration::from_millis(5)).await;
         }
     }
 } // }}}
@@ -128,11 +131,17 @@ impl std::fmt::Debug for Serial {
     }
 } // }}}
 
+#[derive(Clone)]
 pub struct Inverter {
     config: ConfigWrapper,
     host: String,
     channels: Channels,
 }
+
+const READ_TIMEOUT_SECS: u64 = 1; // Multiplier for read_timeout from config
+const WRITE_TIMEOUT_SECS: u64 = 5; // Timeout for write operations
+const RECONNECT_DELAY_SECS: u64 = 5; // Delay before reconnection attempts
+const TCP_KEEPALIVE_SECS: u64 = 60; // TCP keepalive interval
 
 impl Inverter {
     pub fn new(config: ConfigWrapper, inverter: &config::Inverter, channels: Channels) -> Self {
@@ -155,11 +164,11 @@ impl Inverter {
     pub async fn start(&self) -> Result<()> {
         while let Err(e) = self.connect().await {
             error!("inverter {}: {}", self.config().datalog(), e);
-            info!("inverter {}: reconnecting in 5s", self.config().datalog());
+            info!("inverter {}: reconnecting in {}s", self.config().datalog(), RECONNECT_DELAY_SECS);
             self.channels
                 .from_inverter
                 .send(ChannelData::Disconnect(self.config().datalog()))?; // kill any waiting readers
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+            tokio::time::sleep(std::time::Duration::from_secs(RECONNECT_DELAY_SECS)).await;
         }
 
         Ok(())
@@ -172,28 +181,60 @@ impl Inverter {
     async fn connect(&self) -> Result<()> {
         use net2::TcpStreamExt; // for set_keepalive
 
+        let inverter_config = self.config();
         info!(
             "connecting to inverter {} at {}:{}",
-            self.config().datalog(),
-            self.config().host(),
-            self.config().port()
+            inverter_config.datalog(),
+            inverter_config.host(),
+            inverter_config.port()
         );
 
-        let inverter_hp = (self.config().host().to_owned(), self.config().port());
+        let inverter_hp = (inverter_config.host().to_owned(), inverter_config.port());
 
-        let stream = tokio::net::TcpStream::connect(inverter_hp).await?;
+        // Attempt TCP connection with timeout
+        let stream = match tokio::time::timeout(
+            std::time::Duration::from_secs(WRITE_TIMEOUT_SECS * 2),
+            tokio::net::TcpStream::connect(inverter_hp)
+        ).await {
+            Ok(Ok(stream)) => stream,
+            Ok(Err(e)) => bail!("Failed to connect to inverter: {}", e),
+            Err(_) => bail!("Connection timeout after {} seconds", WRITE_TIMEOUT_SECS * 2),
+        };
+
+        // Configure TCP socket
         let std_stream = stream.into_std()?;
-        std_stream.set_keepalive(Some(std::time::Duration::new(60, 0)))?;
-        let (reader, writer) = tokio::net::TcpStream::from_std(std_stream)?.into_split();
+        if let Err(e) = std_stream.set_keepalive(Some(std::time::Duration::new(TCP_KEEPALIVE_SECS, 0))) {
+            warn!("Failed to set TCP keepalive: {}", e);
+        }
+        
+        let stream = tokio::net::TcpStream::from_std(std_stream)?;
+        
+        // Set TCP_NODELAY to minimize latency
+        if let Err(e) = stream.set_nodelay(true) {
+            warn!("Failed to set TCP_NODELAY: {}", e);
+        }
 
-        info!("inverter {}: connected!", self.config().datalog());
-        self.channels
+        let (reader, writer) = stream.into_split();
+
+        info!("inverter {}: connected!", inverter_config.datalog());
+        if let Err(e) = self.channels
             .from_inverter
-            .send(ChannelData::Connected(self.config().datalog()))?;
+            .send(ChannelData::Connected(inverter_config.datalog()))
+        {
+            bail!("Failed to send Connected message: {}", e);
+        }
 
-        futures::try_join!(self.sender(writer), self.receiver(reader))?;
-
-        Ok(())
+        // Run sender and receiver tasks
+        match futures::try_join!(self.sender(writer), self.receiver(reader)) {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                // Ensure we send a disconnect message before returning error
+                let _ = self.channels
+                    .from_inverter
+                    .send(ChannelData::Disconnect(inverter_config.datalog()));
+                Err(e.into())
+            }
+        }
     }
 
     // inverter -> coordinator
@@ -202,41 +243,67 @@ impl Inverter {
         use tokio::time::timeout;
         use {bytes::BytesMut, tokio_util::codec::Decoder};
 
-        let mut buf = BytesMut::new();
+        const MAX_BUFFER_SIZE: usize = 16384; // 16KB max buffer size
+        let mut buf = BytesMut::with_capacity(1024); // Start with 1KB
         let mut decoder = lxp::packet_decoder::PacketDecoder::new();
+        let inverter_config = self.config();
 
         loop {
+            // Check buffer capacity and prevent potential memory issues
+            if buf.len() >= MAX_BUFFER_SIZE {
+                bail!("Buffer overflow: received data exceeds maximum size of {} bytes", MAX_BUFFER_SIZE);
+            }
+
             // read_buf appends to buf rather than overwrite existing data
             let future = socket.read_buf(&mut buf);
-            let read_timeout = self.config().read_timeout();
+            let read_timeout = inverter_config.read_timeout();
+            
             let len = if read_timeout > 0 {
-                match timeout(Duration::from_millis(read_timeout * 1000), future).await {
-                    Ok(r) => r,
-                    Err(_) => bail!("no data for {} seconds", read_timeout),
+                match timeout(
+                    Duration::from_secs(read_timeout * READ_TIMEOUT_SECS),
+                    future
+                ).await {
+                    Ok(Ok(n)) => n,
+                    Ok(Err(e)) => bail!("Read error: {}", e),
+                    Err(_) => bail!("No data received for {} seconds", read_timeout * READ_TIMEOUT_SECS),
                 }
             } else {
-                future.await
-            }?;
+                future.await?
+            };
 
             if len == 0 {
+                // Try to process any remaining data before disconnecting
                 while let Some(packet) = decoder.decode_eof(&mut buf)? {
-                    self.handle_incoming_packet(packet)?;
+                    if let Err(e) = self.handle_incoming_packet(packet) {
+                        warn!("Failed to handle final packet: {}", e);
+                    }
                 }
-                break;
+                bail!("Connection closed by peer");
             }
 
+            // Process received data
             while let Some(packet) = decoder.decode(&mut buf)? {
-                self.handle_incoming_packet(packet.clone())?;
-
-                self.compare_datalog(packet.datalog()); // all packets have datalog serial
+                let packet_clone = packet.clone();
+                
+                // Validate and process the packet
+                self.compare_datalog(packet.datalog());
                 if let Packet::TranslatedData(td) = packet {
-                    // only TranslatedData has inverter serial
                     self.compare_inverter(td.inverter);
-                };
+                }
+
+                if let Err(e) = self.handle_incoming_packet(packet_clone) {
+                    warn!("Failed to handle packet: {}", e);
+                    // Continue processing other packets even if one fails
+                    continue;
+                }
+            }
+
+            // Clear the buffer if it's getting too large
+            if buf.capacity() > MAX_BUFFER_SIZE / 2 {
+                buf.clear();
+                buf.reserve(1024);
             }
         }
-
-        Err(anyhow!("lost connection"))
     }
 
     fn handle_incoming_packet(&self, packet: Packet) -> Result<()> {
@@ -261,33 +328,60 @@ impl Inverter {
     // coordinator -> inverter
     async fn sender(&self, mut socket: tokio::net::tcp::OwnedWriteHalf) -> Result<()> {
         let mut receiver = self.channels.to_inverter.subscribe();
-
-        use ChannelData::*;
+        let inverter_config = self.config();
 
         loop {
-            match receiver.recv().await? {
-                Shutdown => break,
-                // this doesn't actually happen yet; (Dis)connect is never sent to this channel
-                Connected(_) => {}
-                Disconnect(_) => bail!("sender exiting due to ChannelData::Disconnect"),
-                Packet(packet) => {
-                    // this works, but needs more thought. because we only fix it here, immediately
-                    // before transmission, calls to wait_for_reply with the original serials will
-                    // never complete. ideally we need to pass the fixed packet back?
-                    //self.fix_outgoing_packet_serials(&mut packet);
-
-                    if packet.datalog() == self.config().datalog() {
-                        //debug!("inverter {}: TX {:?}", self.config.datalog, packet);
-                        let bytes = lxp::packet::TcpFrameFactory::build(&packet);
-                        debug!("inverter {}: TX {:?}", self.config().datalog(), bytes);
-                        socket.write_all(&bytes).await?
+            match receiver.recv().await {
+                Ok(ChannelData::Shutdown) => {
+                    info!("inverter {}: received shutdown signal", inverter_config.datalog());
+                    break;
+                }
+                Ok(ChannelData::Connected(_)) | Ok(ChannelData::Disconnect(_)) => {
+                    // These messages shouldn't be sent to this channel
+                    warn!("Unexpected connection status message in sender channel");
+                    continue;
+                }
+                Ok(ChannelData::Packet(packet)) => {
+                    if packet.datalog() != inverter_config.datalog() {
+                        debug!("Skipping packet for different inverter (expected {}, got {})",
+                            inverter_config.datalog(), packet.datalog());
+                        continue;
                     }
+
+                    let bytes = lxp::packet::TcpFrameFactory::build(&packet);
+                    if bytes.is_empty() {
+                        warn!("Generated empty packet data for {:?}", packet);
+                        continue;
+                    }
+
+                    debug!("inverter {}: TX {:?}", inverter_config.datalog(), bytes);
+                    
+                    // Use timeout for write operations
+                    match tokio::time::timeout(
+                        std::time::Duration::from_secs(5),
+                        socket.write_all(&bytes)
+                    ).await {
+                        Ok(Ok(_)) => {
+                            // Ensure data is actually sent
+                            if let Err(e) = socket.flush().await {
+                                bail!("Failed to flush socket: {}", e);
+                            }
+                        }
+                        Ok(Err(e)) => bail!("Failed to write packet: {}", e),
+                        Err(_) => bail!("Write operation timed out after 5 seconds"),
+                    }
+                }
+                Err(broadcast::error::RecvError::Closed) => {
+                    bail!("Channel closed");
+                }
+                Err(e) => {
+                    warn!("Error receiving from channel: {}", e);
+                    continue;
                 }
             }
         }
 
-        info!("inverter {}: sender exiting", self.config().datalog());
-
+        info!("inverter {}: sender exiting", inverter_config.datalog());
         Ok(())
     }
 

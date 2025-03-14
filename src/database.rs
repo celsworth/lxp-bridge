@@ -1,11 +1,11 @@
 use crate::prelude::*;
 
-use sqlx::{any::AnyConnectOptions, AnyPool, ConnectOptions};
+use sqlx::{any::AnyConnectOptions, AnyPool};
 
-#[derive(PartialEq, Clone, Debug)]
+#[derive(Debug, Clone)]
 pub enum ChannelData {
-    ReadInputAll(Box<lxp::packet::ReadInputAll>),
     Shutdown,
+    ReadInputAll(Box<lxp::packet::ReadInputAll>),
 }
 
 pub type Sender = broadcast::Sender<ChannelData>;
@@ -60,24 +60,25 @@ impl Database {
     }
 
     async fn connect(&self) -> Result<()> {
-        let mut options = AnyConnectOptions::from_str(self.config.url())?;
-        options.disable_statement_logging();
-        let pool = sqlx::any::AnyPool::connect_with(options).await?;
+        let options = AnyConnectOptions::from_str(self.config.url())?;
 
-        //debug!("{:?}", pool.any_kind());
-        let _ = self.pool.borrow_mut().insert(pool);
+        let pool = sqlx::any::AnyPoolOptions::new()
+            .max_connections(5)
+            .min_connections(1)
+            .acquire_timeout(std::time::Duration::from_secs(30))
+            .connect_with(options)
+            .await?;
+            
+        *self.pool.borrow_mut() = Some(pool);
 
         Ok(())
     }
 
     pub async fn connection(&self) -> Result<sqlx::pool::PoolConnection<sqlx::Any>> {
-        let acquire = if let Some(pool) = &*self.pool.borrow() {
-            pool.acquire()
-        } else {
-            todo!()
-        };
-
-        Ok(acquire.await?)
+        match &*self.pool.borrow() {
+            Some(pool) => Ok(pool.acquire().await?),
+            None => Err(anyhow!("Database pool not initialized"))
+        }
     }
 
     async fn migrate(&self) -> Result<()> {
@@ -99,13 +100,10 @@ impl Database {
 
     async fn inserter(&self) -> Result<()> {
         self.connect().await?;
-
         info!("database connected");
-
         self.migrate().await?;
 
         let mut receiver = self.channels.to_database.subscribe();
-
         let values = match self.database()? {
             DatabaseType::MySQL => Self::values_for_mysql(),
             _ => Self::values_for_not_mysql(),
@@ -159,9 +157,24 @@ impl Database {
             match receiver.recv().await? {
                 Shutdown => break,
                 ReadInputAll(data) => {
-                    while let Err(err) = self.insert(&query, &data).await {
-                        error!("INSERT failed: {:?} - retrying in 10s", err);
-                        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                    let mut retry_count = 0;
+                    let max_retries = 3;
+                    let mut backoff = 1;
+                    
+                    while retry_count < max_retries {
+                        match self.insert(&query, &data).await {
+                            Ok(_) => break,
+                            Err(err) => {
+                                error!("INSERT failed: {:?} - retrying in {}s", err, backoff);
+                                tokio::time::sleep(std::time::Duration::from_secs(backoff)).await;
+                                retry_count += 1;
+                                backoff *= 2;
+                            }
+                        }
+                    }
+                    
+                    if retry_count == max_retries {
+                        error!("Failed to insert data after {} retries", max_retries);
                     }
                 }
             }

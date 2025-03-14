@@ -11,6 +11,7 @@ pub enum ChannelData {
     Shutdown,
 }
 
+#[derive(Clone)]
 pub struct Influx {
     config: ConfigWrapper,
     channels: Channels,
@@ -55,22 +56,30 @@ impl Influx {
         use ChannelData::*;
 
         let mut receiver = self.channels.to_influx.subscribe();
+        info!("InfluxDB sender started");
 
         loop {
             let mut line = LineBuilder::new(INPUTS_MEASUREMENT);
 
             match receiver.recv().await? {
-                Shutdown => break,
+                Shutdown => {
+                    info!("InfluxDB sender received shutdown signal");
+                    break;
+                }
                 InputData(data) => {
-                    for (key, value) in data.as_object().unwrap() {
+                    debug!("InfluxDB processing input data: {:?}", data);
+                    for (key, value) in data.as_object().ok_or_else(|| anyhow!("Invalid data format"))? {
                         let key = key.to_string();
+                        debug!("Processing field: {} = {:?}", key, value);
 
                         line = if key == "time" {
                             let value = value.as_i64().unwrap_or_else(|| {
                                 panic!("cannot represent {value} as i64 for {key}")
                             });
-                            line.set_timestamp(chrono::Utc.timestamp_opt(value, 0).unwrap())
-                        } else if key == "datalog" {
+                            line.set_timestamp(chrono::Utc.timestamp_opt(value, 0)
+                                .single()
+                                .ok_or_else(|| anyhow!("Invalid timestamp: {}", value))?)
+                        } else if key == "datalog" || key == "inverter" {
                             let value = value.as_str().unwrap_or_else(|| {
                                 panic!("cannot represent {value} as str for {key}")
                             });
@@ -90,16 +99,30 @@ impl Influx {
                     }
 
                     let lines = vec![line.build()];
+                    debug!("Sending to InfluxDB: {:?}", lines);
 
-                    while let Err(err) = client.send(&self.database(), &lines).await {
-                        error!("push failed: {:?} - retrying in 10s", err);
-                        tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                    let mut retry_count = 0;
+                    while retry_count < 3 {
+                        match client.send(&self.database(), &lines).await {
+                            Ok(_) => {
+                                debug!("Successfully sent data to InfluxDB");
+                                break;
+                            }
+                            Err(err) => {
+                                error!("InfluxDB push failed: {:?} - retrying in 10s (attempt {}/3)", err, retry_count + 1);
+                                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+                                retry_count += 1;
+                            }
+                        }
+                    }
+                    if retry_count == 3 {
+                        error!("Failed to send data to InfluxDB after 3 attempts");
                     }
                 }
             }
         }
 
-        info!("sender loop exiting");
+        info!("InfluxDB sender loop exiting");
 
         Ok(())
     }
