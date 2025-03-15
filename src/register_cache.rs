@@ -46,7 +46,7 @@ impl RegisterCache {
     async fn cache_getter(&self) -> Result<()> {
         let mut receiver = self.channels.read_register_cache.subscribe();
 
-        info!("register_cache getter starting");
+        debug!("register_cache getter starting");
 
         while let ChannelData::ReadRegister(register, reply_tx) = receiver.recv().await? {
             if register < REGISTER_COUNT as u16 {
@@ -63,7 +63,7 @@ impl RegisterCache {
             }
         }
 
-        info!("register_cache getter exiting");
+        debug!("register_cache getter exiting");
 
         Ok(())
     }
@@ -71,7 +71,7 @@ impl RegisterCache {
     async fn cache_setter(&self) -> Result<()> {
         let mut receiver = self.channels.to_register_cache.subscribe();
 
-        info!("register_cache setter starting");
+        debug!("register_cache setter starting");
 
         while let ChannelData::RegisterData(register, value) = receiver.recv().await? {
             if register < REGISTER_COUNT as u16 {
@@ -85,7 +85,7 @@ impl RegisterCache {
             }
         }
 
-        info!("register_cache setter exiting");
+        debug!("register_cache setter exiting");
 
         Ok(())
     }

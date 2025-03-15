@@ -40,6 +40,8 @@ pub struct PacketStats {
     // Connection stats
     inverter_disconnections: std::collections::HashMap<Serial, u64>,
     serial_mismatches: u64,
+    // Last message received per inverter
+    last_messages: std::collections::HashMap<Serial, String>,
 }
 
 impl PacketStats {
@@ -74,6 +76,9 @@ impl PacketStats {
         info!("    Inverter disconnections by serial:");
         for (serial, count) in &self.inverter_disconnections {
             info!("      {}: {}", serial, count);
+            if let Some(last_msg) = self.last_messages.get(serial) {
+                info!("      Last message: {}", last_msg);
+            }
         }
     }
 }
@@ -471,6 +476,11 @@ impl Coordinator {
         // Update packet stats first
         if let Ok(mut stats) = self.stats.lock() {
             stats.packets_received += 1;
+            
+            // Store last message for the inverter
+            if let Packet::TranslatedData(td) = &packet {
+                stats.last_messages.insert(td.datalog, format!("{:?}", packet));
+            }
             
             // Increment counter for specific received packet type
             match &packet {
