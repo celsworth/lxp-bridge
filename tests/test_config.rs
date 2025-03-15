@@ -1,5 +1,7 @@
 mod common;
 use common::*;
+use lxp_bridge::config;
+use lxp_bridge::lxp;
 
 pub fn example_serial() -> lxp::inverter::Serial {
     lxp::inverter::Serial::from_str("TESTSERIAL").unwrap()

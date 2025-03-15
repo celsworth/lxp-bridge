@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-use bytes::{Buf, BytesMut};
+use bytes::BytesMut;
 use std::io::{Error, ErrorKind};
 use tokio_util::codec::Decoder;
 

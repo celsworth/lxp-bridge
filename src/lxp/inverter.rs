@@ -165,9 +165,6 @@ impl Inverter {
         while let Err(e) = self.connect().await {
             error!("inverter {}: {}", self.config().datalog(), e);
             info!("inverter {}: reconnecting in {}s", self.config().datalog(), RECONNECT_DELAY_SECS);
-            self.channels
-                .from_inverter
-                .send(ChannelData::Disconnect(self.config().datalog()))?; // kill any waiting readers
             tokio::time::sleep(std::time::Duration::from_secs(RECONNECT_DELAY_SECS)).await;
         }
 
@@ -247,6 +244,7 @@ impl Inverter {
         let mut buf = BytesMut::with_capacity(1024); // Start with 1KB
         let mut decoder = lxp::packet_decoder::PacketDecoder::new();
         let inverter_config = self.config();
+        let mut shutdown_rx = self.channels.to_inverter.subscribe();
 
         loop {
             // Check buffer capacity and prevent potential memory issues
@@ -254,56 +252,70 @@ impl Inverter {
                 bail!("Buffer overflow: received data exceeds maximum size of {} bytes", MAX_BUFFER_SIZE);
             }
 
-            // read_buf appends to buf rather than overwrite existing data
-            let future = socket.read_buf(&mut buf);
-            let read_timeout = inverter_config.read_timeout();
-            
-            let len = if read_timeout > 0 {
-                match timeout(
-                    Duration::from_secs(read_timeout * READ_TIMEOUT_SECS),
-                    future
-                ).await {
-                    Ok(Ok(n)) => n,
-                    Ok(Err(e)) => bail!("Read error: {}", e),
-                    Err(_) => bail!("No data received for {} seconds", read_timeout * READ_TIMEOUT_SECS),
-                }
-            } else {
-                future.await?
-            };
-
-            if len == 0 {
-                // Try to process any remaining data before disconnecting
-                while let Some(packet) = decoder.decode_eof(&mut buf)? {
-                    if let Err(e) = self.handle_incoming_packet(packet) {
-                        warn!("Failed to handle final packet: {}", e);
+            // Use select! to efficiently wait for either data or shutdown
+            tokio::select! {
+                // Check for shutdown signal
+                shutdown = shutdown_rx.recv() => {
+                    if let Ok(ChannelData::Shutdown) = shutdown {
+                        info!("Receiver received shutdown signal");
+                        break;
                     }
                 }
-                bail!("Connection closed by peer");
-            }
 
-            // Process received data
-            while let Some(packet) = decoder.decode(&mut buf)? {
-                let packet_clone = packet.clone();
-                
-                // Validate and process the packet
-                self.compare_datalog(packet.datalog());
-                if let Packet::TranslatedData(td) = packet {
-                    self.compare_inverter(td.inverter);
+                // Wait for socket data with timeout
+                read_result = async {
+                    if inverter_config.read_timeout() > 0 {
+                        timeout(
+                            Duration::from_secs(inverter_config.read_timeout() * READ_TIMEOUT_SECS),
+                            socket.read_buf(&mut buf)
+                        ).await
+                    } else {
+                        Ok(socket.read_buf(&mut buf).await)
+                    }
+                } => {
+                    let len = match read_result {
+                        Ok(Ok(n)) => n,
+                        Ok(Err(e)) => bail!("Read error: {}", e),
+                        Err(_) => bail!("No data received for {} seconds", inverter_config.read_timeout() * READ_TIMEOUT_SECS),
+                    };
+
+                    if len == 0 {
+                        // Try to process any remaining data before disconnecting
+                        while let Some(packet) = decoder.decode_eof(&mut buf)? {
+                            if let Err(e) = self.handle_incoming_packet(packet) {
+                                warn!("Failed to handle final packet: {}", e);
+                            }
+                        }
+                        bail!("Connection closed by peer");
+                    }
+
+                    // Process received data
+                    while let Some(packet) = decoder.decode(&mut buf)? {
+                        let packet_clone = packet.clone();
+                        
+                        // Validate and process the packet
+                        self.compare_datalog(packet.datalog());
+                        if let Packet::TranslatedData(td) = packet {
+                            self.compare_inverter(td.inverter);
+                        }
+
+                        if let Err(e) = self.handle_incoming_packet(packet_clone) {
+                            warn!("Failed to handle packet: {}", e);
+                            // Continue processing other packets even if one fails
+                            continue;
+                        }
+                    }
+
+                    // Clear the buffer if it's getting too large
+                    if buf.capacity() > MAX_BUFFER_SIZE / 2 {
+                        buf.clear();
+                        buf.reserve(1024);
+                    }
                 }
-
-                if let Err(e) = self.handle_incoming_packet(packet_clone) {
-                    warn!("Failed to handle packet: {}", e);
-                    // Continue processing other packets even if one fails
-                    continue;
-                }
-            }
-
-            // Clear the buffer if it's getting too large
-            if buf.capacity() > MAX_BUFFER_SIZE / 2 {
-                buf.clear();
-                buf.reserve(1024);
             }
         }
+
+        Ok(())
     }
 
     fn handle_incoming_packet(&self, packet: Packet) -> Result<()> {

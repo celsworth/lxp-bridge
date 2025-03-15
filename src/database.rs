@@ -2,10 +2,10 @@ use crate::prelude::*;
 
 use sqlx::{any::AnyConnectOptions, AnyPool};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ChannelData {
-    Shutdown,
     ReadInputAll(Box<lxp::packet::ReadInputAll>),
+    Shutdown,
 }
 
 pub type Sender = broadcast::Sender<ChannelData>;

@@ -3,7 +3,7 @@ use crate::prelude::*;
 pub mod commands;
 
 use std::sync::{Arc, Mutex};
-use lxp::packet::{DeviceFunction, ReadInput, TcpFunction};
+use lxp::packet::{DeviceFunction, ReadInput, TranslatedData, Packet, TcpFunction};
 use serde_json::json;
 
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -17,6 +17,17 @@ pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs
 pub struct PacketStats {
     packets_received: u64,
     packets_sent: u64,
+    // Received packet counters
+    heartbeat_packets_received: u64,
+    translated_data_packets_received: u64,
+    read_param_packets_received: u64,
+    write_param_packets_received: u64,
+    // Sent packet counters
+    heartbeat_packets_sent: u64,
+    translated_data_packets_sent: u64,
+    read_param_packets_sent: u64,
+    write_param_packets_sent: u64,
+    // Other stats
     mqtt_messages_sent: u64,
     mqtt_errors: u64,
     influx_writes: u64,
@@ -32,6 +43,16 @@ impl PacketStats {
         info!("Packet Statistics:");
         info!("  Total packets received: {}", self.packets_received);
         info!("  Total packets sent: {}", self.packets_sent);
+        info!("  Received Packet Types:");
+        info!("    Heartbeat packets: {}", self.heartbeat_packets_received);
+        info!("    TranslatedData packets: {}", self.translated_data_packets_received);
+        info!("    ReadParam packets: {}", self.read_param_packets_received);
+        info!("    WriteParam packets: {}", self.write_param_packets_received);
+        info!("  Sent Packet Types:");
+        info!("    Heartbeat packets: {}", self.heartbeat_packets_sent);
+        info!("    TranslatedData packets: {}", self.translated_data_packets_sent);
+        info!("    ReadParam packets: {}", self.read_param_packets_sent);
+        info!("    WriteParam packets: {}", self.write_param_packets_sent);
         info!("  MQTT:");
         info!("    Messages sent: {}", self.mqtt_messages_sent);
         info!("    Errors: {}", self.mqtt_errors);
@@ -124,9 +145,17 @@ impl Coordinator {
         Ok(())
     }
 
-    fn increment_packets_sent(&self) {
+    fn increment_packets_sent(&self, packet: &Packet) {
         if let Ok(mut stats) = self.stats.lock() {
             stats.packets_sent += 1;
+            
+            // Increment counter for specific sent packet type
+            match packet {
+                Packet::Heartbeat(_) => stats.heartbeat_packets_sent += 1,
+                Packet::TranslatedData(_) => stats.translated_data_packets_sent += 1,
+                Packet::ReadParam(_) => stats.read_param_packets_sent += 1,
+                Packet::WriteParam(_) => stats.write_param_packets_sent += 1,
+            }
         }
     }
 
@@ -135,7 +164,53 @@ impl Coordinator {
         use lxp::packet::{Register, RegisterBit};
         use Command::*;
 
-        self.increment_packets_sent();
+        // Create a packet from the command for stats tracking
+        let packet = match &command {
+            ReadInputs(_, _) => Packet::TranslatedData(TranslatedData {
+                datalog: Serial::default(),
+                device_function: DeviceFunction::ReadInput,
+                inverter: Serial::default(),
+                register: 0,
+                values: vec![],
+            }),
+            ReadInput(_, _, _) => Packet::TranslatedData(TranslatedData {
+                datalog: Serial::default(),
+                device_function: DeviceFunction::ReadInput,
+                inverter: Serial::default(),
+                register: 0,
+                values: vec![],
+            }),
+            ReadHold(_, _, _) => Packet::TranslatedData(TranslatedData {
+                datalog: Serial::default(),
+                device_function: DeviceFunction::ReadHold,
+                inverter: Serial::default(),
+                register: 0,
+                values: vec![],
+            }),
+            ReadParam(_, _) => Packet::TranslatedData(TranslatedData {
+                datalog: Serial::default(),
+                device_function: DeviceFunction::ReadHold, // Using ReadHold as device function
+                inverter: Serial::default(),
+                register: 0,
+                values: vec![],
+            }),
+            WriteParam(_, _, _) => Packet::TranslatedData(TranslatedData {
+                datalog: Serial::default(),
+                device_function: DeviceFunction::WriteSingle, // Using WriteSingle as device function
+                inverter: Serial::default(),
+                register: 0,
+                values: vec![],
+            }),
+            _ => Packet::TranslatedData(TranslatedData {
+                datalog: Serial::default(),
+                device_function: DeviceFunction::WriteSingle,
+                inverter: Serial::default(),
+                register: 0,
+                values: vec![],
+            }),
+        };
+
+        self.increment_packets_sent(&packet);
 
         match command {
             ReadInputs(inverter, 1) => self.read_inputs(inverter, 0_u16, 40).await,
@@ -419,6 +494,14 @@ impl Coordinator {
         // Update packet stats first
         if let Ok(mut stats) = self.stats.lock() {
             stats.packets_received += 1;
+            
+            // Increment counter for specific received packet type
+            match &packet {
+                Packet::Heartbeat(_) => stats.heartbeat_packets_received += 1,
+                Packet::TranslatedData(_) => stats.translated_data_packets_received += 1,
+                Packet::ReadParam(_) => stats.read_param_packets_received += 1,
+                Packet::WriteParam(_) => stats.write_param_packets_received += 1,
+            }
         }
 
         if let Packet::TranslatedData(td) = &packet {
@@ -703,31 +786,40 @@ impl Coordinator {
         info!("Reading holding registers for inverter {}", datalog);
 
         // Add delay between read_hold requests to prevent overwhelming the inverter
-        const DELAY_MS: u64 = 100; // 100ms delay between requests
+        const DELAY_MS: u64 = 1; // 1ms delay between requests
+
+        // Create a packet for stats tracking
+        let packet = Packet::TranslatedData(TranslatedData {
+            datalog: Serial::default(),
+            device_function: DeviceFunction::ReadHold,
+            inverter: Serial::default(),
+            register: 0,
+            values: vec![],
+        });
 
         // We can only read holding registers in blocks of 40. Provisionally,
         // there are 6 pages of 40 values.
-        self.increment_packets_sent();
+        self.increment_packets_sent(&packet);
         self.read_hold(inverter.clone(), 0_u16, 40).await?;
-        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+//        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
         
-        self.increment_packets_sent();
+        self.increment_packets_sent(&packet);
         self.read_hold(inverter.clone(), 40_u16, 40).await?;
-        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+//        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
         
-        self.increment_packets_sent();
+        self.increment_packets_sent(&packet);
         self.read_hold(inverter.clone(), 80_u16, 40).await?;
-        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+//        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
         
-        self.increment_packets_sent();
+        self.increment_packets_sent(&packet);
         self.read_hold(inverter.clone(), 120_u16, 40).await?;
-        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+//        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
         
-        self.increment_packets_sent();
+        self.increment_packets_sent(&packet);
         self.read_hold(inverter.clone(), 160_u16, 40).await?;
-        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
+//        tokio::time::sleep(std::time::Duration::from_millis(DELAY_MS)).await;
         
-        self.increment_packets_sent();
+        self.increment_packets_sent(&packet);
         self.read_hold(inverter.clone(), 200_u16, 40).await?;
 
         // Also send any special interpretive topics which are derived from
@@ -736,25 +828,25 @@ impl Coordinator {
         // FIXME: this is a further 12 round-trips to the inverter to read values
         // we have already taken, just above. We should be able to do better!
         for num in &[1, 2, 3] {
-            self.increment_packets_sent();
+            self.increment_packets_sent(&packet);
             self.read_time_register(
                 inverter.clone(),
                 commands::time_register_ops::Action::AcCharge(*num),
             )
             .await?;
-            self.increment_packets_sent();
+            self.increment_packets_sent(&packet);
             self.read_time_register(
                 inverter.clone(),
                 commands::time_register_ops::Action::ChargePriority(*num),
             )
             .await?;
-            self.increment_packets_sent();
+            self.increment_packets_sent(&packet);
             self.read_time_register(
                 inverter.clone(),
                 commands::time_register_ops::Action::ForcedDischarge(*num),
             )
             .await?;
-            self.increment_packets_sent();
+            self.increment_packets_sent(&packet);
             self.read_time_register(
                 inverter.clone(),
                 commands::time_register_ops::Action::AcFirst(*num),
