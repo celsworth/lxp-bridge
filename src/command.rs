@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Command {
     ReadInputs(config::Inverter, u16),
     ReadInput(config::Inverter, u16, u16),

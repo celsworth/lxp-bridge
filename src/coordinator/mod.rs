@@ -127,17 +127,17 @@ impl Coordinator {
             match message.to_command(inverter) {
                 Ok(command) => {
                     info!("parsed command {:?}", command);
-
-                    let topic_reply = command.to_result_topic();
-                    let result = self.process_command(command).await;
-
-                    let reply = mqtt::ChannelData::Message(mqtt::Message {
-                        topic: topic_reply,
-                        retain: false,
-                        payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
-                    });
-                    if self.channels.to_mqtt.send(reply).is_err() {
-                        bail!("send(to_mqtt) failed - channel closed?");
+                    let result = self.process_command(command.clone()).await;
+                    if result.is_err() {
+                        let topic_reply = command.to_result_topic();
+                        let reply = mqtt::ChannelData::Message(mqtt::Message {
+                            topic: topic_reply,
+                            retain: false,
+                            payload: "FAIL".to_string(),
+                        });
+                        if self.channels.to_mqtt.send(reply).is_err() {
+                            bail!("send(to_mqtt) failed - channel closed?");
+                        }
                     }
                 }
                 Err(err) => {
@@ -580,6 +580,38 @@ impl Coordinator {
                                 if let Ok(mut stats) = self.stats.lock() {
                                     stats.register_cache_errors += 1;
                                 }
+                            }
+                        }
+
+                        // Send the value message first
+                        if self.config.mqtt().enabled() {
+                            let value_message = mqtt::Message {
+                                topic: format!("{}/hold/{}", td.datalog, td.register),
+                                retain: true,
+                                payload: td.value().to_string(),
+                            };
+                            if let Err(e) = self.channels.to_mqtt.send(mqtt::ChannelData::Message(value_message)) {
+                                error!("Failed to send value MQTT message: {}", e);
+                                if let Ok(mut stats) = self.stats.lock() {
+                                    stats.mqtt_errors += 1;
+                                }
+                            } else if let Ok(mut stats) = self.stats.lock() {
+                                stats.mqtt_messages_sent += 1;
+                            }
+
+                            // Then send the OK message
+                            let ok_message = mqtt::Message {
+                                topic: format!("result/{}/read/hold/{}", td.datalog, td.register),
+                                retain: false,
+                                payload: "OK".to_string(),
+                            };
+                            if let Err(e) = self.channels.to_mqtt.send(mqtt::ChannelData::Message(ok_message)) {
+                                error!("Failed to send OK MQTT message: {}", e);
+                                if let Ok(mut stats) = self.stats.lock() {
+                                    stats.mqtt_errors += 1;
+                                }
+                            } else if let Ok(mut stats) = self.stats.lock() {
+                                stats.mqtt_messages_sent += 1;
                             }
                         }
 
