@@ -37,6 +37,8 @@ pub struct PacketStats {
     database_errors: u64,
     register_cache_writes: u64,
     register_cache_errors: u64,
+    // Connection stats
+    inverter_disconnections: u64,
 }
 
 impl PacketStats {
@@ -66,6 +68,8 @@ impl PacketStats {
         info!("  Register Cache:");
         info!("    Writes: {}", self.register_cache_writes);
         info!("    Errors: {}", self.register_cache_errors);
+        info!("  Connection Stats:");
+        info!("    Inverter disconnections: {}", self.inverter_disconnections);
     }
 }
 
@@ -746,7 +750,8 @@ impl Coordinator {
                 // Print statistics when an inverter disconnects
                 Disconnect(serial) => {
                     info!("Inverter {} disconnected, printing statistics:", serial);
-                    if let Ok(stats) = self.stats.lock() {
+                    if let Ok(mut stats) = self.stats.lock() {
+                        stats.inverter_disconnections += 1;
                         stats.print_summary();
                     }
                 }
