@@ -1,5 +1,10 @@
 mod common;
 use common::*;
+use lxp_bridge::prelude::*;
+use lxp_bridge::{influx, config};
+use lxp_bridge::influx::ChannelData;
+use serde_json::json;
+use mockito::Matcher;
 
 #[tokio::test]
 async fn sends_http_request() {

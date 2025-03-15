@@ -1,5 +1,11 @@
 mod common;
 use common::*;
+use lxp_bridge::prelude::*;
+use lxp_bridge::{lxp, mqtt};
+use lxp_bridge::lxp::packet::{DeviceFunction, Packet, TranslatedData};
+use lxp_bridge::lxp::inverter::Serial;
+use lxp_bridge::coordinator::commands::set_hold::SetHold;
+use lxp_bridge::lxp::inverter::ChannelData;
 
 #[tokio::test]
 async fn happy_path() {

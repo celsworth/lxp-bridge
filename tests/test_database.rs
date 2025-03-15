@@ -2,6 +2,9 @@ mod common;
 use common::*;
 
 use {futures::TryStreamExt, sqlx::Row};
+use lxp_bridge::prelude::*;
+use lxp_bridge::{config, database};
+use lxp_bridge::database::ChannelData;
 
 // avoids having to specify return types for row.get()
 fn assert_str_eq(input: &str, expected: &str) {

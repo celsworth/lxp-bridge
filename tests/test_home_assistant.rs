@@ -1,5 +1,8 @@
 mod common;
 use common::*;
+use lxp_bridge::prelude::*;
+use lxp_bridge::{mqtt, home_assistant};
+use lxp_bridge::home_assistant::Config as HomeAssistantConfig;
 
 #[tokio::test]
 async fn all_has_soc() {

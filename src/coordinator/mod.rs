@@ -9,6 +9,7 @@ use serde_json::json;
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ChannelData {
     Shutdown,
+    Packet(lxp::packet::Packet),
 }
 
 pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
@@ -451,47 +452,9 @@ impl Coordinator {
         Ok(())
     }
 
-    async fn inverter_receiver(&self) -> Result<()> {
-        use lxp::inverter::ChannelData::*;
-
-        let mut receiver = self.channels.from_inverter.subscribe();
-
-        let mut inputs_store = InputsStore::new();
-
-        loop {
-            match receiver.recv().await? {
-                Packet(packet) => {
-                    self.process_inverter_packet(packet, &mut inputs_store)
-                        .await?;
-                }
-                Connected(serial) => {
-                    if let Err(e) = self.inverter_connected(serial).await {
-                        error!("{}", e);
-                    }
-                }
-                // Print statistics when an inverter disconnects
-                Disconnect(serial) => {
-                    info!("Inverter {} disconnected, printing statistics:", serial);
-                    if let Ok(stats) = self.stats.lock() {
-                        stats.print_summary();
-                    }
-                }
-                Shutdown => {
-                    info!("Received shutdown signal, printing final statistics:");
-                    if let Ok(stats) = self.stats.lock() {
-                        stats.print_summary();
-                    }
-                    break;
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     async fn process_inverter_packet(
         &self,
-        packet: lxp::packet::Packet,
+        packet: Packet,
         inputs_store: &mut InputsStore,
     ) -> Result<()> {
         debug!("RX: {:?}", packet);
@@ -649,29 +612,32 @@ impl Coordinator {
                 }
 
                 if self.config.mqtt().enabled() {
-                    match Self::packet_to_messages(Packet::TranslatedData(td), self.config.mqtt().publish_individual_input()) {
-                        Ok(messages) => {
-                            for message in messages {
-                                let channel_data = mqtt::ChannelData::Message(message);
-                                match self.channels.to_mqtt.send(channel_data) {
-                                    Ok(_) => {
-                                        if let Ok(mut stats) = self.stats.lock() {
-                                            stats.mqtt_messages_sent += 1;
+                    // Process any individual input messages if enabled
+                    if self.config.mqtt().publish_individual_input() {
+                        match mqtt::Message::for_input(td, true) {
+                            Ok(messages) => {
+                                for message in messages {
+                                    let channel_data = mqtt::ChannelData::Message(message);
+                                    match self.channels.to_mqtt.send(channel_data) {
+                                        Ok(_) => {
+                                            if let Ok(mut stats) = self.stats.lock() {
+                                                stats.mqtt_messages_sent += 1;
+                                            }
                                         }
-                                    }
-                                    Err(e) => {
-                                        error!("Failed to send MQTT message: {}", e);
-                                        if let Ok(mut stats) = self.stats.lock() {
-                                            stats.mqtt_errors += 1;
+                                        Err(e) => {
+                                            error!("Failed to send individual MQTT message: {}", e);
+                                            if let Ok(mut stats) = self.stats.lock() {
+                                                stats.mqtt_errors += 1;
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                        Err(e) => {
-                            error!("Failed to create MQTT messages: {}", e);
-                            if let Ok(mut stats) = self.stats.lock() {
-                                stats.mqtt_errors += 1;
+                            Err(e) => {
+                                error!("Failed to create individual MQTT message: {}", e);
+                                if let Ok(mut stats) = self.stats.lock() {
+                                    stats.mqtt_errors += 1;
+                                }
                             }
                         }
                     }
@@ -679,39 +645,7 @@ impl Coordinator {
 
                 Ok(())
             }
-            Packet::ReadParam(rp) => {
-                if self.config.mqtt().enabled() {
-                    match mqtt::Message::for_param(rp) {
-                        Ok(messages) => {
-                            for message in messages {
-                                let channel_data = mqtt::ChannelData::Message(message);
-                                match self.channels.to_mqtt.send(channel_data) {
-                                    Ok(_) => {
-                                        if let Ok(mut stats) = self.stats.lock() {
-                                            stats.mqtt_messages_sent += 1;
-                                        }
-                                    }
-                                    Err(e) => {
-                                        error!("Failed to send MQTT message: {}", e);
-                                        if let Ok(mut stats) = self.stats.lock() {
-                                            stats.mqtt_errors += 1;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Err(e) => {
-                            error!("Failed to create MQTT messages: {}", e);
-                            if let Ok(mut stats) = self.stats.lock() {
-                                stats.mqtt_errors += 1;
-                            }
-                        }
-                    }
-                }
-
-                Ok(())
-            }
-            Packet::WriteParam(_) => Ok(()), // nothing to do
+            _ => Ok(()),
         }
     }
 
@@ -758,21 +692,43 @@ impl Coordinator {
         Ok(())
     }
 
-    fn packet_to_messages(
-        packet: Packet,
-        publish_individual_input: bool,
-    ) -> Result<Vec<mqtt::Message>> {
-        match packet {
-            Packet::Heartbeat(_) => Ok(Vec::new()), // always no message
-            Packet::TranslatedData(td) => match td.device_function {
-                DeviceFunction::ReadHold => mqtt::Message::for_hold(td),
-                DeviceFunction::ReadInput => mqtt::Message::for_input(td, publish_individual_input),
-                DeviceFunction::WriteSingle => mqtt::Message::for_hold(td),
-                DeviceFunction::WriteMulti => Ok(Vec::new()), // TODO, for_hold might just work
-            },
-            Packet::ReadParam(rp) => mqtt::Message::for_param(rp),
-            Packet::WriteParam(_) => Ok(Vec::new()), // ignoring for now
+    async fn inverter_receiver(&self) -> Result<()> {
+        use lxp::inverter::ChannelData::*;
+
+        let mut receiver = self.channels.from_inverter.subscribe();
+
+        let mut inputs_store = InputsStore::new();
+
+        loop {
+            match receiver.recv().await? {
+                Packet(packet) => {
+                    if let Err(e) = self.process_inverter_packet(packet, &mut inputs_store).await {
+                        warn!("Failed to process packet: {}", e);
+                    }
+                }
+                Connected(serial) => {
+                    if let Err(e) = self.inverter_connected(serial).await {
+                        error!("{}", e);
+                    }
+                }
+                // Print statistics when an inverter disconnects
+                Disconnect(serial) => {
+                    info!("Inverter {} disconnected, printing statistics:", serial);
+                    if let Ok(stats) = self.stats.lock() {
+                        stats.print_summary();
+                    }
+                }
+                Shutdown => {
+                    info!("Received shutdown signal, printing final statistics:");
+                    if let Ok(stats) = self.stats.lock() {
+                        stats.print_summary();
+                    }
+                    break;
+                }
+            }
         }
+
+        Ok(())
     }
 
     async fn inverter_connected(&self, datalog: Serial) -> Result<()> {

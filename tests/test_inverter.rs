@@ -1,5 +1,11 @@
 mod common;
 use common::*;
+use lxp_bridge::prelude::*;
+use lxp_bridge::{lxp, config};
+use lxp_bridge::lxp::packet::Packet;
+use lxp_bridge::lxp::inverter::Serial;
+use lxp_bridge::lxp::packet::{DeviceFunction, TranslatedData};
+use lxp_bridge::lxp::inverter::ChannelData;
 
 // these tests are shonky, I need to work on how to test the inverter code reliably
 
@@ -116,7 +122,7 @@ async fn test_replies_to_heartbeats() {
     let channels = Channels::new();
     let inverter = lxp::inverter::Inverter::new(config, &inverter, channels.clone());
 
-    let from_inverter = channels.from_inverter.subscribe();
+    let _from_inverter = channels.from_inverter.subscribe();
 
     let tf = async {
         // pretend to be an inverter

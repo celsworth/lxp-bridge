@@ -1,5 +1,12 @@
 mod common;
 use common::*;
+use lxp_bridge::prelude::*;
+use lxp_bridge::{lxp, mqtt};
+use lxp_bridge::lxp::packet::{DeviceFunction, Packet, TranslatedData};
+use lxp_bridge::lxp::inverter::Serial;
+use lxp_bridge::mqtt::Message;
+use lxp_bridge::coordinator::ChannelData;
+use tokio::sync::broadcast::error::TryRecvError;
 
 #[tokio::test]
 async fn publishes_read_hold_mqtt() {
@@ -125,6 +132,8 @@ async fn complete_path_read_hold_command() {
     common_setup();
 
     let config = Factory::example_config_wrapped();
+    config.influx_mut().enabled = false;
+    config.databases_mut()[0].enabled = false;
 
     let inverter = config.inverters()[0].clone();
 
@@ -136,6 +145,8 @@ async fn complete_path_read_hold_command() {
         let mut to_inverter = channels.to_inverter.subscribe();
         let mut to_mqtt = channels.to_mqtt.subscribe();
         let mut to_register_cache = channels.to_register_cache.subscribe();
+        let mut to_influx = channels.to_influx.subscribe();
+        let mut to_db = channels.to_database.subscribe();
 
         // simulate:
         //   mqtt incoming "read this hold" command
@@ -193,13 +204,9 @@ async fn complete_path_read_hold_command() {
             })
         );
 
-        // verify register_cache is set
-        let register_cache::ChannelData::RegisterData(a, b) = to_register_cache.recv().await?
-        else {
-            unreachable!()
-        };
-        assert_eq!(a, 12);
-        assert_eq!(b, 1558);
+        // verify nothing sent to influx or database
+        assert_eq!(to_influx.try_recv(), Err(TryRecvError::Empty));
+        assert_eq!(to_db.try_recv(), Err(TryRecvError::Empty));
 
         coordinator.stop();
 

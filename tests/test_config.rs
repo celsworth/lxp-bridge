@@ -1,7 +1,12 @@
 mod common;
 use common::*;
+use lxp_bridge::prelude::*;
+use lxp_bridge::mqtt;
 use lxp_bridge::config;
 use lxp_bridge::lxp;
+use std::str::FromStr;
+use serde_json::json;
+use lxp_bridge::config::Config;
 
 pub fn example_serial() -> lxp::inverter::Serial {
     lxp::inverter::Serial::from_str("TESTSERIAL").unwrap()
