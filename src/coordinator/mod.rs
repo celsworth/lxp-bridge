@@ -9,14 +9,88 @@ pub enum ChannelData {
     Shutdown,
 }
 
+#[derive(Default)]
+pub struct PacketStats {
+    packets_received: u64,
+    packets_sent: u64,
+    // Received packet counters
+    heartbeat_packets_received: u64,
+    translated_data_packets_received: u64,
+    read_param_packets_received: u64,
+    write_param_packets_received: u64,
+    // Sent packet counters
+    heartbeat_packets_sent: u64,
+    translated_data_packets_sent: u64,
+    read_param_packets_sent: u64,
+    write_param_packets_sent: u64,
+    // Other stats
+    mqtt_messages_sent: u64,
+    mqtt_errors: u64,
+    influx_writes: u64,
+    influx_errors: u64,
+    database_writes: u64,
+    database_errors: u64,
+    register_cache_writes: u64,
+    register_cache_errors: u64,
+    // Connection stats
+    inverter_disconnections: std::collections::HashMap<Serial, u64>,
+    serial_mismatches: u64,
+    // Last message received per inverter
+    last_messages: std::collections::HashMap<Serial, String>,
+}
+
+impl PacketStats {
+    pub fn print_summary(&self) {
+        info!("Packet Statistics:");
+        info!("  Total packets received: {}", self.packets_received);
+        info!("  Total packets sent: {}", self.packets_sent);
+        info!("  Received Packet Types:");
+        info!("    Heartbeat packets: {}", self.heartbeat_packets_received);
+        info!("    TranslatedData packets: {}", self.translated_data_packets_received);
+        info!("    ReadParam packets: {}", self.read_param_packets_received);
+        info!("    WriteParam packets: {}", self.write_param_packets_received);
+        info!("  Sent Packet Types:");
+        info!("    Heartbeat packets: {}", self.heartbeat_packets_sent);
+        info!("    TranslatedData packets: {}", self.translated_data_packets_sent);
+        info!("    ReadParam packets: {}", self.read_param_packets_sent);
+        info!("    WriteParam packets: {}", self.write_param_packets_sent);
+        info!("  MQTT:");
+        info!("    Messages sent: {}", self.mqtt_messages_sent);
+        info!("    Errors: {}", self.mqtt_errors);
+        info!("  InfluxDB:");
+        info!("    Writes: {}", self.influx_writes);
+        info!("    Errors: {}", self.influx_errors);
+        info!("  Database:");
+        info!("    Writes: {}", self.database_writes);
+        info!("    Errors: {}", self.database_errors);
+        info!("  Register Cache:");
+        info!("    Writes: {}", self.register_cache_writes);
+        info!("    Errors: {}", self.register_cache_errors);
+        info!("  Connection Stats:");
+        info!("    Serial number mismatches: {}", self.serial_mismatches);
+        info!("    Inverter disconnections by serial:");
+        for (serial, count) in &self.inverter_disconnections {
+            info!("      {}: {}", serial, count);
+            if let Some(last_msg) = self.last_messages.get(serial) {
+                info!("      Last message: {}", last_msg);
+            }
+        }
+    }
+}
+
 pub struct Coordinator {
     config: ConfigWrapper,
     channels: Channels,
+    stats: std::sync::Arc<std::sync::Mutex<PacketStats>>,
 }
 
 impl Coordinator {
     pub fn new(config: ConfigWrapper, channels: Channels) -> Self {
-        Self { config, channels }
+        Self { 
+            config, 
+            channels,
+            stats: std::sync::Arc::new(std::sync::Mutex::new(PacketStats::default())),
+        }
     }
 
     pub async fn start(&self) -> Result<()> {
@@ -328,9 +402,20 @@ impl Coordinator {
                         error!("{}", e);
                     }
                 }
-                // this loop holds no state so doesn't care about inverter disconnects
-                Disconnect(_) => {}
-                Shutdown => break,
+                Disconnect(serial) => {
+                    info!("Inverter {} disconnected, printing statistics:", serial);
+                    if let Ok(mut stats) = self.stats.lock() {
+                        *stats.inverter_disconnections.entry(serial).or_insert(0) += 1;
+                        stats.print_summary();
+                    }
+                }
+                Shutdown => {
+                    info!("Received shutdown signal, printing final statistics:");
+                    if let Ok(stats) = self.stats.lock() {
+                        stats.print_summary();
+                    }
+                    break;
+                }
             }
         }
 
@@ -339,6 +424,24 @@ impl Coordinator {
 
     async fn process_inverter_packet(&self, packet: lxp::packet::Packet) -> Result<()> {
         debug!("RX: {:?}", packet);
+
+        // Update packet stats first
+        if let Ok(mut stats) = self.stats.lock() {
+            stats.packets_received += 1;
+            
+            // Store last message for the inverter
+            if let Packet::TranslatedData(td) = &packet {
+                stats.last_messages.insert(td.datalog, format!("{:?}", packet));
+            }
+            
+            // Increment counter for specific received packet type
+            match &packet {
+                Packet::Heartbeat(_) => stats.heartbeat_packets_received += 1,
+                Packet::TranslatedData(_) => stats.translated_data_packets_received += 1,
+                Packet::ReadParam(_) => stats.read_param_packets_received += 1,
+                Packet::WriteParam(_) => stats.write_param_packets_received += 1,
+            }
+        }
 
         if let Packet::TranslatedData(td) = &packet {
             // temporary special greppable logging for Param packets as I try to
@@ -354,7 +457,6 @@ impl Coordinator {
                     let register_map = td.register_map();
                     let parser = lxp::register_parser::Parser::new(register_map.clone());
                     let parsed_inputs = parser.parse_inputs()?;
-                    //debug!("{}", serde_json::to_string(&parsed_inputs)?);
 
                     if self.config.mqtt().enabled() {
                         // individual message publishing, raw and parsed
@@ -403,6 +505,9 @@ impl Coordinator {
                                 if self.channels.to_influx.send(channel_data).is_err() {
                                     bail!("send(to_influx) failed - channel closed?");
                                 }
+                                if let Ok(mut stats) = self.stats.lock() {
+                                    stats.influx_writes += 1;
+                                }
                             }
                         };
 
@@ -416,8 +521,10 @@ impl Coordinator {
                     let parser = lxp::register_parser::Parser::new(register_map.clone());
                     let parsed_holds = parser.parse_holds()?;
 
-                    self.publish_raw_hold_messages(td)?;
-                    self.publish_parsed_hold_messages(td, &parsed_holds)?;
+                    if self.config.mqtt().enabled() {
+                        self.publish_raw_hold_messages(td)?;
+                        self.publish_parsed_hold_messages(td, &parsed_holds)?;
+                    }
 
                     if td.device_function == DeviceFunction::WriteSingle {
                         let inverter = self.inverter_config_for_datalog(td.datalog)?;
@@ -555,7 +662,13 @@ impl Coordinator {
         };
         let channel_data = mqtt::ChannelData::Message(m);
         if self.channels.to_mqtt.send(channel_data).is_err() {
+            if let Ok(mut stats) = self.stats.lock() {
+                stats.mqtt_errors += 1;
+            }
             bail!("send(to_mqtt) failed - channel closed?");
+        }
+        if let Ok(mut stats) = self.stats.lock() {
+            stats.mqtt_messages_sent += 1;
         }
         Ok(())
     }
@@ -650,7 +763,13 @@ impl Coordinator {
         let channel_data = register_cache::ChannelData::RegisterData(register, value);
 
         if self.channels.register_cache.send(channel_data).is_err() {
+            if let Ok(mut stats) = self.stats.lock() {
+                stats.register_cache_errors += 1;
+            }
             bail!("send(to_register_cache) failed - channel closed?");
+        }
+        if let Ok(mut stats) = self.stats.lock() {
+            stats.register_cache_writes += 1;
         }
 
         Ok(())
