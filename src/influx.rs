@@ -67,10 +67,10 @@ impl Influx {
                     break;
                 }
                 InputData(data) => {
-                    debug!("InfluxDB processing input data: {:?}", data);
+                    trace!("InfluxDB processing input data: {:?}", data);
                     for (key, value) in data.as_object().ok_or_else(|| anyhow!("Invalid data format"))? {
                         let key = key.to_string();
-                        debug!("Processing field: {} = {:?}", key, value);
+                        trace!("Processing field: {} = {:?}", key, value);
 
                         line = if key == "time" {
                             let value = value.as_i64().unwrap_or_else(|| {
@@ -99,13 +99,13 @@ impl Influx {
                     }
 
                     let lines = vec![line.build()];
-                    debug!("Sending to InfluxDB: {:?}", lines);
+                    trace!("Sending to InfluxDB: {:?}", lines);
 
                     let mut retry_count = 0;
                     while retry_count < 3 {
                         match client.send(&self.database(), &lines).await {
                             Ok(_) => {
-                                debug!("Successfully sent data to InfluxDB");
+                                trace!("Successfully sent data to InfluxDB");
                                 break;
                             }
                             Err(err) => {

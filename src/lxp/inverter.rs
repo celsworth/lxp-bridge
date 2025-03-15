@@ -20,7 +20,7 @@ pub type Receiver = broadcast::Receiver<ChannelData>;
 #[async_trait]
 pub trait WaitForReply {
     #[cfg(not(feature = "mocks"))]
-    const TIMEOUT: u64 = 10;
+    const TIMEOUT: u64 = 30;
 
     #[cfg(feature = "mocks")]
     const TIMEOUT: u64 = 0; // fail immediately in tests
@@ -240,8 +240,8 @@ impl Inverter {
         use tokio::time::timeout;
         use {bytes::BytesMut, tokio_util::codec::Decoder};
 
-        const MAX_BUFFER_SIZE: usize = 16384; // 16KB max buffer size
-        let mut buf = BytesMut::with_capacity(1024); // Start with 1KB
+        const MAX_BUFFER_SIZE: usize = 65536; // 64KB max buffer size
+        let mut buf = BytesMut::with_capacity(MAX_BUFFER_SIZE); // Start with MAX_BUFFER_SIZE
         let mut decoder = lxp::packet_decoder::PacketDecoder::new();
         let inverter_config = self.config();
         let mut shutdown_rx = self.channels.to_inverter.subscribe();

@@ -117,6 +117,11 @@ impl Coordinator {
     }
 
     async fn process_message(&self, message: mqtt::Message) -> Result<()> {
+        // If MQTT is disabled, don't process any messages
+        if !self.config.mqtt().enabled() {
+            return Ok(());
+        }
+
         for inverter in self.config.inverters_for_message(&message)? {
             match message.to_command(inverter) {
                 Ok(command) => {
@@ -125,15 +130,13 @@ impl Coordinator {
                     let topic_reply = command.to_result_topic();
                     let result = self.process_command(command).await;
 
-                    if self.config.mqtt().enabled() {
-                        let reply = mqtt::ChannelData::Message(mqtt::Message {
-                            topic: topic_reply,
-                            retain: false,
-                            payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
-                        });
-                        if self.channels.to_mqtt.send(reply).is_err() {
-                            bail!("send(to_mqtt) failed - channel closed?");
-                        }
+                    let reply = mqtt::ChannelData::Message(mqtt::Message {
+                        topic: topic_reply,
+                        retain: false,
+                        payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
+                    });
+                    if self.channels.to_mqtt.send(reply).is_err() {
+                        bail!("send(to_mqtt) failed - channel closed?");
                     }
                 }
                 Err(err) => {
@@ -369,6 +372,7 @@ impl Coordinator {
         commands::time_register_ops::ReadTimeRegister::new(
             self.channels.clone(),
             inverter.clone(),
+            self.config.clone(),
             action,
         )
         .run()
@@ -405,6 +409,7 @@ impl Coordinator {
         commands::time_register_ops::SetTimeRegister::new(
             self.channels.clone(),
             inverter.clone(),
+            self.config.clone(),
             action,
             values,
         )
