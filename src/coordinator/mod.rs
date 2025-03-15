@@ -38,7 +38,8 @@ pub struct PacketStats {
     register_cache_writes: u64,
     register_cache_errors: u64,
     // Connection stats
-    inverter_disconnections: u64,
+    inverter_disconnections: std::collections::HashMap<Serial, u64>,
+    serial_mismatches: u64,
 }
 
 impl PacketStats {
@@ -69,7 +70,11 @@ impl PacketStats {
         info!("    Writes: {}", self.register_cache_writes);
         info!("    Errors: {}", self.register_cache_errors);
         info!("  Connection Stats:");
-        info!("    Inverter disconnections: {}", self.inverter_disconnections);
+        info!("    Serial number mismatches: {}", self.serial_mismatches);
+        info!("    Inverter disconnections by serial:");
+        for (serial, count) in &self.inverter_disconnections {
+            info!("      {}: {}", serial, count);
+        }
     }
 }
 
@@ -490,6 +495,9 @@ impl Coordinator {
                         packet_serial,
                         packet_datalog
                     );
+                    if let Ok(mut stats) = self.stats.lock() {
+                        stats.serial_mismatches += 1;
+                    }
                 }
             }
 
@@ -751,7 +759,7 @@ impl Coordinator {
                 Disconnect(serial) => {
                     info!("Inverter {} disconnected, printing statistics:", serial);
                     if let Ok(mut stats) = self.stats.lock() {
-                        stats.inverter_disconnections += 1;
+                        *stats.inverter_disconnections.entry(serial).or_insert(0) += 1;
                         stats.print_summary();
                     }
                 }
