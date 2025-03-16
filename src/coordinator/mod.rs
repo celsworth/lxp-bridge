@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 pub mod commands;
 
-use lxp::packet::{DeviceFunction, TcpFunction};
+use lxp::packet::DeviceFunction;
 
 #[derive(Eq, PartialEq, Debug, Clone)]
 pub enum ChannelData {
@@ -425,123 +425,228 @@ impl Coordinator {
     async fn process_inverter_packet(&self, packet: lxp::packet::Packet) -> Result<()> {
         debug!("RX: {:?}", packet);
 
-        // Update packet stats first
+        // Update packet stats first, with error logging
         if let Ok(mut stats) = self.stats.lock() {
             stats.packets_received += 1;
             
-            // Store last message for the inverter
-            if let Packet::TranslatedData(td) = &packet {
-                stats.last_messages.insert(td.datalog, format!("{:?}", packet));
-            }
-            
-            // Increment counter for specific received packet type
+            // Store last message and increment type counter
             match &packet {
                 Packet::Heartbeat(_) => stats.heartbeat_packets_received += 1,
-                Packet::TranslatedData(_) => stats.translated_data_packets_received += 1,
+                Packet::TranslatedData(td) => {
+                    stats.translated_data_packets_received += 1;
+                    stats.last_messages.insert(td.datalog, format!("{:?}", packet));
+                }
                 Packet::ReadParam(_) => stats.read_param_packets_received += 1,
                 Packet::WriteParam(_) => stats.write_param_packets_received += 1,
             }
+        } else {
+            warn!("Failed to lock stats mutex for packet tracking");
         }
 
-        if let Packet::TranslatedData(td) = &packet {
-            // temporary special greppable logging for Param packets as I try to
-            // work out what they do :)
-            if td.tcp_function() == TcpFunction::ReadParam
-                || td.tcp_function() == TcpFunction::WriteParam
-            {
-                warn!("got a Param packet! {:?}", td);
+        // Process different packet types
+        match &packet {
+            Packet::TranslatedData(td) => {
+                self.process_translated_data(td).await?;
             }
+            Packet::Heartbeat(hb) => {
+                // Validate heartbeat serial
+                if let Err(e) = self.inverter_config_for_datalog(hb.datalog) {
+                    warn!("Received heartbeat from unknown inverter {}: {}", hb.datalog, e);
+                    if let Ok(mut stats) = self.stats.lock() {
+                        stats.serial_mismatches += 1;
+                    }
+                }
+                debug!("Received heartbeat from inverter {}", hb.datalog);
+            }
+            Packet::ReadParam(p) => {
+                // Validate param packet serial
+                if let Err(e) = self.inverter_config_for_datalog(p.datalog) {
+                    warn!("Received ReadParam from unknown inverter {}: {}", p.datalog, e);
+                    if let Ok(mut stats) = self.stats.lock() {
+                        stats.serial_mismatches += 1;
+                    }
+                }
+                debug!("Received ReadParam: {:?}", p);
+            }
+            Packet::WriteParam(p) => {
+                // Validate param packet serial
+                if let Err(e) = self.inverter_config_for_datalog(p.datalog) {
+                    warn!("Received WriteParam from unknown inverter {}: {}", p.datalog, e);
+                    if let Ok(mut stats) = self.stats.lock() {
+                        stats.serial_mismatches += 1;
+                    }
+                }
+                debug!("Received WriteParam: {:?}", p);
+            }
+        }
 
-            match td.device_function {
-                DeviceFunction::ReadInput => {
-                    let register_map = td.register_map();
-                    let parser = lxp::register_parser::Parser::new(register_map.clone());
-                    let parsed_inputs = parser.parse_inputs()?;
+        Ok(())
+    }
 
-                    if self.config.mqtt().enabled() {
-                        // individual message publishing, raw and parsed
-                        self.publish_raw_input_messages(td)?;
-                        self.publish_parsed_input_messages(td, &parsed_inputs)?;
+    // Split out TranslatedData handling for better organization
+    async fn process_translated_data(&self, td: &lxp::packet::TranslatedData) -> Result<()> {
+        // Validate inverter is enabled before processing
+        let inverter = match self.inverter_config_for_datalog(td.datalog) {
+            Ok(inv) => inv,
+            Err(e) => {
+                if let Ok(mut stats) = self.stats.lock() {
+                    stats.serial_mismatches += 1;
+                }
+                warn!("Received packet from unknown inverter {}: {}", td.datalog, e);
+                return Ok(());
+            }
+        };
 
-                        // inputs/1/2/3/4
-                        if let Some(topic_fragment) = parser.guess_legacy_inputs_topic() {
-                            self.publish_combined_parsed_input_message(
+        // Log all TCP function types for debugging
+        debug!("TCP function for packet: {:?}", td.tcp_function());
+
+        // Get register map
+        let register_map = td.register_map();
+
+        match td.device_function {
+            DeviceFunction::ReadInput => {
+                let parser = lxp::register_parser::Parser::new(register_map.clone());
+                let parsed_inputs = match parser.parse_inputs() {
+                    Ok(inputs) => inputs,
+                    Err(e) => {
+                        error!("Failed to parse inputs: {:?}", e);
+                        return Err(anyhow!("Parse error: {}", e));
+                    }
+                };
+
+                if self.config.mqtt().enabled() {
+                    // Use ? for early return but continue processing on publish errors
+                    if let Err(e) = self.publish_raw_input_messages(td) {
+                        error!("Failed to publish raw input messages: {}", e);
+                    }
+                    if let Err(e) = self.publish_parsed_input_messages(td, &parsed_inputs) {
+                        error!("Failed to publish parsed input messages: {}", e);
+                    }
+
+                    if let Some(topic_fragment) = parser.guess_legacy_inputs_topic() {
+                        if let Err(e) = self.publish_combined_parsed_input_message(
+                            td,
+                            &parsed_inputs,
+                            topic_fragment,
+                        ) {
+                            error!("Failed to publish combined input message: {}", e);
+                        }
+                    }
+                }
+
+                // Cache registers with error handling for each
+                for (register, value) in register_map.clone() {
+                    if let Err(e) = self.cache_register(register_cache::Register::Input(register), value) {
+                        error!("Failed to cache register {}: {}", register, e);
+                    }
+                }
+
+                if parser.contains_register(self.config.publish_inputs_all_trigger()) {
+                    let cache = register_cache::RegisterCache::dump(
+                        &self.channels,
+                        register_cache::AllRegisters::Input,
+                    )
+                    .await;
+                    let all_parser = lxp::register_parser::Parser::new(cache);
+                    if all_parser.guess_legacy_inputs_topic() == Some("all") {
+                        let all_parsed_inputs = match all_parser.parse_inputs() {
+                            Ok(inputs) => inputs,
+                            Err(e) => {
+                                error!("Failed to parse all inputs: {:?}", e);
+                                return Err(anyhow!("Parse error: {}", e));
+                            }
+                        };
+                        
+                        if self.config.mqtt().enabled() {
+                            if let Err(e) = self.publish_combined_parsed_input_message(
                                 td,
-                                &parsed_inputs,
-                                topic_fragment,
-                            )?;
-                        };
-                    }
-
-                    for (register, value) in register_map {
-                        self.cache_register(register_cache::Register::Input(register), value)?;
-                    }
-
-                    // if we've seen the triggering register in config.publish_inputs_all_trigger
-                    // then feed contents of cache_register into a new parser;
-                    // which should get us "all". feed that to mqtt+influx
-                    if parser.contains_register(self.config.publish_inputs_all_trigger()) {
-                        let cache = register_cache::RegisterCache::dump(
-                            &self.channels,
-                            register_cache::AllRegisters::Input,
-                        )
-                        .await;
-                        let all_parser = lxp::register_parser::Parser::new(cache);
-                        if all_parser.guess_legacy_inputs_topic() == Some("all") {
-                            let all_parsed_inputs = all_parser.parse_inputs()?;
-                            if self.config.mqtt().enabled() {
-                                // inputs/all
-                                self.publish_combined_parsed_input_message(
-                                    td,
-                                    &all_parsed_inputs,
-                                    "all",
-                                )?;
+                                &all_parsed_inputs,
+                                "all",
+                            ) {
+                                error!("Failed to publish all inputs message: {}", e);
                             }
-                            if self.config.influx().enabled() {
-                                let channel_data = influx::ChannelData::InputData(
-                                    td.datalog(),
-                                    all_parsed_inputs.clone(),
-                                );
-                                if self.channels.to_influx.send(channel_data).is_err() {
-                                    bail!("send(to_influx) failed - channel closed?");
-                                }
+                        }
+                        if self.config.influx().enabled() {
+                            let channel_data = influx::ChannelData::InputData(
+                                td.datalog(),
+                                all_parsed_inputs.clone(),
+                            );
+                            if self.channels.to_influx.send(channel_data).is_err() {
                                 if let Ok(mut stats) = self.stats.lock() {
-                                    stats.influx_writes += 1;
+                                    stats.influx_errors += 1;
                                 }
+                                error!("Failed to send data to InfluxDB - channel closed");
+                            } else if let Ok(mut stats) = self.stats.lock() {
+                                stats.influx_writes += 1;
                             }
-                        };
+                        }
+                    }
 
-                        // clear the cache so we start over next time
-                        register_cache::RegisterCache::clear(&self.channels).await;
+                    register_cache::RegisterCache::clear(&self.channels).await;
+                }
+            }
+            DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
+                let parser = lxp::register_parser::Parser::new(register_map.clone());
+                let parsed_holds = match parser.parse_holds() {
+                    Ok(holds) => holds,
+                    Err(e) => {
+                        error!("Failed to parse holds: {:?}", e);
+                        return Err(anyhow!("Parse error: {}", e));
+                    }
+                };
+
+                if self.config.mqtt().enabled() {
+                    if let Err(e) = self.publish_raw_hold_messages(td) {
+                        error!("Failed to publish raw hold messages: {}", e);
+                    }
+                    if let Err(e) = self.publish_parsed_hold_messages(td, &parsed_holds) {
+                        error!("Failed to publish parsed hold messages: {}", e);
                     }
                 }
-                DeviceFunction::ReadHold | DeviceFunction::WriteSingle => {
-                    let register_map = td.register_map();
 
-                    let parser = lxp::register_parser::Parser::new(register_map.clone());
-                    let parsed_holds = parser.parse_holds()?;
-
-                    if self.config.mqtt().enabled() {
-                        self.publish_raw_hold_messages(td)?;
-                        self.publish_parsed_hold_messages(td, &parsed_holds)?;
+                if td.device_function == DeviceFunction::WriteSingle {
+                    if let Err(e) = self.maybe_send_read_holds(register_map, inverter).await {
+                        error!("Failed to read related holds: {}", e);
                     }
-
-                    if td.device_function == DeviceFunction::WriteSingle {
-                        let inverter = self.inverter_config_for_datalog(td.datalog)?;
-                        // if register_map contains an interesting register that's
-                        // part of a multi-register setup (like AC Charge times) then
-                        // issue a ReadHold request to get the other parts so register_parser
-                        // can construct an MQTT message to send out with current data
-                        self.maybe_send_read_holds(register_map, inverter).await?;
-                    }
-
-                    /* not used yet
-                    for (register, value) in register_map {
-                      self.cache_register(register_cache::Register::Hold(register), value)?;
-                    }
-                    */
                 }
-                DeviceFunction::WriteMulti => {}
+            }
+            DeviceFunction::WriteMulti => {
+                let parser = lxp::register_parser::Parser::new(register_map.clone());
+                let parsed_holds = match parser.parse_holds() {
+                    Ok(holds) => holds,
+                    Err(e) => {
+                        error!("Failed to parse holds: {:?}", e);
+                        return Err(anyhow!("Parse error: {}", e));
+                    }
+                };
+
+                // Process each register in the write operation
+                for (register, value) in register_map.clone() {
+                    if let Err(e) = self.cache_register(register_cache::Register::Hold(register), value) {
+                        error!("Failed to cache register {}: {}", register, e);
+                    }
+                }
+
+                // Publish parsed holds like ReadHold
+                if self.config.mqtt().enabled() {
+                    if let Err(e) = self.publish_raw_hold_messages(td) {
+                        error!("Failed to publish raw hold messages: {}", e);
+                    }
+                    if let Err(e) = self.publish_parsed_hold_messages(td, &parsed_holds) {
+                        error!("Failed to publish parsed hold messages: {}", e);
+                    }
+                    
+                    // Publish write confirmation
+                    let topic = format!("{}/write_multi/status", td.datalog);
+                    if let Err(e) = self.publish_message(topic, "OK".to_string(), false) {
+                        error!("Failed to publish write confirmation: {}", e);
+                    }
+                }
+
+                // Check for multi-register setups that might need updating
+                if let Err(e) = self.maybe_send_read_holds(register_map, inverter).await {
+                    error!("Failed to read related holds: {}", e);
+                }
             }
         }
 
