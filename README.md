@@ -1,5 +1,7 @@
 > lxp-bridge is no longer being maintained - please feel free to fork and take over development - open a Discussion item to let us know!
 
+Please see [jaredmauch/eg4-bridge](https://github.com/jaredmauch/eg4-bridge) for a maintained alternative. Thanks Jared for picking this up!
+
 # lxp-bridge
 
 lxp-bridge is a tool to communicate with a LuxPower inverter (commonly used with home-battery and solar setups), written in Rust.
